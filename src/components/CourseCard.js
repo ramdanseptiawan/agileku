@@ -1,13 +1,16 @@
 import React from 'react';
 import { Clock, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
 
 const CourseCard = ({ course, onStartLearning }) => {
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
       <div className="relative">
-        <img 
+        <Image 
           src={course.image} 
           alt={course.title}
+          width={400}
+          height={192}
           className="w-full h-48 object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />

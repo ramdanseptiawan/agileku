@@ -350,7 +350,7 @@ const CourseForm = ({ course, onSave, onCancel }) => {
 
             {formData.lessons.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                <p>No lessons added yet. Click "Add Lesson" to get started.</p>
+                <p>No lessons added yet. Click &quot;Add Lesson&quot; to get started.</p>
               </div>
             )}
           </div>
@@ -440,7 +440,7 @@ const CourseForm = ({ course, onSave, onCancel }) => {
 
             {formData.preTest.questions.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                <p>No questions added yet. Click "Add Question" to get started.</p>
+                <p>No questions added yet. Click &quot;Add Question&quot; to get started.</p>
               </div>
             )}
           </div>
@@ -530,7 +530,7 @@ const CourseForm = ({ course, onSave, onCancel }) => {
 
             {formData.postTest.questions.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                <p>No questions added yet. Click "Add Question" to get started.</p>
+                <p>No questions added yet. Click &quot;Add Question&quot; to get started.</p>
               </div>
             )}
           </div>

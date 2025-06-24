@@ -165,11 +165,11 @@ const AdminDashboard = () => {
               <div className="space-y-3">
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-green-400 rounded-full mr-3"></div>
-                  Course "JavaScript Fundamentals" was updated
+                  Course &quot;JavaScript Fundamentals&quot; was updated
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-blue-400 rounded-full mr-3"></div>
-                  New student enrolled in "React Development"
+                  New student enrolled in &quot;React Development&quot;
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="w-2 h-2 bg-purple-400 rounded-full mr-3"></div>
