@@ -1,103 +1,142 @@
-import Image from "next/image";
+'use client';
+import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import Login from '../components/Login';
+import Header from '../components/Header';
+import Sidebar from '../components/Sidebar';
+import Dashboard from '../components/Dashboard';
+import AdminDashboard from '../components/AdminDashboard';
+import CourseView from '../components/CourseView';
+import Profile from '../components/Profile';
 
-export default function Home() {
+const LMS = () => {
+  const { currentUser, isLoading, courses, updateCourses } = useAuth();
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [currentLesson, setCurrentLesson] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [progress, setProgress] = useState({
+    reading: {},
+    video: {},
+    preTest: {},
+    postTest: {}
+  });
+  const [showQuizResult, setShowQuizResult] = useState(false);
+  const [currentQuizScore, setCurrentQuizScore] = useState(0);
+
+  const handleQuizSubmit = (quizId, isPreTest, quizAnswers) => {
+    const currentCourse = courses.find(c => 
+      (isPreTest ? c.preTest.id === quizId : c.postTest.id === quizId)
+    );
+    const quiz = isPreTest ? currentCourse.preTest : currentCourse.postTest;
+    
+    let score = 0;
+    quiz.questions.forEach(q => {
+      if (quizAnswers[q.id] === q.correct) score++;
+    });
+    
+    const percentage = Math.round((score / quiz.questions.length) * 100);
+    setCurrentQuizScore(percentage);
+    setShowQuizResult(true);
+    
+    // Update progress
+    const progressKey = isPreTest ? 'preTest' : 'postTest';
+    setProgress(prev => ({
+      ...prev,
+      [progressKey]: { ...prev[progressKey], [quizId]: percentage }
+    }));
+  };
+
+  const handleRetakeQuiz = () => {
+    setShowQuizResult(false);
+  };
+
+  const handleStartLearning = (course) => {
+    setCurrentLesson(course);
+    setCurrentView('course');
+    // Close sidebar on mobile
+    if (window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    }
+  };
+
+  const handleBackToDashboard = () => {
+    setCurrentView('dashboard');
+    setCurrentLesson(null);
+  };
+
+  const handleMarkComplete = (lessonId) => {
+    setProgress(prev => ({
+      ...prev,
+      reading: { ...prev.reading, [lessonId]: 100 }
+    }));
+  };
+
+  const handleUpdateCourses = (updatedCourses) => {
+    updateCourses(updatedCourses);
+  };
+
+  // Show loading spinner while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Show login if user is not authenticated
+  if (!currentUser) {
+    return <Login />;
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+    <div className="min-h-screen bg-gray-50 lg:flex">
+      {/* Header for mobile */}
+      <Header 
+        isSidebarOpen={isSidebarOpen} 
+        setIsSidebarOpen={setIsSidebarOpen} 
+      />
+      
+      {/* Sidebar */}
+      <Sidebar 
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+        userRole={currentUser.role}
+      />
+      
+      {/* Main Content */}
+      <div className="w-full lg:flex-1 pt-16 lg:pt-0 pb-20 lg:pb-0">
+        <div className="p-4 sm:p-6 lg:p-8">
+          {currentView === 'dashboard' && currentUser.role === 'user' && (
+            <Dashboard 
+              onStartLearning={handleStartLearning}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          )}
+          
+          {currentView === 'dashboard' && currentUser.role === 'admin' && (
+            <AdminDashboard />
+          )}
+          
+          {currentView === 'course' && (
+            <CourseView 
+              currentLesson={currentLesson}
+              onBack={handleBackToDashboard}
+              progress={progress}
+              onQuizSubmit={handleQuizSubmit}
+              showQuizResult={showQuizResult}
+              currentQuizScore={currentQuizScore}
+              onRetakeQuiz={handleRetakeQuiz}
+              onMarkComplete={handleMarkComplete}
+            />
+          )}
+          
+          {currentView === 'profile' && <Profile />}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
-}
+};
+
+export default LMS;
