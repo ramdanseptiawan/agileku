@@ -1,35 +1,103 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BookOpen, Video, FileText, CheckCircle, Award } from 'lucide-react';
+import { ArrowLeft, BookOpen, Video, FileText, CheckCircle, Award, Upload, Target } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import IntroductoryMaterial from './IntroductoryMaterial';
 import LessonContent from './LessonContent';
 import Quiz from './Quiz';
+import PreTest from './PreTest';
+import PostTestSurvey from './PostTestSurvey';
+import PostWork from './PostWork';
 import FinalProject from './FinalProject';
+import ProgressTracker from './ProgressTracker';
 
 const CourseView = ({ 
   currentLesson, 
   onBack, 
   progress, 
   onQuizSubmit, 
-  showQuizResult, 
-  currentQuizScore, 
+  preTestState,
+  postTestState,
   onRetakeQuiz,
   onMarkComplete 
 }) => {
   const { getCourseById } = useAuth();
-  const [activeTab, setActiveTab] = useState('pretest');
+  const [activeStep, setActiveStep] = useState('intro');
+  const [completedSteps, setCompletedSteps] = useState([]);
+  const [surveyData, setSurveyData] = useState(null);
   
   // Get the latest course data from context
   const course = currentLesson ? getCourseById(currentLesson.id) || currentLesson : null;
   
   if (!course) return null;
 
-  const tabs = [
-    { id: 'pretest', label: 'Pre-Test', icon: FileText },
-    { id: 'lessons', label: 'Lessons', icon: BookOpen },
-    { id: 'posttest', label: 'Post-Test', icon: Award },
-    { id: 'finalproject', label: 'Final Project', icon: FileText }
-  ];
+  // Handle step completion
+  const handleStepComplete = (stepId) => {
+    if (!completedSteps.includes(stepId)) {
+      setCompletedSteps(prev => [...prev, stepId]);
+    }
+    
+    // Auto-navigate to next step
+    const steps = ['intro', 'pretest', 'lessons', 'posttest', 'postwork', 'finalproject'];
+    const currentIndex = steps.indexOf(stepId);
+    if (currentIndex < steps.length - 1) {
+      const nextStep = steps[currentIndex + 1];
+      setActiveStep(nextStep);
+    }
+  };
+
+  // Handle step navigation
+  const handleStepClick = (stepId) => {
+    const steps = ['intro', 'pretest', 'lessons', 'posttest', 'postwork', 'finalproject'];
+    const stepIndex = steps.indexOf(stepId);
+    
+    // Check if step is accessible
+    if (stepIndex === 0 || completedSteps.includes(steps[stepIndex - 1])) {
+      setActiveStep(stepId);
+    }
+  };
+
+  // Handle survey submission
+  const handleSurveySubmit = (data) => {
+    setSurveyData(data);
+    handleStepComplete('posttest');
+  };
+
+  // Handle post work submission
+  const handlePostWorkSubmit = (data) => {
+    // Here you would typically save the submission data
+    console.log('Post work submitted:', data);
+    handleStepComplete('postwork');
+  };
+
+  // Handle final project submission
+  const handleFinalProjectSubmit = (data) => {
+    // Here you would typically save the submission data
+    console.log('Final project submitted:', data);
+    handleStepComplete('finalproject');
+  };
+
+  // Enhanced quiz submit handler
+  const handleQuizSubmit = (quizId, isPreTest, answers) => {
+    onQuizSubmit(quizId, isPreTest, answers);
+    
+    // For pretest, don't auto-complete step - wait for user to continue
+    // For posttest, mark as complete when quiz is submitted
+    if (!isPreTest) {
+      // This is posttest, but completion is handled in PostTestSurvey component
+    }
+  };
+
+  // Handle continue to lessons after pretest
+  const handleContinueToLessons = () => {
+    handleStepComplete('pretest');
+  };
+
+  // Enhanced lesson complete handler
+  const handleLessonComplete = () => {
+    onMarkComplete();
+    handleStepComplete('lessons');
+  };
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -47,59 +115,77 @@ const CourseView = ({
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 sm:p-8 text-white">
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">{course.title}</h1>
           <p className="text-blue-100 text-sm sm:text-base">{course.description}</p>
+          
+          {/* Quick Stats */}
+          <div className="mt-4 flex flex-wrap gap-4 text-sm">
+            <div className="bg-white/20 rounded-lg px-3 py-1">
+              <span className="font-medium">{completedSteps.length}/6</span> Tahap Selesai
+            </div>
+            <div className="bg-white/20 rounded-lg px-3 py-1">
+              <span className="font-medium">{Math.round((completedSteps.length / 6) * 100)}%</span> Progress
+            </div>
+          </div>
         </div>
         
-        {/* Tabs */}
-        <div className="flex border-b overflow-x-auto">
-          {tabs.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 min-w-0 py-3 sm:py-4 px-4 sm:px-6 flex items-center justify-center space-x-2 transition-colors whitespace-nowrap ${
-                  activeTab === tab.id 
-                    ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' 
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Icon size={18} className="sm:w-5 sm:h-5" />
-                <span className="font-medium text-sm sm:text-base">{tab.label}</span>
-              </button>
-            );
-          })}
+        {/* Progress Tracker */}
+        <div className="p-4 sm:p-6 bg-gray-50">
+          <ProgressTracker 
+            currentStep={activeStep}
+            completedSteps={completedSteps}
+            onStepClick={handleStepClick}
+          />
         </div>
         
-        {/* Tab Content */}
+        {/* Step Content */}
         <div className="p-4 sm:p-8">
-          {activeTab === 'pretest' && (
-            <Quiz 
-              quiz={course.preTest} 
-              isPreTest={true}
-              onQuizSubmit={onQuizSubmit}
-              showQuizResult={showQuizResult}
-              currentQuizScore={currentQuizScore}
-              onRetakeQuiz={onRetakeQuiz}
+          {activeStep === 'intro' && (
+            <IntroductoryMaterial 
+              material={course.introMaterial || { content: course.description }}
+              onComplete={() => handleStepComplete('intro')}
             />
           )}
-          {activeTab === 'lessons' && (
+          
+          {activeStep === 'pretest' && (
+            <PreTest 
+              quiz={course.preTest} 
+              onQuizSubmit={handleQuizSubmit}
+              showQuizResult={preTestState.showResult}
+              currentQuizScore={preTestState.score}
+              onRetakeQuiz={() => onRetakeQuiz(true)}
+              onContinueToLessons={handleContinueToLessons}
+            />
+          )}
+          
+          {activeStep === 'lessons' && (
             <LessonContent 
               lessons={course.lessons}
-              onMarkComplete={onMarkComplete}
+              onMarkComplete={handleLessonComplete}
             />
           )}
-          {activeTab === 'posttest' && (
-            <Quiz 
+          
+          {activeStep === 'posttest' && (
+            <PostTestSurvey 
               quiz={course.postTest} 
-              isPreTest={false}
-              onQuizSubmit={onQuizSubmit}
-              showQuizResult={showQuizResult}
-              currentQuizScore={currentQuizScore}
-              onRetakeQuiz={onRetakeQuiz}
+              onQuizSubmit={handleQuizSubmit}
+              showQuizResult={postTestState.showResult}
+              currentQuizScore={postTestState.score}
+              onRetakeQuiz={() => onRetakeQuiz(false)}
+              onSurveySubmit={handleSurveySubmit}
             />
           )}
-          {activeTab === 'finalproject' && (
-            <FinalProject courseId={course.id} />
+          
+          {activeStep === 'postwork' && (
+            <PostWork 
+              courseId={course.id}
+              onSubmit={handlePostWorkSubmit}
+            />
+          )}
+          
+          {activeStep === 'finalproject' && (
+            <FinalProject 
+              courseId={course.id}
+              onSubmit={handleFinalProjectSubmit}
+            />
           )}
         </div>
       </div>

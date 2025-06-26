@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Play, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Play, CheckCircle, FileText, ExternalLink, Download, Image, Code } from 'lucide-react';
 
 const LessonContent = ({ lessons, onMarkComplete }) => {
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
@@ -26,6 +26,18 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
           <h3 key={index} className="text-lg sm:text-xl font-bold text-gray-900 mb-2 mt-4">
             {line.substring(4)}
           </h3>
+        );
+      }
+      // Code block syntax: ```language
+      if (line.trim().startsWith('```')) {
+        const language = line.trim().substring(3);
+        return (
+          <div key={index} className="my-4 bg-gray-900 rounded-lg p-4 overflow-x-auto">
+            <div className="flex items-center mb-2">
+              <Code size={16} className="text-gray-400 mr-2" />
+              <span className="text-gray-400 text-sm">{language || 'code'}</span>
+            </div>
+          </div>
         );
       }
       // Image syntax: ![alt text](image_url)
@@ -81,6 +93,111 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
     });
   };
 
+  const renderMixedContent = (contentArray) => {
+    return contentArray.map((item, index) => {
+      switch (item.type) {
+        case 'text':
+          return (
+            <div key={index} className="mb-4">
+              <div className="whitespace-pre-line text-gray-700 leading-relaxed">
+                {renderContent(item.content)}
+              </div>
+            </div>
+          );
+        case 'image':
+          return (
+            <div key={index} className="my-6">
+              <img 
+                src={item.src} 
+                alt={item.alt} 
+                className="w-full max-w-2xl mx-auto rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
+                loading="lazy"
+              />
+              {item.caption && (
+                <p className="text-center text-sm text-gray-600 mt-2 italic">
+                  {item.caption}
+                </p>
+              )}
+            </div>
+          );
+        case 'code':
+          return (
+            <div key={index} className="my-4 bg-gray-900 rounded-lg p-4 overflow-x-auto">
+              <div className="flex items-center mb-2">
+                <Code size={16} className="text-gray-400 mr-2" />
+                <span className="text-gray-400 text-sm">{item.language || 'code'}</span>
+              </div>
+              <pre className="text-green-400 text-sm font-mono whitespace-pre-wrap">
+                {item.content}
+              </pre>
+            </div>
+          );
+        case 'pdf':
+          return (
+            <div key={index} className="my-6 bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <FileText className="text-red-600" size={24} />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900">{item.title}</h4>
+                  <p className="text-sm text-gray-600">{item.description}</p>
+                </div>
+                <a 
+                  href={item.downloadUrl || item.url} 
+                  download
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+                >
+                  <Download size={16} />
+                  <span>Download</span>
+                </a>
+              </div>
+              {item.embedUrl && (
+                <div className="mt-4">
+                  <iframe
+                    src={item.embedUrl}
+                    width="100%"
+                    height="600"
+                    className="border border-gray-300 rounded-lg"
+                    title={item.title}
+                  >
+                    <p>Your browser does not support PDFs. 
+                      <a href={item.downloadUrl || item.url} target="_blank" rel="noopener noreferrer">
+                        Download the PDF
+                      </a>
+                    </p>
+                  </iframe>
+                </div>
+              )}
+            </div>
+          );
+        case 'external_link':
+          return (
+            <div key={index} className="my-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center space-x-3">
+                <ExternalLink className="text-blue-600" size={24} />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900">{item.title}</h4>
+                  <p className="text-sm text-gray-600">{item.description}</p>
+                </div>
+                <a 
+                  href={item.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                >
+                  <ExternalLink size={16} />
+                  <span>Visit</span>
+                </a>
+              </div>
+            </div>
+          );
+        default:
+          return null;
+      }
+    });
+  };
+
   return (
     <div className="px-4">
       {/* Lesson Header */}
@@ -131,6 +248,17 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
               <Play size={16} />
               <span className="text-sm sm:text-base">Duration: {lesson.duration}</span>
             </div>
+            {lesson.description && (
+              <p className="text-sm text-gray-600 mt-2">{lesson.description}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {lesson.type === 'mixed' && (
+        <div className="prose max-w-none">
+          <div className="bg-gray-50 rounded-xl p-4 sm:p-8">
+            {renderMixedContent(lesson.content)}
           </div>
         </div>
       )}

@@ -20,8 +20,15 @@ const LMS = () => {
     preTest: {},
     postTest: {}
   });
-  const [showQuizResult, setShowQuizResult] = useState(false);
-  const [currentQuizScore, setCurrentQuizScore] = useState(0);
+  // Separate states for pretest and posttest
+  const [preTestState, setPreTestState] = useState({
+    showResult: false,
+    score: 0
+  });
+  const [postTestState, setPostTestState] = useState({
+    showResult: false,
+    score: 0
+  });
 
   const handleQuizSubmit = (quizId, isPreTest, quizAnswers) => {
     const currentCourse = courses.find(c => 
@@ -35,8 +42,19 @@ const LMS = () => {
     });
     
     const percentage = Math.round((score / quiz.questions.length) * 100);
-    setCurrentQuizScore(percentage);
-    setShowQuizResult(true);
+    
+    // Update appropriate state based on quiz type
+    if (isPreTest) {
+      setPreTestState({
+        showResult: true,
+        score: percentage
+      });
+    } else {
+      setPostTestState({
+        showResult: true,
+        score: percentage
+      });
+    }
     
     // Update progress
     const progressKey = isPreTest ? 'preTest' : 'postTest';
@@ -46,9 +64,15 @@ const LMS = () => {
     }));
   };
 
-  const handleRetakeQuiz = () => {
-    setShowQuizResult(false);
+  const handleRetakeQuiz = (isPreTest = false) => {
+    if (isPreTest) {
+      setPreTestState(prev => ({ ...prev, showResult: false }));
+    } else {
+      setPostTestState(prev => ({ ...prev, showResult: false }));
+    }
   };
+
+
 
   const handleStartLearning = (course) => {
     setCurrentLesson(course);
@@ -125,8 +149,8 @@ const LMS = () => {
               onBack={handleBackToDashboard}
               progress={progress}
               onQuizSubmit={handleQuizSubmit}
-              showQuizResult={showQuizResult}
-              currentQuizScore={currentQuizScore}
+              preTestState={preTestState}
+              postTestState={postTestState}
               onRetakeQuiz={handleRetakeQuiz}
               onMarkComplete={handleMarkComplete}
             />

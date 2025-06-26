@@ -1,9 +1,11 @@
 'use client';
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Eye, Book, Users, BarChart3 } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Book, Users, BarChart3, HelpCircle, MessageSquare } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import CourseForm from './CourseForm';
 import CourseList from './CourseList';
+import QuizManager from './QuizManager';
+import SurveyManager from './SurveyManager';
 
 const AdminDashboard = () => {
   const { courses, addCourse, updateCourse, deleteCourse } = useAuth();
@@ -49,6 +51,8 @@ const AdminDashboard = () => {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'courses', label: 'Courses', icon: Book },
+    { id: 'quizzes', label: 'Quiz Manager', icon: HelpCircle },
+    { id: 'surveys', label: 'Survey Manager', icon: MessageSquare },
     { id: 'students', label: 'Students', icon: Users }
   ];
 
@@ -186,6 +190,14 @@ const AdminDashboard = () => {
             onEdit={handleEditCourse}
             onDelete={handleDeleteCourse}
           />
+        )}
+
+        {activeTab === 'quizzes' && (
+          <QuizManager courses={courses} />
+        )}
+
+        {activeTab === 'surveys' && (
+          <SurveyManager courses={courses} />
         )}
 
         {activeTab === 'students' && (

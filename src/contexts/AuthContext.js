@@ -1,6 +1,6 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { courses as initialCourses } from '../data/coursesData';
+import { coursesData as initialCourses } from '../data/coursesData';
 
 const AuthContext = createContext();
 
