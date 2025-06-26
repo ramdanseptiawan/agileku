@@ -6,6 +6,10 @@ const IntroductoryMaterial = ({ material, onComplete }) => {
     // Handle array of content objects
     if (Array.isArray(content)) {
       return content.map((item, index) => {
+        if (!item || typeof item !== 'object') {
+          console.warn('Invalid content item:', item);
+          return null;
+        }
         switch (item.type) {
           case 'text':
             return (
@@ -40,10 +44,28 @@ const IntroductoryMaterial = ({ material, onComplete }) => {
           case 'video':
             return (
               <div key={index} className="my-6">
-                <div className="bg-gray-100 rounded-lg p-6 text-center">
-                  <Play className="mx-auto text-blue-600 mb-2" size={48} />
-                  <p className="text-gray-700 font-medium">{item.title}</p>
-                  <p className="text-sm text-gray-500 mt-1">Video: {item.duration}</p>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 mb-2">{item.title}</h4>
+                  {item.duration && (
+                    <p className="text-sm text-gray-500 mb-3">Duration: {item.duration}</p>
+                  )}
+                  {item.src ? (
+                    <div className="relative w-full" style={{paddingBottom: '56.25%'}}>
+                      <iframe
+                        src={item.src}
+                        className="absolute top-0 left-0 w-full h-full rounded-lg"
+                        frameBorder="0"
+                        allowFullScreen
+                        title={item.title}
+                      ></iframe>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-100 rounded-lg p-6 text-center">
+                      <Play className="mx-auto text-blue-600 mb-2" size={48} />
+                      <p className="text-gray-700 font-medium">{item.title}</p>
+                      <p className="text-sm text-gray-500 mt-1">Video: {item.duration}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -108,7 +130,13 @@ const IntroductoryMaterial = ({ material, onComplete }) => {
               </div>
             );
           default:
-            return null;
+            console.warn('Unknown content type:', item.type, item);
+            return (
+              <div key={index} className="my-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-yellow-800">Unsupported content type: {item.type}</p>
+                <pre className="text-xs text-yellow-600 mt-2">{JSON.stringify(item, null, 2)}</pre>
+              </div>
+            );
         }
       });
     }
@@ -214,7 +242,13 @@ const IntroductoryMaterial = ({ material, onComplete }) => {
       {/* Content */}
       <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-8">
         <div className="prose prose-lg max-w-none">
-          {material.content ? renderContent(material.content) : (
+          {material.content ? (
+            typeof material.content === 'string' ? (
+              <div dangerouslySetInnerHTML={{ __html: material.content }} />
+            ) : (
+              renderContent(material.content)
+            )
+          ) : (
             <div className="text-center py-8">
               <FileText className="mx-auto text-gray-400 mb-4" size={48} />
               <p className="text-gray-500">Materi pengantar belum tersedia</p>

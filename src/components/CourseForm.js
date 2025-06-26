@@ -1,11 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
+import React from 'react';
+import CourseFormManager from './CourseFormManager';
 
 const CourseForm = ({ course, onSave, onCancel }) => {
+  return (
+    <CourseFormManager
+      courseId={course?.id}
+      onSave={onSave}
+      onCancel={onCancel}
+    />
+  );
+};
+
+// Legacy CourseForm - keeping for reference but using new CourseFormManager
+export const LegacyCourseForm = ({ course, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     image: '',
+    imageFile: null,
     lessons: [],
     preTest: {
       id: '',
@@ -19,12 +31,15 @@ const CourseForm = ({ course, onSave, onCancel }) => {
     }
   });
 
+  const [uploadedFiles, setUploadedFiles] = useState({});
+
   useEffect(() => {
     if (course) {
       setFormData({
         title: course.title || '',
         description: course.description || '',
         image: course.image || '',
+        imageFile: null,
         lessons: course.lessons || [],
         preTest: course.preTest || {
           id: '',
@@ -65,12 +80,66 @@ const CourseForm = ({ course, onSave, onCancel }) => {
       id: Date.now().toString(),
       title: '',
       type: 'reading',
-      content: ''
+      content: '',
+      files: []
     };
     setFormData(prev => ({
       ...prev,
       lessons: [...prev.lessons, newLesson]
     }));
+  };
+
+  const handleFileUpload = (e, type, lessonIndex = null) => {
+    const files = Array.from(e.target.files);
+    
+    if (type === 'courseImage') {
+      const file = files[0];
+      if (file) {
+        setFormData(prev => ({
+          ...prev,
+          imageFile: file,
+          image: URL.createObjectURL(file)
+        }));
+      }
+    } else if (type === 'lesson' && lessonIndex !== null) {
+      const updatedLessons = [...formData.lessons];
+      const existingFiles = updatedLessons[lessonIndex].files || [];
+      updatedLessons[lessonIndex] = {
+        ...updatedLessons[lessonIndex],
+        files: [...existingFiles, ...files]
+      };
+      setFormData(prev => ({
+        ...prev,
+        lessons: updatedLessons
+      }));
+    }
+  };
+
+  const removeFile = (lessonIndex, fileIndex) => {
+    const updatedLessons = [...formData.lessons];
+    updatedLessons[lessonIndex].files = updatedLessons[lessonIndex].files.filter((_, i) => i !== fileIndex);
+    setFormData(prev => ({
+      ...prev,
+      lessons: updatedLessons
+    }));
+  };
+
+  const getFileIcon = (fileName) => {
+    const extension = fileName.split('.').pop().toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
+      return '🖼️';
+    } else if (['mp4', 'avi', 'mov', 'wmv', 'flv'].includes(extension)) {
+      return '🎥';
+    } else if (['pdf'].includes(extension)) {
+      return '📄';
+    } else if (['doc', 'docx'].includes(extension)) {
+      return '📝';
+    } else if (['ppt', 'pptx'].includes(extension)) {
+      return '📊';
+    } else if (['mp3', 'wav', 'ogg'].includes(extension)) {
+      return '🎵';
+    }
+    return '📁';
   };
 
   const removeLesson = (index) => {
@@ -173,7 +242,7 @@ const CourseForm = ({ course, onSave, onCancel }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 text-gray-900">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
@@ -229,18 +298,56 @@ const CourseForm = ({ course, onSave, onCancel }) => {
             </div>
 
             <div>
-              <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-2">
-                Course Image URL
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Course Image
               </label>
-              <input
-                type="url"
-                id="image"
-                name="image"
-                value={formData.image}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="https://example.com/image.jpg"
-              />
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="url"
+                    id="image"
+                    name="image"
+                    value={formData.imageFile ? '' : formData.image}
+                    onChange={handleInputChange}
+                    disabled={formData.imageFile}
+                    className="flex-1 px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                    placeholder="https://example.com/image.jpg"
+                  />
+                  <span className="text-gray-500">or</span>
+                  <label className="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer transition-colors">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, 'courseImage')}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+                {formData.imageFile && (
+                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
+                    <span className="text-blue-600">🖼️</span>
+                    <span className="text-sm text-blue-800 flex-1">{formData.imageFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, imageFile: null, image: '' }))}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+                {formData.image && (
+                  <div className="mt-2">
+                    <img
+                      src={formData.image}
+                      alt="Course preview"
+                      className="w-32 h-20 object-cover rounded-lg border border-gray-200"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -298,12 +405,17 @@ const CourseForm = ({ course, onSave, onCancel }) => {
                     >
                       <option value="reading">Reading</option>
                       <option value="video">Video</option>
+                      <option value="pdf">PDF Document</option>
+                      <option value="presentation">Presentation</option>
+                      <option value="audio">Audio</option>
+                      <option value="mixed">Mixed Content</option>
                     </select>
                   </div>
                 </div>
 
-                <div className="mt-3">
-                  {lesson.type === 'reading' ? (
+                <div className="mt-3 space-y-4">
+                  {/* Content based on lesson type */}
+                  {lesson.type === 'reading' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Content (Markdown supported)
@@ -316,7 +428,9 @@ const CourseForm = ({ course, onSave, onCancel }) => {
                         placeholder="Enter lesson content..."
                       />
                     </div>
-                  ) : (
+                  )}
+
+                  {lesson.type === 'video' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -344,6 +458,88 @@ const CourseForm = ({ course, onSave, onCancel }) => {
                       </div>
                     </div>
                   )}
+
+                  {(lesson.type === 'pdf' || lesson.type === 'presentation' || lesson.type === 'audio') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        value={lesson.content || ''}
+                        onChange={(e) => handleLessonChange(index, 'content', e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        placeholder="Enter lesson description..."
+                      />
+                    </div>
+                  )}
+
+                  {lesson.type === 'mixed' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Content & Instructions
+                      </label>
+                      <textarea
+                        value={lesson.content || ''}
+                        onChange={(e) => handleLessonChange(index, 'content', e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        placeholder="Enter lesson content and instructions for the attached files..."
+                      />
+                    </div>
+                  )}
+
+                  {/* File Upload Section */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Lesson Files
+                      </label>
+                      <label className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
+                        <Upload className="h-4 w-4 mr-1" />
+                        Add Files
+                        <input
+                          type="file"
+                          multiple
+                          accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.avi,.mov,.mp3,.wav,.jpg,.jpeg,.png,.gif"
+                          onChange={(e) => handleFileUpload(e, 'lesson', index)}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    
+                    {/* Display uploaded files */}
+                    {lesson.files && lesson.files.length > 0 && (
+                      <div className="space-y-2">
+                        {lesson.files.map((file, fileIndex) => (
+                          <div key={fileIndex} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                            <span className="text-lg">{getFileIcon(file.name)}</span>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index, fileIndex)}
+                              className="text-red-600 hover:text-red-800 p-1"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {(!lesson.files || lesson.files.length === 0) && (
+                      <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500">
+                        <File className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                        <p className="text-sm">No files uploaded yet</p>
+                        <p className="text-xs">Supported: PDF, DOC, PPT, Video, Audio, Images</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

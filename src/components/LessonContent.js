@@ -225,8 +225,14 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
       {lesson.type === 'reading' && (
         <div className="prose max-w-none">
           <div className="bg-gray-50 rounded-xl p-4 sm:p-8">
-            <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-              {renderContent(lesson.content)}
+            <div className="text-gray-700 leading-relaxed">
+              {typeof lesson.content === 'string' ? (
+                <div dangerouslySetInnerHTML={{ __html: lesson.content }} />
+              ) : (
+                <div className="whitespace-pre-line">
+                  {renderContent(lesson.content)}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -258,7 +264,19 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
       {lesson.type === 'mixed' && (
         <div className="prose max-w-none">
           <div className="bg-gray-50 rounded-xl p-4 sm:p-8">
-            {renderMixedContent(lesson.content)}
+            {Array.isArray(lesson.content) ? (
+              renderMixedContent(lesson.content)
+            ) : (
+              <div className="text-gray-700 leading-relaxed">
+                {typeof lesson.content === 'string' ? (
+                  <div dangerouslySetInnerHTML={{ __html: lesson.content }} />
+                ) : (
+                  <div className="whitespace-pre-line">
+                    {renderContent(lesson.content)}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
