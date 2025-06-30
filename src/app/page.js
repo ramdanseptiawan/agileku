@@ -8,10 +8,12 @@ import Dashboard from '../components/Dashboard';
 import AdminDashboard from '../components/AdminDashboard';
 import CourseView from '../components/CourseView';
 import Profile from '../components/Profile';
+import AnnouncementList from '../components/AnnouncementList';
 
 const LMS = () => {
   const { currentUser, isLoading, courses, updateCourses } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
+  const [selectedCourse, setSelectedCourse] = useState(null);
   const [currentLesson, setCurrentLesson] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [progress, setProgress] = useState({
@@ -29,6 +31,7 @@ const LMS = () => {
     showResult: false,
     score: 0
   });
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
 
   const handleQuizSubmit = (quizId, isPreTest, quizAnswers) => {
     const currentCourse = courses.find(c => 
@@ -128,6 +131,7 @@ const LMS = () => {
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
         userRole={currentUser.role}
+        onAnnouncementClick={() => setShowAnnouncementModal(true)}
       />
       
       {/* Main Content */}
@@ -147,7 +151,6 @@ const LMS = () => {
             <CourseView 
               currentLesson={currentLesson}
               onBack={handleBackToDashboard}
-              progress={progress}
               onQuizSubmit={handleQuizSubmit}
               preTestState={preTestState}
               postTestState={postTestState}
@@ -157,8 +160,23 @@ const LMS = () => {
           )}
           
           {currentView === 'profile' && <Profile />}
+          
+          {currentView === 'announcements' && (
+            <AnnouncementList 
+              isModal={false} 
+              onClose={() => setCurrentView('dashboard')}
+            />
+          )}
         </div>
       </div>
+      
+      {/* Announcement Modal */}
+      {showAnnouncementModal && (
+        <AnnouncementList 
+          isModal={true} 
+          onClose={() => setShowAnnouncementModal(false)}
+        />
+      )}
     </div>
   );
 };

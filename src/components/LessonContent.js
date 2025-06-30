@@ -1,96 +1,137 @@
-import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Play, CheckCircle, FileText, ExternalLink, Download, Image, Code } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, ArrowRight, Play, CheckCircle, FileText, ExternalLink, Download, Image, Code, List, ListOrdered, Video, BookOpen, Globe } from 'lucide-react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import ReactMarkdown from 'react-markdown';
+import { getFileFromIndexedDB, getBlobUrl } from '../utils/indexedDB';
+import { useLearningProgress } from '../hooks/useLearningProgress';
 
-const LessonContent = ({ lessons, onMarkComplete }) => {
-  const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
+const LessonContent = ({ lessons, onMarkComplete, courseId }) => {
+  const [fileUrls, setFileUrls] = useState({});
+  
+  // Use learning progress hook
+  const {
+    progress,
+    updateLessonProgress,
+    markStepCompleted
+  } = useLearningProgress(courseId);
+  
+  // Get current lesson index from progress or default to 0
+  const currentLessonIndex = progress.lessonProgress?.currentLessonIndex || 0;
+  
+  // Load file URLs from IndexedDB when component mounts or lesson changes
+  useEffect(() => {
+    const loadFileUrls = async () => {
+      if (!lessons || !Array.isArray(lessons)) return;
+      
+      const urls = {};
+      
+      for (const lesson of lessons) {
+        if (lesson.content && Array.isArray(lesson.content)) {
+          for (const item of lesson.content) {
+            if (item.fileId && item.uploadMethod === 'upload') {
+              try {
+                const file = await getFileFromIndexedDB(item.fileId);
+                if (file) {
+                  urls[item.fileId] = getBlobUrl(file);
+                }
+              } catch (error) {
+                console.error('Error loading file:', error);
+              }
+            }
+          }
+        }
+      }
+      
+      setFileUrls(urls);
+    };
+    
+    loadFileUrls();
+  }, [lessons, currentLessonIndex]);
+  
+  // Safety check for lessons array
+  if (!lessons || !Array.isArray(lessons) || lessons.length === 0) {
+    return (
+      <div className="px-4 py-8 text-center">
+        <p className="text-gray-500">No lessons available.</p>
+      </div>
+    );
+  }
+  
   const lesson = lessons[currentLessonIndex];
 
   const renderContent = (content) => {
-    return content.split('\n').map((line, index) => {
-      if (line.startsWith('# ')) {
-        return (
-          <h1 key={index} className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 mt-6 first:mt-0">
-            {line.substring(2)}
-          </h1>
-        );
-      }
-      if (line.startsWith('## ')) {
-        return (
-          <h2 key={index} className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 mt-6">
-            {line.substring(3)}
-          </h2>
-        );
-      }
-      if (line.startsWith('### ')) {
-        return (
-          <h3 key={index} className="text-lg sm:text-xl font-bold text-gray-900 mb-2 mt-4">
-            {line.substring(4)}
-          </h3>
-        );
-      }
-      // Code block syntax: ```language
-      if (line.trim().startsWith('```')) {
-        const language = line.trim().substring(3);
-        return (
-          <div key={index} className="my-4 bg-gray-900 rounded-lg p-4 overflow-x-auto">
-            <div className="flex items-center mb-2">
-              <Code size={16} className="text-gray-400 mr-2" />
-              <span className="text-gray-400 text-sm">{language || 'code'}</span>
-            </div>
-          </div>
-        );
-      }
-      // Image syntax: ![alt text](image_url)
-      if (line.trim().startsWith('![') && line.includes('](') && line.includes(')')) {
-        const match = line.match(/!\[([^\]]*)\]\(([^\)]+)\)/);
-        if (match) {
-          const [, altText, imageUrl] = match;
-          return (
-            <div key={index} className="my-6">
+    // If content is already an array of objects, use renderMixedContent
+    if (Array.isArray(content)) {
+      return renderMixedContent(content);
+    }
+    
+    // For string content, use ReactMarkdown for better rendering
+    return (
+      <ReactMarkdown
+        components={{
+          h1: ({node, ...props}) => <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 mt-6 first:mt-0" {...props} />,
+          h2: ({node, ...props}) => <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 mt-6" {...props} />,
+          h3: ({node, ...props}) => <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 mt-4" {...props} />,
+          p: ({node, ...props}) => <p className="mb-3 text-sm sm:text-base leading-relaxed text-gray-700" {...props} />,
+          ul: ({node, ...props}) => <ul className="list-disc list-inside mb-4 space-y-2 pl-2" {...props} />,
+          ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-4 space-y-2 pl-2" {...props} />,
+          li: ({node, ...props}) => <li className="text-gray-700" {...props} />,
+          a: ({node, href, ...props}) => (
+            <a 
+              href={href} 
+              className="text-blue-600 hover:text-blue-800 underline" 
+              target={href.startsWith('http') ? "_blank" : undefined}
+              rel={href.startsWith('http') ? "noopener noreferrer" : undefined}
+              {...props} 
+            />
+          ),
+          img: ({node, src, alt, ...props}) => (
+            <div className="my-6">
               <img 
-                src={imageUrl} 
-                alt={altText} 
+                src={src} 
+                alt={alt || ''} 
                 className="w-full max-w-2xl mx-auto rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300"
                 loading="lazy"
+                {...props}
               />
-              {altText && (
+              {alt && (
                 <p className="text-center text-sm text-gray-600 mt-2 italic">
-                  {altText}
+                  {alt}
                 </p>
               )}
             </div>
-          );
-        }
-      }
-      // Infographic syntax: [INFOGRAPHIC: title](image_url)
-      if (line.trim().startsWith('[INFOGRAPHIC:') && line.includes('](') && line.includes(')')) {
-        const match = line.match(/\[INFOGRAPHIC:\s*([^\]]+)\]\(([^\)]+)\)/);
-        if (match) {
-          const [, title, imageUrl] = match;
-          return (
-            <div key={index} className="my-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
-              <h4 className="text-lg font-semibold text-blue-800 mb-4 text-center">
-                📊 {title}
-              </h4>
-              <img 
-                src={imageUrl} 
-                alt={title} 
-                className="w-full max-w-3xl mx-auto rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
-                loading="lazy"
-              />
-            </div>
-          );
-        }
-      }
-      if (line.trim() === '') {
-        return <br key={index} />;
-      }
-      return (
-        <p key={index} className="mb-3 text-sm sm:text-base leading-relaxed">
-          {line}
-        </p>
-      );
-    });
+          ),
+          code: ({node, inline, className, children, ...props}) => {
+            const match = /language-(\w+)/.exec(className || '');
+            const language = match ? match[1] : '';
+            
+            return !inline ? (
+              <div className="my-4 bg-gray-900 rounded-lg p-4 overflow-x-auto shadow-md">
+                <div className="flex items-center mb-2">
+                  <Code size={16} className="text-gray-400 mr-2" />
+                  <span className="text-gray-400 text-sm">{language || 'code'}</span>
+                </div>
+                <SyntaxHighlighter
+                  language={language || 'javascript'}
+                  style={vscDarkPlus}
+                  className="rounded-md"
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              </div>
+            ) : (
+              <code className="bg-gray-100 text-gray-800 px-1 py-0.5 rounded text-sm font-mono" {...props}>
+                {children}
+              </code>
+            );
+          }
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    );
   };
 
   const renderMixedContent = (contentArray) => {
@@ -99,8 +140,10 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
         case 'text':
           return (
             <div key={index} className="mb-4">
-              <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-                {renderContent(item.content)}
+              <div className="text-gray-700 leading-relaxed">
+                <ReactMarkdown>
+                  {item.content}
+                </ReactMarkdown>
               </div>
             </div>
           );
@@ -120,75 +163,210 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
               )}
             </div>
           );
+        case 'list':
+          return (
+            <div key={index} className="mb-4">
+              {item.ordered ? (
+                <div className="flex items-start space-x-2 mb-2">
+                  <ListOrdered className="text-blue-600 mt-1 flex-shrink-0" size={18} />
+                  <h4 className="font-medium text-gray-900">Langkah-langkah:</h4>
+                </div>
+              ) : (
+                <div className="flex items-start space-x-2 mb-2">
+                  <List className="text-blue-600 mt-1 flex-shrink-0" size={18} />
+                  <h4 className="font-medium text-gray-900">Poin-poin penting:</h4>
+                </div>
+              )}
+              {item.ordered ? (
+                <ol className="list-decimal list-inside mb-4 space-y-2 pl-2">
+                  {item.items.map((listItem, listIndex) => (
+                    <li key={listIndex} className="text-gray-700">
+                      <ReactMarkdown components={{p: ({node, ...props}) => <span {...props} />}}>
+                        {listItem}
+                      </ReactMarkdown>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <ul className="list-disc list-inside mb-4 space-y-2 pl-2">
+                  {item.items.map((listItem, listIndex) => (
+                    <li key={listIndex} className="text-gray-700">
+                      <ReactMarkdown components={{p: ({node, ...props}) => <span {...props} />}}>
+                        {listItem}
+                      </ReactMarkdown>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
         case 'code':
           return (
-            <div key={index} className="my-4 bg-gray-900 rounded-lg p-4 overflow-x-auto">
+            <div key={index} className="my-4 bg-gray-900 rounded-lg p-4 overflow-x-auto shadow-md">
               <div className="flex items-center mb-2">
                 <Code size={16} className="text-gray-400 mr-2" />
                 <span className="text-gray-400 text-sm">{item.language || 'code'}</span>
               </div>
-              <pre className="text-green-400 text-sm font-mono whitespace-pre-wrap">
+              <SyntaxHighlighter 
+                language={item.language || 'javascript'} 
+                style={vscDarkPlus}
+                className="rounded-md"
+              >
                 {item.content}
-              </pre>
+              </SyntaxHighlighter>
             </div>
           );
         case 'pdf':
           return (
-            <div key={index} className="my-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center space-x-3 mb-4">
-                <FileText className="text-red-600" size={24} />
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                  <p className="text-sm text-gray-600">{item.description}</p>
+            <div key={index} className="my-8">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-red-100 rounded-lg">
+                      <FileText className="text-red-600" size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-semibold text-gray-900">{item.title}</h4>
+                      <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                    </div>
+                  </div>
                 </div>
-                <a 
-                  href={item.downloadUrl || item.url} 
-                  download
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
-                >
-                  <Download size={16} />
-                  <span>Download</span>
-                </a>
+                
+                {/* Content */}
+                <div className="p-6">
+                  {/* File Info */}
+                  <div className="flex items-center justify-between mb-6 p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-white rounded-lg shadow-sm">
+                        <FileText className="text-gray-600" size={20} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{item.filename || 'Document.pdf'}</p>
+                        <p className="text-sm text-gray-500">PDF Document</p>
+                      </div>
+                    </div>
+                    <a 
+                      href={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : (item.downloadUrl || item.url)} 
+                      download
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 shadow-sm hover:shadow-md"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Unduh PDF
+                    </a>
+                  </div>
+                  
+                  {/* PDF Viewer */}
+                  {(item.embedUrl || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) && (
+                    <div className="mt-6">
+                      <div className="relative bg-gray-100 rounded-lg overflow-hidden shadow-inner" style={{paddingBottom: '75%'}}>
+                        <iframe
+                          src={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : item.embedUrl}
+                          className="absolute top-0 left-0 w-full h-full"
+                          frameBorder="0"
+                          title={`${item.title} PDF Viewer`}
+                        ></iframe>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-              {item.embedUrl && (
-                <div className="mt-4">
-                  <iframe
-                    src={item.embedUrl}
-                    width="100%"
-                    height="600"
-                    className="border border-gray-300 rounded-lg"
-                    title={item.title}
-                  >
-                    <p>Your browser does not support PDFs. 
-                      <a href={item.downloadUrl || item.url} target="_blank" rel="noopener noreferrer">
-                        Download the PDF
-                      </a>
-                    </p>
-                  </iframe>
+            </div>
+          );
+        case 'video':
+          return (
+            <div key={index} className="my-8">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Video className="text-blue-600" size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-semibold text-gray-900">{item.title}</h4>
+                      <div className="flex items-center space-x-4 mt-1">
+                        <p className="text-sm text-gray-600">{item.description}</p>
+                        {item.duration && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <Play className="mr-1" size={12} />
+                            {item.duration}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
+                
+                {/* Video Content */}
+                <div className="p-6">
+                  <div className="relative bg-black rounded-lg overflow-hidden shadow-lg" style={{paddingBottom: '56.25%'}}>
+                    {item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId] ? (
+                      <video
+                        src={fileUrls[item.fileId]}
+                        className="absolute top-0 left-0 w-full h-full"
+                        controls
+                        title={item.title}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    ) : (
+                      <iframe
+                        src={item.src || item.url}
+                        className="absolute top-0 left-0 w-full h-full"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title={item.title}
+                      ></iframe>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           );
         case 'external_link':
           return (
-            <div key={index} className="my-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center space-x-3">
-                <ExternalLink className="text-blue-600" size={24} />
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                  <p className="text-sm text-gray-600">{item.description}</p>
+            <div key={index} className="my-8">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <Globe className="text-green-600" size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-semibold text-gray-900">{item.title}</h4>
+                      <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                    </div>
+                  </div>
                 </div>
-                <a 
-                  href={item.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-                >
-                  <ExternalLink size={16} />
-                  <span>Visit</span>
-                </a>
+                
+                {/* Content */}
+                <div className="p-6">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-white rounded-lg shadow-sm">
+                        <ExternalLink className="text-gray-600" size={20} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Link Eksternal</p>
+                        <p className="text-sm text-gray-500 truncate max-w-xs">{item.url}</p>
+                      </div>
+                    </div>
+                    <a 
+                      href={item.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 shadow-sm hover:shadow-md"
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      Kunjungi
+                    </a>
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -198,6 +376,15 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
     });
   };
 
+  // Safety check for lesson existence
+  if (!lesson) {
+    return (
+      <div className="px-4 py-8 text-center">
+        <p className="text-gray-500">No lesson content available.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4">
       {/* Lesson Header */}
@@ -205,14 +392,31 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
         <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{lesson.title}</h2>
         <div className="flex space-x-2">
           <button
-            onClick={() => setCurrentLessonIndex(Math.max(0, currentLessonIndex - 1))}
+            onClick={() => {
+              if (currentLessonIndex > 0) {
+                const newIndex = currentLessonIndex - 1;
+                updateLessonProgress({
+                  ...progress.lessonProgress,
+                  currentLessonIndex: newIndex
+                });
+              }
+            }}
             disabled={currentLessonIndex === 0}
             className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ArrowLeft size={20} />
           </button>
           <button
-            onClick={() => setCurrentLessonIndex(Math.min(lessons.length - 1, currentLessonIndex + 1))}
+            onClick={() => {
+              if (currentLessonIndex < lessons.length - 1) {
+                const newIndex = currentLessonIndex + 1;
+                updateLessonProgress({
+                  currentLessonIndex: newIndex,
+                  completedLessons: [...(progress.lessonProgress?.completedLessons || []), currentLessonIndex],
+                  timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
+                });
+              }
+            }}
             disabled={currentLessonIndex === lessons.length - 1}
             className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -224,59 +428,101 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
       {/* Lesson Content */}
       {lesson.type === 'reading' && (
         <div className="prose max-w-none">
-          <div className="bg-gray-50 rounded-xl p-4 sm:p-8">
-            <div className="text-gray-700 leading-relaxed">
-              {typeof lesson.content === 'string' ? (
-                <div dangerouslySetInnerHTML={{ __html: lesson.content }} />
-              ) : (
-                <div className="whitespace-pre-line">
-                  {renderContent(lesson.content)}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <BookOpen className="text-purple-600" size={24} />
                 </div>
-              )}
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900">Materi Bacaan</h3>
+                  <p className="text-sm text-gray-600 mt-1">Pelajari konsep-konsep penting dalam lesson ini</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 sm:p-8">
+              <div className="text-gray-700 leading-relaxed">
+                {typeof lesson.content === 'string' ? (
+                  renderContent(lesson.content)
+                ) : (
+                  renderContent(lesson.content)
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {lesson.type === 'video' && (
-        <div className="bg-gray-50 rounded-xl p-4 sm:p-8">
-          <div className="aspect-video bg-black rounded-lg overflow-hidden mb-4">
-            <iframe
-              src={lesson.videoUrl}
-              className="w-full h-full"
-              frameBorder="0"
-              allowFullScreen
-              title={lesson.title}
-            ></iframe>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 text-gray-600">
-              <Play size={16} />
-              <span className="text-sm sm:text-base">Duration: {lesson.duration}</span>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Video className="text-blue-600" size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">{lesson.title}</h3>
+                <div className="flex items-center space-x-4 mt-1">
+                  {lesson.description && (
+                    <p className="text-sm text-gray-600">{lesson.description}</p>
+                  )}
+                  {lesson.duration && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <Play className="mr-1" size={12} />
+                      {lesson.duration}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            {lesson.description && (
-              <p className="text-sm text-gray-600 mt-2">{lesson.description}</p>
-            )}
+          </div>
+          
+          {/* Video Content */}
+          <div className="p-6">
+            <div className="relative bg-black rounded-lg overflow-hidden shadow-lg" style={{paddingBottom: '56.25%'}}>
+              <iframe
+                src={lesson.videoUrl}
+                className="absolute top-0 left-0 w-full h-full"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={lesson.title}
+              ></iframe>
+            </div>
           </div>
         </div>
       )}
 
       {lesson.type === 'mixed' && (
         <div className="prose max-w-none">
-          <div className="bg-gray-50 rounded-xl p-4 sm:p-8">
-            {Array.isArray(lesson.content) ? (
-              renderMixedContent(lesson.content)
-            ) : (
-              <div className="text-gray-700 leading-relaxed">
-                {typeof lesson.content === 'string' ? (
-                  <div dangerouslySetInnerHTML={{ __html: lesson.content }} />
-                ) : (
-                  <div className="whitespace-pre-line">
-                    {renderContent(lesson.content)}
-                  </div>
-                )}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <BookOpen className="text-indigo-600" size={24} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900">Materi Pembelajaran</h3>
+                  <p className="text-sm text-gray-600 mt-1">Konten interaktif dengan berbagai format media</p>
+                </div>
               </div>
-            )}
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 sm:p-8">
+              {Array.isArray(lesson.content) ? (
+                renderMixedContent(lesson.content)
+              ) : (
+                <div className="text-gray-700 leading-relaxed">
+                  {renderContent(lesson.content)}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -296,14 +542,83 @@ const LessonContent = ({ lessons, onMarkComplete }) => {
           </div>
         </div>
         
-        <button
-          onClick={() => onMarkComplete(lesson.id)}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 text-sm sm:text-base"
-        >
-          <CheckCircle size={16} />
-          <span className="hidden sm:inline">Mark Complete</span>
-          <span className="sm:hidden">Complete</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          {/* Previous Button */}
+          <button
+            onClick={() => {
+              if (currentLessonIndex > 0) {
+                updateLessonProgress({
+                  currentLessonIndex: currentLessonIndex - 1,
+                  completedLessons: progress.lessonProgress?.completedLessons || [],
+                  timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
+                });
+              }
+            }}
+            disabled={currentLessonIndex === 0}
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 text-sm ${
+              currentLessonIndex === 0 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            <ArrowLeft size={16} />
+            <span className="hidden sm:inline">Previous</span>
+          </button>
+          
+          {/* Next Button */}
+          <button
+            onClick={() => {
+              if (currentLessonIndex < lessons.length - 1) {
+                updateLessonProgress({
+                  currentLessonIndex: currentLessonIndex + 1,
+                  completedLessons: progress.lessonProgress?.completedLessons || [],
+                  timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
+                });
+              }
+            }}
+            disabled={currentLessonIndex === lessons.length - 1}
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 text-sm ${
+              currentLessonIndex === lessons.length - 1 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            <span className="hidden sm:inline">Next</span>
+            <ArrowRight size={16} />
+          </button>
+          
+          {/* Mark Complete Button */}
+          <button
+            onClick={() => {
+              // Mark current lesson as completed
+              const completedLessons = [...new Set([...(progress.lessonProgress?.completedLessons || []), currentLessonIndex])];
+              
+              if (currentLessonIndex === lessons.length - 1) {
+                // All lessons completed
+                updateLessonProgress({
+                  currentLessonIndex,
+                  completedLessons,
+                  allLessonsCompleted: true,
+                  timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
+                });
+                markStepCompleted('lessons');
+                onMarkComplete(lesson.id);
+              } else {
+                // Mark as completed and move to next lesson
+                updateLessonProgress({
+                  currentLessonIndex: currentLessonIndex + 1,
+                  completedLessons,
+                  timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
+                });
+              }
+            }}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 text-sm sm:text-base"
+          >
+            <CheckCircle size={16} />
+            <span className="hidden sm:inline">Mark Complete</span>
+            <span className="sm:hidden">Complete</span>
+          </button>
+        </div>
       </div>
     </div>
   );

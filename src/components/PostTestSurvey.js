@@ -47,7 +47,7 @@ const PostTestSurvey = ({ quiz, onQuizSubmit, showQuizResult, currentQuizScore, 
 
   const renderStarRating = (value, onChange, label) => {
     return (
-      <div className="mb-6">
+      <div className="mb-6 text-gray-900">
         <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
         <div className="flex space-x-1">
           {[1, 2, 3, 4, 5].map((star) => (
@@ -95,7 +95,7 @@ const PostTestSurvey = ({ quiz, onQuizSubmit, showQuizResult, currentQuizScore, 
   // Survey view
   if (showSurvey) {
     return (
-      <div className="max-w-2xl mx-auto px-4">
+      <div className="max-w-2xl mx-auto px-4 text-gray-900">
         <div className="text-center mb-8">
           <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
             <MessageSquare className="text-white" size={32} />

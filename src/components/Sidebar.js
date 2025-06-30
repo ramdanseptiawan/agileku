@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Home, 
   User, 
@@ -19,8 +19,9 @@ import {
   Shield
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import AnnouncementBell from './AnnouncementBell';
 
-const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen, userRole }) => {
+const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen, userRole, onAnnouncementClick }) => {
   const { currentUser, logout } = useAuth();
   // Bottom navigation items for mobile
   const bottomNavItems = [
@@ -52,6 +53,7 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
         { id: 'dashboard', label: 'Dashboard', icon: Home, badge: null },
         { id: 'courses', label: 'My Courses', icon: BookOpen, badge: '3' },
         { id: 'assignments', label: 'Assignments', icon: FileText, badge: '5' },
+        { id: 'announcements', label: 'Announcements', icon: Bell, badge: null },
         { id: 'calendar', label: 'Schedule', icon: Calendar, badge: '2' },
         { id: 'progress', label: 'Progress', icon: BarChart3, badge: null },
         { id: 'achievements', label: 'Achievements', icon: Award, badge: null },
@@ -74,6 +76,10 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
     if (window.innerWidth < 1024) {
       setIsSidebarOpen(false);
     }
+  };
+  
+  const handleAnnouncementBellClick = () => {
+    onAnnouncementClick && onAnnouncementClick();
   };
 
   const handleLogout = () => {
@@ -163,9 +169,7 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
               <h3 className="text-gray-900 font-semibold text-sm">{currentUser?.username || 'User'}</h3>
               <p className="text-gray-500 text-xs capitalize">{userRole || 'Student'}</p>
             </div>
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation">
-              <Bell size={18} />
-            </button>
+            <AnnouncementBell onClick={handleAnnouncementBellClick} />
           </div>
         </div>
         

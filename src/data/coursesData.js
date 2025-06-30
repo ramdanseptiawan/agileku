@@ -14,84 +14,142 @@ export const coursesData = [
     progress: 65,
     introMaterial: {
       title: "Selamat Datang di Kursus React",
-      content: `
-        <p>Selamat datang di kursus <strong>Introduction to React</strong>! Dalam kursus ini, Anda akan mempelajari dasar-dasar pengembangan aplikasi web menggunakan React, salah satu library JavaScript paling populer saat ini.</p>
-        
-        <p>React dikembangkan oleh Facebook dan digunakan oleh ribuan perusahaan di seluruh dunia untuk membangun aplikasi web yang interaktif dan responsif.</p>
-        
-        <img src="https://images.unsplash.com/photo-1633356122102-3fe601e05bd2?w=600&h=300&fit=crop&crop=center" alt="React Development Environment" style="width: 100%; max-width: 600px; height: auto; margin: 20px 0; border-radius: 8px;" />
-        <p style="text-align: center; font-style: italic; color: #666; margin-top: -10px;">React ecosystem dan tools yang akan dipelajari</p>
-        
-        <h3>Apa yang akan Anda pelajari:</h3>
-        <ul>
-          <li>Konsep dasar React dan JSX</li>
-          <li>Component-based architecture</li>
-          <li>State management dan Props</li>
-          <li>Event handling dan lifecycle methods</li>
-          <li>Hooks dan functional components</li>
-          <li>Best practices dalam React development</li>
-        </ul>
-        
-        <div style="margin: 20px 0; padding: 15px; border: 2px dashed #ccc; border-radius: 8px; text-align: center;">
-          <p><strong>🎥 Video Pengenalan</strong></p>
-          <iframe src="https://www.youtube.com/embed/Ke90Tje7VS0" width="100%" height="315" style="border: none; border-radius: 8px;"></iframe>
-          <p style="margin-top: 10px; color: #666;">Pengenalan React - Overview (5:30)</p>
-        </div>
-      `
+      content: [
+        {
+          type: "text",
+          content: "Selamat datang di kursus **Introduction to React**! Dalam kursus ini, Anda akan mempelajari dasar-dasar pengembangan aplikasi web menggunakan React, salah satu library JavaScript paling populer saat ini.\n\nReact dikembangkan oleh Facebook dan digunakan oleh ribuan perusahaan di seluruh dunia untuk membangun aplikasi web yang interaktif dan responsif."
+        },
+        {
+          type: "image",
+          src: "https://images.unsplash.com/photo-1633356122102-3fe601e05bd2?w=600&h=300&fit=crop&crop=center",
+          alt: "React Development Environment",
+          caption: "React ecosystem dan tools yang akan dipelajari"
+        },
+        {
+          type: "text",
+          content: "### Apa yang akan Anda pelajari:"
+        },
+        {
+          type: "list",
+          items: [
+            "Konsep dasar React dan JSX",
+            "Component-based architecture",
+            "State management dan Props",
+            "Event handling dan lifecycle methods",
+            "Hooks dan functional components",
+            "Best practices dalam React development"
+          ]
+        },
+        {
+          type: "video",
+          title: "Video Pengenalan",
+          src: "https://www.youtube.com/embed/Ke90Tje7VS0",
+          duration: "5:30"
+        },
+        {
+          type: "pdf",
+          title: "Panduan Dasar React",
+          description: "Dokumen PDF berisi panduan dasar React untuk pemula",
+          embedUrl: "https://mozilla.github.io/pdf.js/web/viewer.html?file=https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          downloadUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+        },
+        {
+          type: "external_link",
+          title: "Dokumentasi Resmi React",
+          description: "Kunjungi dokumentasi resmi React untuk informasi lebih lanjut",
+          url: "https://reactjs.org/docs/getting-started.html"
+        }
+      ]
     },
     lessons: [
       {
         id: 1,
         title: "Pengenalan React",
         type: "reading",
-        content: `
-          <h1>Pengenalan React</h1>
-          
-          <p>React adalah library JavaScript yang dikembangkan oleh Facebook untuk membangun user interface yang interaktif dan efisien.</p>
-          
-          <h2>Apa itu React?</h2>
-          
-          <p>React adalah library JavaScript yang berfokus pada pembuatan komponen UI yang dapat digunakan kembali. React menggunakan konsep Virtual DOM untuk meningkatkan performa aplikasi.</p>
-          
-          <h2>Fitur Utama React</h2>
-          
-          <ol>
-            <li><strong>Component-Based</strong>: Membangun aplikasi dengan komponen yang dapat digunakan kembali</li>
-            <li><strong>Virtual DOM</strong>: Meningkatkan performa dengan minimal DOM manipulation</li>
-            <li><strong>JSX</strong>: Sintaks yang memungkinkan penulisan HTML di dalam JavaScript</li>
-            <li><strong>One-Way Data Flow</strong>: Data mengalir dari parent ke child component</li>
-          </ol>
-          
-          <h2>Keunggulan React</h2>
-          
-          <ul>
-            <li><strong>Performance</strong>: Virtual DOM membuat aplikasi lebih cepat</li>
-            <li><strong>Reusability</strong>: Komponen dapat digunakan kembali</li>
-            <li><strong>Community</strong>: Ekosistem yang besar dan aktif</li>
-            <li><strong>Learning Curve</strong>: Relatif mudah dipelajari</li>
-          </ul>
-          
-          <h2>Kapan Menggunakan React?</h2>
-          
-          <p>React cocok untuk:</p>
-          <ul>
-            <li>Single Page Applications (SPA)</li>
-            <li>Aplikasi dengan UI yang kompleks</li>
-            <li>Aplikasi yang membutuhkan performa tinggi</li>
-            <li>Proyek dengan tim yang besar</li>
-          </ul>
-          
-          <blockquote style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; margin: 20px 0;">
-            <p style="margin: 0; font-style: italic;">💡 <strong>Tips:</strong> Mari mulai membangun aplikasi React yang amazing!</p>
-          </blockquote>
-        `
+        content: [
+          {
+            type: "text",
+            content: "# Pengenalan React\n\nReact adalah library JavaScript yang dikembangkan oleh Facebook untuk membangun user interface yang interaktif dan efisien."
+          },
+          {
+            type: "text",
+            content: "## Apa itu React?\n\nReact adalah library JavaScript yang berfokus pada pembuatan komponen UI yang dapat digunakan kembali. React menggunakan konsep Virtual DOM untuk meningkatkan performa aplikasi."
+          },
+          {
+            type: "text",
+            content: "## Fitur Utama React"
+          },
+          {
+            type: "list",
+            ordered: true,
+            items: [
+              "**Component-Based**: Membangun aplikasi dengan komponen yang dapat digunakan kembali",
+              "**Virtual DOM**: Meningkatkan performa dengan minimal DOM manipulation",
+              "**JSX**: Sintaks yang memungkinkan penulisan HTML di dalam JavaScript",
+              "**One-Way Data Flow**: Data mengalir dari parent ke child component"
+            ]
+          },
+          {
+            type: "text",
+            content: "## Keunggulan React"
+          },
+          {
+            type: "list",
+            items: [
+              "**Performance**: Virtual DOM membuat aplikasi lebih cepat",
+              "**Reusability**: Komponen dapat digunakan kembali",
+              "**Community**: Ekosistem yang besar dan aktif",
+              "**Learning Curve**: Relatif mudah dipelajari"
+            ]
+          },
+          {
+            type: "text",
+            content: "## Kapan Menggunakan React?\n\nReact cocok untuk:"
+          },
+          {
+            type: "list",
+            items: [
+              "Single Page Applications (SPA)",
+              "Aplikasi dengan UI yang kompleks",
+              "Aplikasi yang membutuhkan performa tinggi",
+              "Proyek dengan tim yang besar"
+            ]
+          },
+          {
+            type: "text",
+            content: "💡 **Tips:** Mari mulai membangun aplikasi React yang amazing!"
+          },
+          {
+            type: "pdf",
+            title: "React Cheat Sheet",
+            description: "Ringkasan konsep-konsep penting dalam React",
+            embedUrl: "https://mozilla.github.io/pdf.js/web/viewer.html?file=https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+            downloadUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+          }
+        ]
       },
       {
         id: 2,
         title: "Video Tutorial React Basics",
         type: "video",
-        videoUrl: "https://www.youtube.com/embed/Ke90Tje7VS0",
-        duration: "20:15"
+        content: [
+          {
+            type: "text",
+            content: "# Video Tutorial React Basics\n\nDalam video tutorial ini, Anda akan mempelajari dasar-dasar React melalui demonstrasi langsung."
+          },
+          {
+            type: "video",
+            title: "React Basics Tutorial",
+            src: "https://www.youtube.com/embed/Ke90Tje7VS0",
+            duration: "20:15"
+          },
+          {
+            type: "external_link",
+            title: "Materi Tambahan React Basics",
+            description: "Kunjungi situs resmi React untuk mempelajari lebih lanjut",
+            url: "https://reactjs.org/tutorial/tutorial.html"
+          }
+        ]
       }
     ],
     preTest: {

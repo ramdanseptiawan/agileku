@@ -1,11 +1,16 @@
 'use client';
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Eye, Book, Users, BarChart3, HelpCircle, MessageSquare } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Book, Users, BarChart3, HelpCircle, MessageSquare, UserCog, Bell, Award, FileText, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import CourseForm from './CourseForm';
 import CourseList from './CourseList';
 import QuizManager from './QuizManager';
 import SurveyManager from './SurveyManager';
+import UserManagement from './UserManagement';
+import AnnouncementManager from './AnnouncementManager';
+import CertificateManager from './CertificateManager';
+import ProjectInstructionManager from './ProjectInstructionManager';
+import CourseInstructionManager from './CourseInstructionManager';
 
 const AdminDashboard = () => {
   const { courses, addCourse, updateCourse, deleteCourse } = useAuth();
@@ -53,6 +58,11 @@ const AdminDashboard = () => {
     { id: 'courses', label: 'Courses', icon: Book },
     { id: 'quizzes', label: 'Quiz Manager', icon: HelpCircle },
     { id: 'surveys', label: 'Survey Manager', icon: MessageSquare },
+    { id: 'announcements', label: 'Announcements', icon: Bell },
+    { id: 'certificates', label: 'Certificates', icon: Award },
+    { id: 'project-instructions', label: 'Project Instructions', icon: FileText },
+    { id: 'course-instructions', label: 'Course Instructions', icon: Settings },
+    { id: 'users', label: 'User Management', icon: UserCog },
     { id: 'students', label: 'Students', icon: Users }
   ];
 
@@ -198,6 +208,26 @@ const AdminDashboard = () => {
 
         {activeTab === 'surveys' && (
           <SurveyManager courses={courses} />
+        )}
+
+        {activeTab === 'announcements' && (
+          <AnnouncementManager />
+        )}
+
+        {activeTab === 'certificates' && (
+          <CertificateManager />
+        )}
+
+        {activeTab === 'project-instructions' && (
+          <ProjectInstructionManager />
+        )}
+
+        {activeTab === 'course-instructions' && (
+          <CourseInstructionManager />
+        )}
+
+        {activeTab === 'users' && (
+          <UserManagement />
         )}
 
         {activeTab === 'students' && (

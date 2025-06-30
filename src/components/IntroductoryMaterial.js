@@ -1,7 +1,37 @@
-import React from 'react';
-import { BookOpen, Play, FileText, Download, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BookOpen, Play, FileText, Download, ExternalLink, List, ListOrdered } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { getFileFromIndexedDB, getBlobUrl } from '../utils/indexedDB';
 
 const IntroductoryMaterial = ({ material, onComplete }) => {
+  const [fileUrls, setFileUrls] = useState({});
+  
+  // Load file URLs from IndexedDB when component mounts or material changes
+  useEffect(() => {
+    const loadFileUrls = async () => {
+      if (!material || !material.content || !Array.isArray(material.content)) return;
+      
+      const urls = {};
+      
+      for (const item of material.content) {
+        if (item.fileId && item.uploadMethod === 'upload') {
+          try {
+            const file = await getFileFromIndexedDB(item.fileId);
+            if (file) {
+              urls[item.fileId] = getBlobUrl(file);
+            }
+          } catch (error) {
+            console.error('Error loading file:', error);
+          }
+        }
+      }
+      
+      setFileUrls(urls);
+    };
+    
+    loadFileUrls();
+  }, [material]);
+
   const renderContent = (content) => {
     // Handle array of content objects
     if (Array.isArray(content)) {
@@ -13,9 +43,11 @@ const IntroductoryMaterial = ({ material, onComplete }) => {
         switch (item.type) {
           case 'text':
             return (
-              <p key={index} className="text-gray-700 mb-4 leading-relaxed">
-                {item.content}
-              </p>
+              <div key={index} className="text-gray-700 mb-4 leading-relaxed">
+                <ReactMarkdown>
+                  {item.content}
+                </ReactMarkdown>
+              </div>
             );
           case 'image':
             return (
@@ -35,97 +67,199 @@ const IntroductoryMaterial = ({ material, onComplete }) => {
             );
           case 'list':
             return (
-              <ul key={index} className="list-disc list-inside mb-4 space-y-2">
-                {item.items.map((listItem, listIndex) => (
-                  <li key={listIndex} className="text-gray-700">{listItem}</li>
-                ))}
-              </ul>
+              <div key={index} className="mb-4">
+                {item.ordered ? (
+                  <div className="flex items-start space-x-2 mb-2">
+                    <ListOrdered className="text-blue-600 mt-1 flex-shrink-0" size={18} />
+                    <h4 className="font-medium text-gray-900">Langkah-langkah:</h4>
+                  </div>
+                ) : (
+                  <div className="flex items-start space-x-2 mb-2">
+                    <List className="text-blue-600 mt-1 flex-shrink-0" size={18} />
+                    <h4 className="font-medium text-gray-900">Poin-poin penting:</h4>
+                  </div>
+                )}
+                {item.ordered ? (
+                  <ol className="list-decimal list-inside mb-4 space-y-2 pl-2">
+                    {item.items.map((listItem, listIndex) => (
+                      <li key={listIndex} className="text-gray-700">
+                        <ReactMarkdown components={{p: ({node, ...props}) => <span {...props} />}}>
+                          {listItem}
+                        </ReactMarkdown>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <ul className="list-disc list-inside mb-4 space-y-2 pl-2">
+                    {item.items.map((listItem, listIndex) => (
+                      <li key={listIndex} className="text-gray-700">
+                        <ReactMarkdown components={{p: ({node, ...props}) => <span {...props} />}}>
+                          {listItem}
+                        </ReactMarkdown>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             );
           case 'video':
             return (
-              <div key={index} className="my-6">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">{item.title}</h4>
-                  {item.duration && (
-                    <p className="text-sm text-gray-500 mb-3">Duration: {item.duration}</p>
-                  )}
-                  {item.src ? (
-                    <div className="relative w-full" style={{paddingBottom: '56.25%'}}>
-                      <iframe
-                        src={item.src}
-                        className="absolute top-0 left-0 w-full h-full rounded-lg"
-                        frameBorder="0"
-                        allowFullScreen
-                        title={item.title}
-                      ></iframe>
+              <div key={index} className="my-8">
+                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                  {/* Header */}
+                  <div className="bg-gradient-to-r from-red-500 to-pink-500 px-6 py-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-white/20 rounded-lg p-2">
+                        <Play className="text-white" size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-white">{item.title || 'Video Pembelajaran'}</h3>
+                        {item.description && (
+                          <p className="text-red-100 text-sm mt-1">{item.description}</p>
+                        )}
+                        {item.duration && (
+                          <p className="text-red-100 text-sm mt-1">Durasi: {item.duration}</p>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <div className="bg-gray-100 rounded-lg p-6 text-center">
-                      <Play className="mx-auto text-blue-600 mb-2" size={48} />
-                      <p className="text-gray-700 font-medium">{item.title}</p>
-                      <p className="text-sm text-gray-500 mt-1">Video: {item.duration}</p>
-                    </div>
-                  )}
+                  </div>
+                  
+                  {/* Video Content */}
+                  <div className="p-6">
+                    {(item.src || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) ? (
+                      <div className="relative pt-[56.25%] rounded-lg overflow-hidden bg-gray-900 shadow-lg">
+                        {item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId] ? (
+                          <video
+                            src={fileUrls[item.fileId]}
+                            className="absolute top-0 left-0 w-full h-full"
+                            controls
+                            title={item.title || 'Video content'}
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                        ) : (
+                          <iframe 
+                            src={item.src} 
+                            title={item.title || 'Video content'}
+                            className="absolute top-0 left-0 w-full h-full"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center p-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                        <div className="text-center">
+                          <Play className="mx-auto text-gray-400 mb-3" size={48} />
+                          <p className="text-gray-500 font-medium">Video tidak tersedia</p>
+                          <p className="text-gray-400 text-sm mt-1">Silakan hubungi administrator</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
           case 'pdf':
             return (
-              <div key={index} className="my-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3 mb-4">
-                  <FileText className="text-red-600" size={24} />
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                    <p className="text-sm text-gray-600">{item.description}</p>
+              <div key={index} className="my-8">
+                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                  {/* Header */}
+                  <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-white/20 rounded-lg p-2">
+                        <FileText className="text-white" size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-white">{item.title || 'Dokumen PDF'}</h3>
+                        {item.description && (
+                          <p className="text-blue-100 text-sm mt-1">{item.description}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <a 
-                    href={item.downloadUrl || item.url} 
-                    download
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
-                  >
-                    <Download size={16} />
-                    <span>Download</span>
-                  </a>
-                </div>
-                {item.embedUrl && (
-                  <div className="mt-4">
-                    <iframe
-                      src={item.embedUrl}
-                      width="100%"
-                      height="600"
-                      className="border border-gray-300 rounded-lg"
-                      title={item.title}
-                    >
-                      <p>Your browser does not support PDFs. 
-                        <a href={item.downloadUrl || item.url} target="_blank" rel="noopener noreferrer">
-                          Download the PDF
+                  
+                  {/* PDF Content */}
+                  <div className="p-6">
+                    {/* File Info */}
+                    <div className="flex items-center justify-between mb-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <FileText className="text-blue-600" size={20} />
+                        <span className="font-medium text-gray-900">{item.filename || 'Document.pdf'}</span>
+                      </div>
+                      {(item.downloadUrl || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) && (
+                        <a 
+                          href={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : item.downloadUrl} 
+                          download
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Unduh
                         </a>
-                      </p>
-                    </iframe>
+                      )}
+                    </div>
+                    
+                    {/* PDF Viewer */}
+                    {(item.embedUrl || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) ? (
+                      <div className="relative pt-[100%] rounded-lg overflow-hidden bg-gray-100 shadow-lg">
+                        <iframe
+                          src={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : item.embedUrl}
+                          className="absolute top-0 left-0 w-full h-full"
+                          frameBorder="0"
+                          title={`${item.title} PDF Viewer`}
+                        ></iframe>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center p-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                        <div className="text-center">
+                          <FileText className="mx-auto text-gray-400 mb-3" size={48} />
+                          <p className="text-gray-500 font-medium">PDF tidak dapat ditampilkan</p>
+                          <p className="text-gray-400 text-sm mt-1">Silakan unduh untuk melihat dokumen</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             );
           case 'external_link':
             return (
-              <div key={index} className="my-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3">
-                  <ExternalLink className="text-blue-600" size={24} />
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                    <p className="text-sm text-gray-600">{item.description}</p>
+              <div key={index} className="my-8">
+                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                  {/* Header */}
+                  <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-white/20 rounded-lg p-2">
+                        <ExternalLink className="text-white" size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-white">{item.title || 'Link Eksternal'}</h3>
+                        {item.description && (
+                          <p className="text-green-100 text-sm mt-1">{item.description}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <a 
-                    href={item.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-                  >
-                    <ExternalLink size={16} />
-                    <span>Visit</span>
-                  </a>
+                  
+                  {/* Link Content */}
+                  <div className="p-6">
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <ExternalLink className="text-green-600" size={20} />
+                        <span className="font-medium text-gray-900 truncate">{item.url}</span>
+                      </div>
+                      <a 
+                        href={item.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium flex-shrink-0 ml-4"
+                      >
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Kunjungi
+                      </a>
+                    </div>
+                  </div>
                 </div>
               </div>
             );

@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { Upload, FileText, ExternalLink, CheckCircle, Clock, AlertCircle, X, Eye, Download, Link } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Upload, FileText, ExternalLink, CheckCircle, Clock, AlertCircle, X, Eye, Download, Link, Save } from 'lucide-react';
 import {
   validateFile,
   formatFileSize,
@@ -8,8 +8,10 @@ import {
   canPreviewFile,
   handleDragEvents
 } from '../utils/fileUtils';
+import { useAuth } from '../contexts/AuthContext';
 
 const FinalProject = ({ courseId, onSubmit }) => {
+  const { currentUser } = useAuth();
   const [projectStatus, setProjectStatus] = useState('not_submitted'); // not_submitted, submitted, reviewed
   const [selectedFile, setSelectedFile] = useState(null);
   const [projectDescription, setProjectDescription] = useState('');
@@ -21,6 +23,9 @@ const FinalProject = ({ courseId, onSubmit }) => {
   const [dragActive, setDragActive] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState('saved'); // saved, saving, error
+  const [lastSaved, setLastSaved] = useState(null);
+  const [instructions, setInstructions] = useState(null);
 
   const allowedFileTypes = {
     'application/pdf': '.pdf',
@@ -31,6 +36,149 @@ const FinalProject = ({ courseId, onSubmit }) => {
   };
 
   const maxFileSize = 50 * 1024 * 1024; // 50MB
+
+  // Load saved progress and instructions on component mount
+  useEffect(() => {
+    loadProgress();
+    loadInstructions();
+  }, [courseId, currentUser]);
+
+  const loadInstructions = () => {
+    try {
+      const storageKey = `course_instructions_${courseId}`;
+      const savedInstructions = localStorage.getItem(storageKey);
+      
+      if (savedInstructions) {
+        const parsedInstructions = JSON.parse(savedInstructions);
+        setInstructions(parsedInstructions.finalproject);
+      } else {
+        // Default instructions
+        setInstructions({
+          title: 'Final Project',
+          description: 'Proyek akhir untuk mendemonstrasikan pemahaman komprehensif terhadap seluruh materi kursus.',
+          requirements: [
+            'Menyelesaikan semua tahap pembelajaran',
+            'Lulus post-test dengan nilai minimal 70%',
+            'Menyelesaikan post work assignment'
+          ],
+          deliverables: [
+            'Proyek lengkap sesuai spesifikasi',
+            'Dokumentasi proyek',
+            'Presentasi atau demo (jika diperlukan)'
+          ],
+          timeline: '14 hari setelah menyelesaikan post work',
+          resources: [
+            'Seluruh materi kursus',
+            'Template proyek (jika tersedia)',
+            'Panduan teknis'
+          ]
+        });
+      }
+    } catch (error) {
+      console.error('Error loading instructions:', error);
+      // Fallback to default
+      setInstructions({
+        title: 'Final Project',
+        description: 'Proyek akhir untuk mendemonstrasikan pemahaman komprehensif terhadap seluruh materi kursus.',
+        requirements: ['Menyelesaikan semua tahap pembelajaran'],
+        deliverables: ['Proyek lengkap sesuai spesifikasi'],
+        timeline: '14 hari setelah menyelesaikan post work',
+        resources: ['Seluruh materi kursus']
+      });
+    }
+  };
+
+  // Auto-save progress when data changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (projectDescription || selectedFile || projectLink) {
+        saveProgress();
+      }
+    }, 2000); // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(timeoutId);
+  }, [projectDescription, selectedFile, projectLink, submissionType]);
+
+  const loadProgress = () => {
+    const savedProgress = localStorage.getItem(`finalProject_${courseId}_${currentUser?.id}`);
+    if (savedProgress) {
+      const progress = JSON.parse(savedProgress);
+      setProjectDescription(progress.description || '');
+      setProjectLink(progress.link || '');
+      setSubmissionType(progress.submissionType || 'file');
+      setProjectStatus(progress.status || 'not_submitted');
+      setSubmissionDate(progress.submissionDate);
+      setFeedback(progress.feedback || '');
+      setGrade(progress.grade);
+      setLastSaved(progress.lastSaved);
+    }
+  };
+
+  const saveProgress = () => {
+    if (!currentUser) return;
+    
+    setAutoSaveStatus('saving');
+    const progress = {
+      description: projectDescription,
+      link: projectLink,
+      submissionType,
+      status: projectStatus,
+      submissionDate,
+      feedback,
+      grade,
+      lastSaved: new Date().toISOString()
+    };
+    
+    try {
+      localStorage.setItem(`finalProject_${courseId}_${currentUser.id}`, JSON.stringify(progress));
+      setAutoSaveStatus('saved');
+      setLastSaved(new Date().toISOString());
+    } catch (error) {
+      setAutoSaveStatus('error');
+    }
+  };
+
+  const checkCourseCompletion = () => {
+    // Check if user has completed all course requirements
+    const courseProgress = localStorage.getItem(`courseProgress_${courseId}_${currentUser?.id}`);
+    if (courseProgress) {
+      const progress = JSON.parse(courseProgress);
+      return progress.completed === true;
+    }
+    return false;
+  };
+
+  const generateCertificate = () => {
+    if (!checkCourseCompletion()) {
+      alert('Anda harus menyelesaikan semua materi kursus terlebih dahulu untuk mendapatkan sertifikat.');
+      return;
+    }
+
+    if (projectStatus !== 'reviewed' || !grade || grade < 70) {
+      alert('Proyek akhir harus dinilai dan mendapat nilai minimal 70 untuk mendapatkan sertifikat.');
+      return;
+    }
+
+    // Generate certificate
+    const certificate = {
+      id: Date.now().toString(),
+      courseId,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userEmail: currentUser.email,
+      courseName: `Course ${courseId}`,
+      completionDate: new Date().toISOString(),
+      certificateNumber: `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+      grade: grade,
+      issueDate: new Date().toISOString()
+    };
+
+    const certificates = JSON.parse(localStorage.getItem('certificates') || '[]');
+    certificates.push(certificate);
+    localStorage.setItem('certificates', JSON.stringify(certificates));
+    
+    alert('Selamat! Sertifikat Anda telah berhasil dibuat. Anda dapat mengunduhnya dari menu Sertifikat.');
+  };
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
@@ -173,7 +321,7 @@ const FinalProject = ({ courseId, onSubmit }) => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-gray-900">
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Final Project</h1>
@@ -403,118 +551,97 @@ const FinalProject = ({ courseId, onSubmit }) => {
       </div>
 
       {/* Project Requirements */}
-      <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-        <h3 className="text-xl font-bold text-blue-800 mb-4">Persyaratan Proyek</h3>
-        <div className="space-y-3 text-gray-700">
-          <div className="flex items-start space-x-3">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-            <p>Create a complete web application using the technologies learned in this course</p>
-          </div>
-          <div className="flex items-start space-x-3">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-            <p>Include proper documentation and README file</p>
-          </div>
-          <div className="flex items-start space-x-3">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-            <p>Implement responsive design for mobile and desktop</p>
-          </div>
-          <div className="flex items-start space-x-3">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-            <p>Submit as a ZIP file or provide GitHub repository link</p>
-          </div>
-          <div className="flex items-start space-x-3">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-            <p>Maximum file size: 50MB</p>
-          </div>
+      {instructions && (
+        <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+          <h3 className="text-xl font-bold text-blue-800 mb-4">{instructions.title}</h3>
+          <p className="text-blue-700 mb-4">{instructions.description}</p>
+          
+          {/* Requirements */}
+          {instructions.requirements && instructions.requirements.length > 0 && (
+            <div className="mb-4">
+              <h4 className="font-semibold text-blue-800 mb-2">Requirements:</h4>
+              <div className="space-y-2 text-gray-700">
+                {instructions.requirements.map((req, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <p>{req}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Deliverables */}
+          {instructions.deliverables && instructions.deliverables.length > 0 && (
+            <div className="mb-4">
+              <h4 className="font-semibold text-blue-800 mb-2">Deliverables:</h4>
+              <div className="space-y-2 text-gray-700">
+                {instructions.deliverables.map((deliverable, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <p>{deliverable}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Timeline */}
+          {instructions.timeline && (
+            <div className="mb-4 p-3 bg-yellow-100 rounded-lg">
+              <h4 className="font-semibold text-yellow-800 mb-1">Timeline:</h4>
+              <p className="text-yellow-700 text-sm">{instructions.timeline}</p>
+            </div>
+          )}
+          
+          {/* Resources */}
+          {instructions.resources && instructions.resources.length > 0 && (
+            <div className="p-4 bg-blue-100 rounded-lg">
+              <h4 className="font-semibold text-blue-800 mb-2">Resources:</h4>
+              <div className="space-y-1 text-blue-700 text-sm">
+                {instructions.resources.map((resource, index) => (
+                  <div key={index} className="flex items-start space-x-2">
+                    <span>•</span>
+                    <p>{resource}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      {/* Submission Form */}
+      {/* Auto-save Status & Certificate Section */}
       <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-xl font-bold text-gray-900 mb-6">
-          {projectStatus === 'not_submitted' ? 'Submit Your Project' : 'Update Your Project'}
-        </h3>
-        
-        <div className="space-y-6">
-          {/* File Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Project File (ZIP, RAR, or GitHub Link)
-            </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-              <input
-                type="file"
-                id="project-file"
-                className="hidden"
-                accept=".zip,.rar,.7z"
-                onChange={handleFileSelect}
-              />
-              <label htmlFor="project-file" className="cursor-pointer">
-                <Upload className="mx-auto text-gray-400 mb-2" size={32} />
-                <p className="text-gray-600 mb-1">
-                  {selectedFile ? selectedFile.name : 'Click to upload your project file'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Supported formats: ZIP, RAR, 7Z (Max 50MB)
-                </p>
-              </label>
-            </div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Save className={`${autoSaveStatus === 'saving' ? 'animate-spin text-blue-500' : autoSaveStatus === 'saved' ? 'text-green-500' : 'text-red-500'}`} size={20} />
+            <span className="text-sm text-gray-600">
+              {autoSaveStatus === 'saving' && 'Menyimpan...'}
+              {autoSaveStatus === 'saved' && lastSaved && `Tersimpan otomatis ${new Date(lastSaved).toLocaleTimeString('id-ID')}`}
+              {autoSaveStatus === 'error' && 'Gagal menyimpan'}
+            </span>
           </div>
-
-          {/* Project Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Project Description
-            </label>
-            <textarea
-              value={projectDescription}
-              onChange={(e) => setProjectDescription(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              rows={4}
-              placeholder="Describe your project, technologies used, features implemented, and any special instructions..."
-            />
-          </div>
-
-          {/* GitHub Link (Alternative) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              GitHub Repository Link (Optional)
-            </label>
-            <input
-              type="url"
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="https://github.com/username/repository"
-            />
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex flex-col sm:flex-row gap-4">
+          
+          {projectStatus === 'reviewed' && grade >= 70 && (
             <button
-              onClick={projectStatus === 'not_submitted' ? handleSubmit : handleUpdate}
-              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 font-medium"
+              onClick={generateCertificate}
+              className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-2 rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-300 font-semibold flex items-center space-x-2"
             >
-              <FileText size={20} />
-              <span>
-                {projectStatus === 'not_submitted' ? 'Submit Project' : 'Update Project'}
-              </span>
+              <CheckCircle size={20} />
+              <span>Dapatkan Sertifikat</span>
             </button>
-            
-            {projectStatus !== 'not_submitted' && (
-              <button
-                onClick={() => {
-                  setProjectStatus('not_submitted');
-                  setSelectedFile(null);
-                  setProjectDescription('');
-                  setSubmissionDate(null);
-                }}
-                className="flex-1 sm:flex-none bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Reset Submission
-              </button>
-            )}
+          )}
+        </div>
+        
+        {projectStatus === 'reviewed' && grade < 70 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800 text-sm">
+              <strong>Catatan:</strong> Nilai minimal 70 diperlukan untuk mendapatkan sertifikat. Nilai Anda saat ini: {grade}/100
+            </p>
           </div>
-            </div>
-          </div>
+        )}
+      </div>
         </div>
       </div>
 

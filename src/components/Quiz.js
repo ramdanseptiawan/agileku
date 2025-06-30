@@ -28,7 +28,7 @@ const Quiz = ({ quiz, isPreTest, onQuizSubmit, showQuizResult, currentQuizScore,
 
   if (showQuizResult) {
     return (
-      <div className="text-center space-y-6 px-4">
+      <div className="text-center space-y-6 px-4 text-gray-900">
         <div className="bg-gradient-to-r from-green-400 to-blue-500 rounded-full w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center mx-auto">
           <span className="text-xl sm:text-2xl font-bold text-white">{currentQuizScore}%</span>
         </div>

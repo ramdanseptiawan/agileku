@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { Upload, FileText, CheckCircle, Clock, AlertCircle, X, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Upload, FileText, CheckCircle, Clock, AlertCircle, X, Download, Save } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const PostWork = ({ courseId, onSubmit }) => {
+  const { currentUser } = useAuth();
   const [workStatus, setWorkStatus] = useState('not_submitted'); // not_submitted, submitted, reviewed
   const [selectedFile, setSelectedFile] = useState(null);
   const [workDescription, setWorkDescription] = useState('');
@@ -9,6 +11,9 @@ const PostWork = ({ courseId, onSubmit }) => {
   const [feedback, setFeedback] = useState('');
   const [grade, setGrade] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState('saved'); // saved, saving, error
+  const [lastSaved, setLastSaved] = useState(null);
+  const [instructions, setInstructions] = useState(null);
 
   const allowedFileTypes = {
     'application/pdf': '.pdf',
@@ -20,6 +25,100 @@ const PostWork = ({ courseId, onSubmit }) => {
   };
 
   const maxFileSize = 10 * 1024 * 1024; // 10MB
+
+  // Load saved progress and instructions on component mount
+  useEffect(() => {
+    loadProgress();
+    loadInstructions();
+  }, [courseId, currentUser]);
+
+  const loadInstructions = () => {
+    try {
+      const storageKey = `course_instructions_${courseId}`;
+      const savedInstructions = localStorage.getItem(storageKey);
+      
+      if (savedInstructions) {
+        const parsedInstructions = JSON.parse(savedInstructions);
+        setInstructions(parsedInstructions.postwork);
+      } else {
+        // Default instructions
+        setInstructions({
+          title: 'Post Work Assignment',
+          description: 'Silakan kerjakan tugas post work berikut untuk mempraktikkan materi yang telah dipelajari.',
+          requirements: [
+            'Menyelesaikan semua materi pembelajaran',
+            'Memahami konsep dasar yang telah diajarkan'
+          ],
+          deliverables: [
+            'Dokumen laporan hasil praktik',
+            'Screenshot atau bukti implementasi'
+          ],
+          timeline: '7 hari setelah menyelesaikan materi',
+          resources: [
+            'Materi pembelajaran yang telah dipelajari',
+            'Template dokumen (jika tersedia)'
+          ]
+        });
+      }
+    } catch (error) {
+      console.error('Error loading instructions:', error);
+      // Fallback to default
+      setInstructions({
+        title: 'Post Work Assignment',
+        description: 'Silakan kerjakan tugas post work berikut untuk mempraktikkan materi yang telah dipelajari.',
+        requirements: ['Menyelesaikan semua materi pembelajaran'],
+        deliverables: ['Dokumen laporan hasil praktik'],
+        timeline: '7 hari setelah menyelesaikan materi',
+        resources: ['Materi pembelajaran yang telah dipelajari']
+      });
+    }
+  };
+
+  // Auto-save progress when data changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (workDescription || selectedFile) {
+        saveProgress();
+      }
+    }, 2000); // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(timeoutId);
+  }, [workDescription, selectedFile]);
+
+  const loadProgress = () => {
+    const savedProgress = localStorage.getItem(`postWork_${courseId}_${currentUser?.id}`);
+    if (savedProgress) {
+      const progress = JSON.parse(savedProgress);
+      setWorkDescription(progress.description || '');
+      setWorkStatus(progress.status || 'not_submitted');
+      setSubmissionDate(progress.submissionDate);
+      setFeedback(progress.feedback || '');
+      setGrade(progress.grade);
+      setLastSaved(progress.lastSaved);
+    }
+  };
+
+  const saveProgress = () => {
+    if (!currentUser) return;
+    
+    setAutoSaveStatus('saving');
+    const progress = {
+      description: workDescription,
+      status: workStatus,
+      submissionDate,
+      feedback,
+      grade,
+      lastSaved: new Date().toISOString()
+    };
+    
+    try {
+      localStorage.setItem(`postWork_${courseId}_${currentUser.id}`, JSON.stringify(progress));
+      setAutoSaveStatus('saved');
+      setLastSaved(new Date().toISOString());
+    } catch (error) {
+      setAutoSaveStatus('error');
+    }
+  };
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
@@ -142,7 +241,7 @@ const PostWork = ({ courseId, onSubmit }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 text-gray-900">
       {/* Header */}
       <div className="text-center mb-8">
         <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
@@ -272,17 +371,67 @@ const PostWork = ({ courseId, onSubmit }) => {
         </div>
       </div>
 
-      {/* Instructions */}
-      <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-        <h4 className="text-lg font-semibold text-blue-800 mb-3">Petunjuk Pengumpulan Tugas</h4>
-        <ul className="text-blue-700 space-y-2 text-sm">
-          <li>• Pastikan file yang diunggah sesuai dengan format yang diminta</li>
-          <li>• Berikan deskripsi yang jelas tentang tugas yang dikumpulkan</li>
-          <li>• Periksa kembali file sebelum mengirim</li>
-          <li>• Anda dapat memperbarui tugas hingga batas waktu yang ditentukan</li>
-          <li>• Tugas akan direview oleh instruktur dalam 1-3 hari kerja</li>
-        </ul>
+      {/* Auto-save Status */}
+      <div className="bg-white rounded-xl shadow-lg p-4">
+        <div className="flex items-center space-x-2">
+          <Save className={`${autoSaveStatus === 'saving' ? 'animate-spin text-blue-500' : autoSaveStatus === 'saved' ? 'text-green-500' : 'text-red-500'}`} size={20} />
+          <span className="text-sm text-gray-600">
+            {autoSaveStatus === 'saving' && 'Menyimpan...'}
+            {autoSaveStatus === 'saved' && lastSaved && `Tersimpan otomatis ${new Date(lastSaved).toLocaleTimeString('id-ID')}`}
+            {autoSaveStatus === 'error' && 'Gagal menyimpan'}
+          </span>
+        </div>
       </div>
+
+      {/* Instructions */}
+      {instructions && (
+        <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+          <h4 className="text-lg font-semibold text-blue-800 mb-3">{instructions.title}</h4>
+          {instructions.description && (
+            <p className="text-blue-700 mb-3 text-sm">{instructions.description}</p>
+          )}
+          
+          {instructions.timeline && (
+            <div className="mb-4 p-3 bg-blue-100 rounded-lg">
+              <h5 className="font-semibold text-blue-800 mb-1">⏰ Timeline:</h5>
+              <p className="text-blue-700 text-sm">{instructions.timeline}</p>
+            </div>
+          )}
+          
+          {instructions.requirements && instructions.requirements.length > 0 && (
+            <div className="mb-4">
+              <h5 className="font-semibold text-blue-800 mb-2">📋 Persyaratan:</h5>
+              <ul className="text-blue-700 space-y-1 text-sm">
+                {instructions.requirements.map((req, index) => (
+                  <li key={index}>• {req}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {instructions.deliverables && instructions.deliverables.length > 0 && (
+            <div className="mb-4">
+              <h5 className="font-semibold text-blue-800 mb-2">📦 Deliverables:</h5>
+              <ul className="text-blue-700 space-y-1 text-sm">
+                {instructions.deliverables.map((item, index) => (
+                  <li key={index}>• {item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {instructions.resources && instructions.resources.length > 0 && (
+            <div>
+              <h5 className="font-semibold text-blue-800 mb-2">📚 Resources:</h5>
+              <ul className="text-blue-700 space-y-1 text-sm">
+                {instructions.resources.map((resource, index) => (
+                  <li key={index}>• {resource}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

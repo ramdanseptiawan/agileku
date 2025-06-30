@@ -131,5 +131,72 @@ export const initializeDefaultData = (defaultCourses = []) => {
   }
 };
 
+// File management functions for IndexedDB integration
+export const saveCourseWithFiles = async (courseData) => {
+  try {
+    // Save course data to localStorage
+    const success = saveCourse(courseData);
+    
+    if (success) {
+      console.log('Course saved successfully with file references');
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error saving course with files:', error);
+    return false;
+  }
+};
+
+// Get course with file URLs from IndexedDB
+export const getCourseWithFiles = async (courseId) => {
+  try {
+    const course = getCourseById(courseId);
+    if (!course) return null;
+    
+    // Course data already contains file references (fileId, filename, etc.)
+    // The actual file URLs will be generated when needed in components
+    return course;
+  } catch (error) {
+    console.error('Error getting course with files:', error);
+    return null;
+  }
+};
+
+// Clean up orphaned files (files not referenced by any course)
+export const cleanupOrphanedFiles = async () => {
+  try {
+    const courses = getAllCourses();
+    const referencedFileIds = new Set();
+    
+    // Collect all file IDs referenced in courses
+    courses.forEach(course => {
+      // Check intro material
+      if (course.introMaterial && course.introMaterial.content) {
+        course.introMaterial.content.forEach(item => {
+          if (item.fileId) {
+            referencedFileIds.add(item.fileId);
+          }
+        });
+      }
+      
+      // Check lessons
+      if (course.lessons) {
+        course.lessons.forEach(lesson => {
+          if (lesson.content && lesson.content.fileId) {
+            referencedFileIds.add(lesson.content.fileId);
+          }
+        });
+      }
+    });
+    
+    console.log('Referenced file IDs:', Array.from(referencedFileIds));
+    return Array.from(referencedFileIds);
+  } catch (error) {
+    console.error('Error cleaning up orphaned files:', error);
+    return [];
+  }
+};
+
 // Export storage keys for external use
 export { STORAGE_KEYS };

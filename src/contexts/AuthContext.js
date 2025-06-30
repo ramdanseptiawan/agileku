@@ -12,9 +12,17 @@ export const useAuth = () => {
   return context;
 };
 
-const users = {
-  admin: { username: 'admin', password: '123', role: 'admin' },
-  user: { username: 'user', password: '123', role: 'user' }
+// Users will be loaded from localStorage (managed by UserManagement component)
+const getUsers = () => {
+  const savedUsers = localStorage.getItem('users');
+  if (savedUsers) {
+    return JSON.parse(savedUsers);
+  }
+  // Default users if none exist
+  return [
+    { id: '1', username: 'admin', password: '123', role: 'admin', email: 'admin@agileku.com', fullName: 'Administrator' },
+    { id: '2', username: 'user', password: '123', role: 'user', email: 'user@agileku.com', fullName: 'Default User' }
+  ];
 };
 
 export const AuthProvider = ({ children }) => {
@@ -42,12 +50,19 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (username, password) => {
-    const user = Object.values(users).find(
+    const users = getUsers();
+    const user = users.find(
       u => u.username === username && u.password === password
     );
     
     if (user) {
-      const userInfo = { username: user.username, role: user.role };
+      const userInfo = { 
+        id: user.id,
+        username: user.username, 
+        role: user.role,
+        email: user.email,
+        fullName: user.fullName
+      };
       setCurrentUser(userInfo);
       localStorage.setItem('currentUser', JSON.stringify(userInfo));
       return { success: true };
