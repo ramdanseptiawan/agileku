@@ -26,7 +26,7 @@ const AnnouncementBell = ({ onClick }) => {
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
     };
-  }, [currentUser]);
+  }, [currentUser, updateUnreadCount]);
 
   const updateUnreadCount = () => {
     if (!currentUser) {

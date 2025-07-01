@@ -31,7 +31,7 @@ const Achievements = () => {
     const loadedCertificates = loadCertificates();
     setCertificates(loadedCertificates);
     console.log('Achievements: Loaded certificates:', loadedCertificates);
-  }, [currentUser]);
+  }, [currentUser, loadCertificates]);
 
   const downloadCertificate = (certificate) => {
     // Create a simple certificate HTML for download

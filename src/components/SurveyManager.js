@@ -193,7 +193,7 @@ const SurveyManager = () => {
 
             {surveyQuestions.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">No survey questions yet. Click "Add Question" to create one.</p>
+                <p className="text-gray-500">No survey questions yet. Click &quot;Add Question&quot; to create one.</p>
               </div>
             ) : (
               <div className="space-y-4">

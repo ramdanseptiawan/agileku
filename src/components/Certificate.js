@@ -9,7 +9,7 @@ const Certificate = ({ courseId, courseName, onClose }) => {
 
   useEffect(() => {
     loadCertificate();
-  }, [courseId, currentUser]);
+  }, [courseId, currentUser, loadCertificate]);
 
   const loadCertificate = () => {
     const certificates = JSON.parse(localStorage.getItem('certificates') || '[]');

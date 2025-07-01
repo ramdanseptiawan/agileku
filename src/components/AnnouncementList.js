@@ -10,7 +10,7 @@ const AnnouncementList = ({ isModal = false, onClose }) => {
   useEffect(() => {
     loadAnnouncements();
     loadReadStatus();
-  }, [currentUser]);
+  }, [currentUser, loadAnnouncements, loadReadStatus]);
 
   const loadAnnouncements = () => {
     const saved = localStorage.getItem('announcements');

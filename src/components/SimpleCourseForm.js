@@ -1126,7 +1126,7 @@ const SimpleCourseForm = ({ initialData, onSave, onCancel, isLoading, isEditing 
               ))}
               {formData.lessons.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
-                  Belum ada lesson. Klik "Tambah Lesson" untuk memulai.
+                  Belum ada lesson. Klik &quot;Tambah Lesson&quot; untuk memulai.
                 </div>
               )}
             </div>

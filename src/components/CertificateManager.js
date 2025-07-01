@@ -16,7 +16,7 @@ const CertificateManager = () => {
 
   useEffect(() => {
     filterCertificates();
-  }, [certificates, searchTerm, filterBy]);
+  }, [certificates, searchTerm, filterBy, filterCertificates]);
 
   const loadCertificates = () => {
     // Load all certificates from all users for admin management

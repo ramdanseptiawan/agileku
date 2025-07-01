@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Upload, X, Plus, Trash2, File, Save } from 'lucide-react';
 import CourseFormManager from './CourseFormManager';
 
 const CourseForm = ({ course, onSave, onCancel }) => {
