@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Send, Eye, Calendar, User } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { Plus, Edit, Trash2, Calendar, Send, Save, X, AlertCircle, Info, CheckCircle, Users, User, Shield } from 'lucide-react';
 
 const AnnouncementManager = () => {
   const [announcements, setAnnouncements] = useState([]);
@@ -12,16 +13,16 @@ const AnnouncementManager = () => {
     targetAudience: 'all'
   });
 
-  useEffect(() => {
-    loadAnnouncements();
-  }, []);
-
-  const loadAnnouncements = () => {
+  const loadAnnouncements = useCallback(() => {
     const saved = localStorage.getItem('announcements');
     if (saved) {
       setAnnouncements(JSON.parse(saved));
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadAnnouncements();
+  }, [loadAnnouncements]);
 
   const saveAnnouncements = (newAnnouncements) => {
     localStorage.setItem('announcements', JSON.stringify(newAnnouncements));

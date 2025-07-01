@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, FileText, CheckCircle, Clock, AlertCircle, X, Download, Save } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -26,13 +26,7 @@ const PostWork = ({ courseId, onSubmit }) => {
 
   const maxFileSize = 10 * 1024 * 1024; // 10MB
 
-  // Load saved progress and instructions on component mount
-  useEffect(() => {
-    loadProgress();
-    loadInstructions();
-  }, [courseId, currentUser]);
-
-  const loadInstructions = () => {
+  const loadInstructions = useCallback(() => {
     try {
       const storageKey = `course_instructions_${courseId}`;
       const savedInstructions = localStorage.getItem(storageKey);
@@ -72,20 +66,9 @@ const PostWork = ({ courseId, onSubmit }) => {
         resources: ['Materi pembelajaran yang telah dipelajari']
       });
     }
-  };
+  }, [courseId]);
 
-  // Auto-save progress when data changes
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (workDescription || selectedFile) {
-        saveProgress();
-      }
-    }, 2000); // Auto-save after 2 seconds of inactivity
-
-    return () => clearTimeout(timeoutId);
-  }, [workDescription, selectedFile]);
-
-  const loadProgress = () => {
+  const loadProgress = useCallback(() => {
     const savedProgress = localStorage.getItem(`postWork_${courseId}_${currentUser?.id}`);
     if (savedProgress) {
       const progress = JSON.parse(savedProgress);
@@ -96,9 +79,15 @@ const PostWork = ({ courseId, onSubmit }) => {
       setGrade(progress.grade);
       setLastSaved(progress.lastSaved);
     }
-  };
+  }, [courseId, currentUser?.id]);
 
-  const saveProgress = () => {
+  // Load saved progress and instructions on component mount
+  useEffect(() => {
+    loadProgress();
+    loadInstructions();
+  }, [loadProgress, loadInstructions]);
+
+  const saveProgress = useCallback(() => {
     if (!currentUser) return;
     
     setAutoSaveStatus('saving');
@@ -118,7 +107,18 @@ const PostWork = ({ courseId, onSubmit }) => {
     } catch (error) {
       setAutoSaveStatus('error');
     }
-  };
+  }, [currentUser, courseId, workDescription, workStatus, submissionDate, feedback, grade]);
+
+  // Auto-save progress when data changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (workDescription || selectedFile) {
+        saveProgress();
+      }
+    }, 2000); // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(timeoutId);
+  }, [workDescription, selectedFile, saveProgress]);
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];

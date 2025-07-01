@@ -1,7 +1,6 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { Award, Download, Calendar, Trophy, Medal, Star } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { Award, Download, Calendar, User, Trophy, Star, Target, BookOpen, Medal } from 'lucide-react';
 
 const Achievements = () => {
   const { currentUser } = useAuth();
@@ -13,25 +12,25 @@ const Achievements = () => {
     return `certificates_${currentUser.id}`;
   };
 
-  const loadCertificates = () => {
-    const storageKey = getCertificateStorageKey();
-    if (!storageKey) return [];
-
-    try {
-      const savedCertificates = localStorage.getItem(storageKey);
-      return savedCertificates ? JSON.parse(savedCertificates) : [];
-    } catch (error) {
-      console.error('Error loading certificates:', error);
+  const loadCertificates = useCallback(() => {
+    if (!currentUser) return [];
+    
+    const storageKey = `certificates_${currentUser.id}`;
+    const saved = localStorage.getItem(storageKey);
+    
+    if (saved) {
+      return JSON.parse(saved);
+    } else {
       return [];
     }
-  };
+  }, [currentUser]);
 
   // Load certificates when component mounts or currentUser changes
   useEffect(() => {
     const loadedCertificates = loadCertificates();
     setCertificates(loadedCertificates);
     console.log('Achievements: Loaded certificates:', loadedCertificates);
-  }, [currentUser, loadCertificates]);
+  }, [loadCertificates]);
 
   const downloadCertificate = (certificate) => {
     // Create a simple certificate HTML for download

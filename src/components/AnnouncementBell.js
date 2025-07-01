@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import AnnouncementList from './AnnouncementList';
@@ -9,26 +9,7 @@ const AnnouncementBell = ({ onClick }) => {
   const [showModal, setShowModal] = useState(false);
   const { currentUser } = useAuth();
 
-  useEffect(() => {
-    updateUnreadCount();
-    
-    // Listen for storage changes to update count in real-time
-    const handleStorageChange = () => {
-      updateUnreadCount();
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also check periodically for updates
-    const interval = setInterval(updateUnreadCount, 30000); // Check every 30 seconds
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, [currentUser, updateUnreadCount]);
-
-  const updateUnreadCount = () => {
+  const updateUnreadCount = useCallback(() => {
     if (!currentUser) {
       setUnreadCount(0);
       return;
@@ -59,7 +40,26 @@ const AnnouncementBell = ({ onClick }) => {
     // Count unread announcements
     const unread = filteredAnnouncements.filter(a => !readAnnouncements.has(a.id)).length;
     setUnreadCount(unread);
-  };
+  }, [currentUser?.id, currentUser?.role]);
+
+  useEffect(() => {
+    updateUnreadCount();
+    
+    // Listen for storage changes to update count in real-time
+    const handleStorageChange = () => {
+      updateUnreadCount();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check periodically for updates
+    const interval = setInterval(updateUnreadCount, 30000); // Check every 30 seconds
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [updateUnreadCount]);
 
   const handleBellClick = () => {
     if (onClick) {

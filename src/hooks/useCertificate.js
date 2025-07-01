@@ -97,6 +97,30 @@ export const useCertificate = (courseId, progress) => {
     return eligible;
   }, [progress, courseId]);
 
+  // Calculate final grade
+  const calculateFinalGrade = useCallback(() => {
+    if (!progress) return 0;
+
+    const preTestScore = progress.quizScores[`pretest_${courseId}`]?.score || 0;
+    const postTestScore = progress.quizScores[`posttest_${courseId}`]?.score || 0;
+    
+    // Weighted average: pretest 30%, posttest 70%
+    const finalGrade = Math.round((preTestScore * 0.3) + (postTestScore * 0.7));
+    return finalGrade;
+  }, [progress, courseId]);
+
+  // Get time spent in readable format
+  const getTimeSpent = useCallback(() => {
+    if (!progress?.startedAt) return '0 jam';
+    
+    const start = new Date(progress.startedAt);
+    const end = progress.completedAt ? new Date(progress.completedAt) : new Date();
+    const hours = Math.round((end - start) / (1000 * 60 * 60));
+    
+    if (hours < 1) return '< 1 jam';
+    return `${hours} jam`;
+  }, [progress]);
+
   // Generate certificate
   const generateCertificate = useCallback(async () => {
     console.log('generateCertificate called with:', {
@@ -171,31 +195,7 @@ export const useCertificate = (courseId, progress) => {
       setIsGenerating(false);
       throw error;
     }
-  }, [isEligible, currentUser, courseId, certificates, getCourseById, saveCertificates]);
-
-  // Calculate final grade
-  const calculateFinalGrade = useCallback(() => {
-    if (!progress) return 0;
-
-    const preTestScore = progress.quizScores[`pretest_${courseId}`]?.score || 0;
-    const postTestScore = progress.quizScores[`posttest_${courseId}`]?.score || 0;
-    
-    // Weighted average: pretest 30%, posttest 70%
-    const finalGrade = Math.round((preTestScore * 0.3) + (postTestScore * 0.7));
-    return finalGrade;
-  }, [progress, courseId]);
-
-  // Get time spent in readable format
-  const getTimeSpent = useCallback(() => {
-    if (!progress?.startedAt) return '0 jam';
-    
-    const start = new Date(progress.startedAt);
-    const end = progress.completedAt ? new Date(progress.completedAt) : new Date();
-    const hours = Math.round((end - start) / (1000 * 60 * 60));
-    
-    if (hours < 1) return '< 1 jam';
-    return `${hours} jam`;
-  }, [progress]);
+  }, [isEligible, currentUser, courseId, certificates, getCourseById, saveCertificates, calculateFinalGrade, getTimeSpent]);
 
   // Get certificate untuk course tertentu
   const getCertificateForCourse = useCallback((targetCourseId) => {

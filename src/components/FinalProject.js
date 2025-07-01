@@ -37,13 +37,22 @@ const FinalProject = ({ courseId, onSubmit }) => {
 
   const maxFileSize = 50 * 1024 * 1024; // 50MB
 
-  // Load saved progress and instructions on component mount
-  useEffect(() => {
-    loadProgress();
-    loadInstructions();
-  }, [courseId, currentUser]);
+  const loadProgress = useCallback(() => {
+    const savedProgress = localStorage.getItem(`finalProject_${courseId}_${currentUser?.id}`);
+    if (savedProgress) {
+      const progress = JSON.parse(savedProgress);
+      setProjectDescription(progress.description || '');
+      setProjectLink(progress.link || '');
+      setSubmissionType(progress.submissionType || 'file');
+      setProjectStatus(progress.status || 'not_submitted');
+      setSubmissionDate(progress.submissionDate);
+      setFeedback(progress.feedback || '');
+      setGrade(progress.grade);
+      setLastSaved(progress.lastSaved);
+    }
+  }, [courseId, currentUser?.id]);
 
-  const loadInstructions = () => {
+  const loadInstructions = useCallback(() => {
     try {
       const storageKey = `course_instructions_${courseId}`;
       const savedInstructions = localStorage.getItem(storageKey);
@@ -86,35 +95,15 @@ const FinalProject = ({ courseId, onSubmit }) => {
         resources: ['Seluruh materi kursus']
       });
     }
-  };
+  }, [courseId]);
 
-  // Auto-save progress when data changes
+  // Load saved progress and instructions on component mount
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (projectDescription || selectedFile || projectLink) {
-        saveProgress();
-      }
-    }, 2000); // Auto-save after 2 seconds of inactivity
+    loadProgress();
+    loadInstructions();
+  }, [loadProgress, loadInstructions]);
 
-    return () => clearTimeout(timeoutId);
-  }, [projectDescription, selectedFile, projectLink, submissionType]);
-
-  const loadProgress = () => {
-    const savedProgress = localStorage.getItem(`finalProject_${courseId}_${currentUser?.id}`);
-    if (savedProgress) {
-      const progress = JSON.parse(savedProgress);
-      setProjectDescription(progress.description || '');
-      setProjectLink(progress.link || '');
-      setSubmissionType(progress.submissionType || 'file');
-      setProjectStatus(progress.status || 'not_submitted');
-      setSubmissionDate(progress.submissionDate);
-      setFeedback(progress.feedback || '');
-      setGrade(progress.grade);
-      setLastSaved(progress.lastSaved);
-    }
-  };
-
-  const saveProgress = () => {
+  const saveProgress = useCallback(() => {
     if (!currentUser) return;
     
     setAutoSaveStatus('saving');
@@ -136,7 +125,18 @@ const FinalProject = ({ courseId, onSubmit }) => {
     } catch (error) {
       setAutoSaveStatus('error');
     }
-  };
+  }, [currentUser, courseId, projectDescription, projectLink, submissionType, projectStatus, submissionDate, feedback, grade]);
+
+  // Auto-save progress when data changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (projectDescription || selectedFile || projectLink) {
+        saveProgress();
+      }
+    }, 2000); // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(timeoutId);
+  }, [projectDescription, selectedFile, projectLink, submissionType, saveProgress]);
 
   const checkCourseCompletion = () => {
     // Check if user has completed all course requirements

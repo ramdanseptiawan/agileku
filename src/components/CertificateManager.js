@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Award, Download, Search, Filter, Calendar, User, Trophy, Eye, Trash2, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -10,15 +10,7 @@ const CertificateManager = () => {
   const [selectedCertificate, setSelectedCertificate] = useState(null);
   const { currentUser } = useAuth();
 
-  useEffect(() => {
-    loadCertificates();
-  }, []);
-
-  useEffect(() => {
-    filterCertificates();
-  }, [certificates, searchTerm, filterBy, filterCertificates]);
-
-  const loadCertificates = () => {
+  const loadCertificates = useCallback(() => {
     // Load all certificates from all users for admin management
     const allCertificates = [];
     
@@ -37,9 +29,9 @@ const CertificateManager = () => {
     
     console.log('CertificateManager: Loaded certificates:', allCertificates);
     setCertificates(allCertificates);
-  };
+  }, []);
 
-  const filterCertificates = () => {
+  const filterCertificates = useCallback(() => {
     let filtered = certificates;
 
     // Filter by search term
@@ -72,7 +64,17 @@ const CertificateManager = () => {
     }
 
     setFilteredCertificates(filtered.sort((a, b) => new Date(b.completionDate) - new Date(a.completionDate)));
-  };
+  }, [certificates, searchTerm, filterBy]);
+
+  useEffect(() => {
+    loadCertificates();
+  }, [loadCertificates]);
+
+  useEffect(() => {
+    filterCertificates();
+  }, [filterCertificates]);
+
+  // filterCertificates is now defined as useCallback above
 
   const deleteCertificate = (certificateId) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus sertifikat ini?')) {

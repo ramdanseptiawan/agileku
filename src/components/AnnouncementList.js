@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, Calendar, User, X, AlertCircle, Info, CheckCircle, Megaphone, Clock, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -7,12 +7,7 @@ const AnnouncementList = ({ isModal = false, onClose }) => {
   const [readAnnouncements, setReadAnnouncements] = useState(new Set());
   const { currentUser } = useAuth();
 
-  useEffect(() => {
-    loadAnnouncements();
-    loadReadStatus();
-  }, [currentUser, loadAnnouncements, loadReadStatus]);
-
-  const loadAnnouncements = () => {
+  const loadAnnouncements = useCallback(() => {
     const saved = localStorage.getItem('announcements');
     if (saved) {
       const allAnnouncements = JSON.parse(saved);
@@ -25,15 +20,20 @@ const AnnouncementList = ({ isModal = false, onClose }) => {
       });
       setAnnouncements(filteredAnnouncements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
     }
-  };
+  }, [currentUser?.role]);
 
-  const loadReadStatus = () => {
+  const loadReadStatus = useCallback(() => {
     const userId = currentUser?.id || 'guest';
     const saved = localStorage.getItem(`readAnnouncements_${userId}`);
     if (saved) {
       setReadAnnouncements(new Set(JSON.parse(saved)));
     }
-  };
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    loadAnnouncements();
+    loadReadStatus();
+  }, [loadAnnouncements, loadReadStatus]);
 
   const markAsRead = (announcementId) => {
     const userId = currentUser?.id || 'guest';
@@ -119,7 +119,7 @@ const AnnouncementList = ({ isModal = false, onClose }) => {
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2"
+                    className="bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2"
                   >
                     <Eye size={16} />
                     Tandai Semua Dibaca
@@ -175,7 +175,7 @@ const AnnouncementList = ({ isModal = false, onClose }) => {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center gap-2 font-semibold"
+                  className="bg-opacity-20 hover:bg-opacity-30 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center gap-2 font-semibold"
                 >
                   <Eye size={20} />
                   Tandai Semua Dibaca

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Award, Download, Calendar, User, CheckCircle, Star, Trophy, Medal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -7,17 +7,17 @@ const Certificate = ({ courseId, courseName, onClose }) => {
   const [certificate, setCertificate] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  useEffect(() => {
-    loadCertificate();
-  }, [courseId, currentUser, loadCertificate]);
-
-  const loadCertificate = () => {
+  const loadCertificate = useCallback(() => {
     const certificates = JSON.parse(localStorage.getItem('certificates') || '[]');
     const userCertificate = certificates.find(
       cert => cert.courseId === courseId && cert.userId === currentUser?.id
     );
     setCertificate(userCertificate);
-  };
+  }, [courseId, currentUser?.id]);
+
+  useEffect(() => {
+    loadCertificate();
+  }, [loadCertificate]);
 
   const generateCertificate = async () => {
     setIsGenerating(true);

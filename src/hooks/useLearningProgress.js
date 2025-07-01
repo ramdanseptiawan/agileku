@@ -49,9 +49,15 @@ export const useLearningProgress = (courseId) => {
         console.log('No saved progress found for course:', courseId);
         // Initialize new progress
         const newProgress = {
-          ...progress,
+          currentStep: 'intro',
+          completedSteps: [],
+          lessonProgress: {},
+          quizScores: {},
+          submissions: {},
+          lastAccessed: new Date().toISOString(),
+          totalTimeSpent: 0,
           startedAt: new Date().toISOString(),
-          lastAccessed: new Date().toISOString()
+          completedAt: null
         };
         setProgress(newProgress);
         localStorage.setItem(storageKey, JSON.stringify(newProgress));
@@ -61,7 +67,7 @@ export const useLearningProgress = (courseId) => {
     } finally {
       setIsLoading(false);
     }
-  }, [getStorageKey]);
+  }, [getStorageKey, courseId]);
 
   // Save progress ke localStorage
   const saveProgress = useCallback((newProgress) => {
@@ -97,10 +103,15 @@ export const useLearningProgress = (courseId) => {
 
   // Mark step sebagai completed
   const markStepCompleted = useCallback((stepId) => {
-    updateProgress({
-      completedSteps: [...new Set([...progress.completedSteps, stepId])]
+    setProgress(prev => {
+      const newProgress = {
+        ...prev,
+        completedSteps: [...new Set([...prev.completedSteps, stepId])]
+      };
+      saveProgress(newProgress);
+      return newProgress;
     });
-  }, [progress.completedSteps, updateProgress]);
+  }, [saveProgress]);
 
   // Set current step
   const setCurrentStep = useCallback((stepId) => {
@@ -109,17 +120,22 @@ export const useLearningProgress = (courseId) => {
 
   // Update lesson progress
   const updateLessonProgress = useCallback((lessonId, progressData) => {
-    updateProgress({
-      lessonProgress: {
-        ...progress.lessonProgress,
-        [lessonId]: {
-          ...progress.lessonProgress[lessonId],
-          ...progressData,
-          lastAccessed: new Date().toISOString()
+    setProgress(prev => {
+      const newProgress = {
+        ...prev,
+        lessonProgress: {
+          ...prev.lessonProgress,
+          [lessonId]: {
+            ...prev.lessonProgress[lessonId],
+            ...progressData,
+            lastAccessed: new Date().toISOString()
+          }
         }
-      }
+      };
+      saveProgress(newProgress);
+      return newProgress;
     });
-  }, [progress.lessonProgress, updateProgress]);
+   }, [saveProgress]);
 
   // Save quiz score
   const saveQuizScore = useCallback((quizId, score, isPreTest = false) => {
@@ -210,13 +226,16 @@ export const useLearningProgress = (courseId) => {
   // Auto-save setiap 30 detik jika ada perubahan
   useEffect(() => {
     const interval = setInterval(() => {
-      if (progress.lastAccessed) {
-        saveProgress(progress);
-      }
+      setProgress(currentProgress => {
+        if (currentProgress.lastAccessed) {
+          saveProgress(currentProgress);
+        }
+        return currentProgress;
+      });
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, [progress, saveProgress]);
+  }, [saveProgress]);
 
   return {
     progress,
