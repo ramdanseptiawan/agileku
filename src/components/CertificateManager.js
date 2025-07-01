@@ -19,10 +19,24 @@ const CertificateManager = () => {
   }, [certificates, searchTerm, filterBy]);
 
   const loadCertificates = () => {
-    const saved = localStorage.getItem('certificates');
-    if (saved) {
-      setCertificates(JSON.parse(saved));
+    // Load all certificates from all users for admin management
+    const allCertificates = [];
+    
+    // Get all localStorage keys that match certificate pattern
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('certificates_')) {
+        try {
+          const userCertificates = JSON.parse(localStorage.getItem(key) || '[]');
+          allCertificates.push(...userCertificates);
+        } catch (error) {
+          console.error('Error loading certificates from key:', key, error);
+        }
+      }
     }
+    
+    console.log('CertificateManager: Loaded certificates:', allCertificates);
+    setCertificates(allCertificates);
   };
 
   const filterCertificates = () => {
@@ -31,9 +45,9 @@ const CertificateManager = () => {
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(cert => 
-        cert.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        cert.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        cert.certificateNumber.toLowerCase().includes(searchTerm.toLowerCase())
+        (cert.studentName || cert.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (cert.courseName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (cert.certificateNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -69,11 +83,18 @@ const CertificateManager = () => {
   };
 
   const downloadCertificate = (certificate) => {
+    // Use correct property names and add safety checks
+    const studentName = certificate.studentName || certificate.userName || 'Unknown Student';
+    const courseName = certificate.courseName || 'Unknown Course';
+    const certificateNumber = certificate.certificateNumber || 'N/A';
+    const completionDate = certificate.completionDate || new Date().toISOString();
+    const grade = certificate.grade || 'N/A';
+    
     const certificateHTML = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Sertifikat - ${certificate.courseName}</title>
+        <title>Sertifikat - ${courseName}</title>
         <style>
           body { 
             font-family: 'Georgia', serif; 
@@ -122,13 +143,13 @@ const CertificateManager = () => {
           </div>
           <div class="title">CERTIFICATE OF COMPLETION</div>
           <div class="subtitle">Dengan ini menyatakan bahwa</div>
-          <div class="name">${certificate.userName}</div>
+          <div class="name">${studentName}</div>
           <div class="subtitle">telah berhasil menyelesaikan kursus</div>
-          <div class="course">${certificate.courseName}</div>
+          <div class="course">${courseName}</div>
           <div class="details">
-            <p><strong>Nomor Sertifikat:</strong> ${certificate.certificateNumber}</p>
-            <p><strong>Tanggal Penyelesaian:</strong> ${new Date(certificate.completionDate).toLocaleDateString('id-ID')}</p>
-            <p><strong>Grade:</strong> ${certificate.grade}</p>
+            <p><strong>Nomor Sertifikat:</strong> ${certificateNumber}</p>
+            <p><strong>Tanggal Penyelesaian:</strong> ${new Date(completionDate).toLocaleDateString('id-ID')}</p>
+            <p><strong>Grade:</strong> ${grade}</p>
           </div>
           <div class="signature">
             <div class="sig-line">
@@ -147,7 +168,10 @@ const CertificateManager = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Sertifikat-${certificate.courseName.replace(/\s+/g, '-')}-${certificate.userName.replace(/\s+/g, '-')}.html`;
+    // Safe filename generation with fallbacks
+    const safeCourseName = courseName.replace(/[^a-zA-Z0-9]/g, '-');
+    const safeStudentName = studentName.replace(/[^a-zA-Z0-9]/g, '-');
+    a.download = `Sertifikat-${safeCourseName}-${safeStudentName}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -163,7 +187,7 @@ const CertificateManager = () => {
   };
 
   const CertificateModal = ({ certificate, onClose }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div className="fixed text-gray-900 inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl">
         <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white p-6">
           <div className="flex items-center justify-between">
@@ -173,7 +197,7 @@ const CertificateManager = () => {
             </div>
             <button
               onClick={onClose}
-              className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-all duration-200"
+              className="bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-all duration-200"
             >
               ✕
             </button>
@@ -194,7 +218,7 @@ const CertificateManager = () => {
                   <User className="text-blue-500" size={16} />
                   <span className="font-semibold text-sm">Nama Peserta</span>
                 </div>
-                <p className="text-gray-800 font-medium">{certificate.userName}</p>
+                <p className="text-gray-800 font-medium">{certificate.studentName || certificate.userName || 'Unknown Student'}</p>
               </div>
               <div className="bg-white p-4 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
@@ -246,7 +270,7 @@ const CertificateManager = () => {
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-white p-8">
             <div className="flex items-center gap-4">
-              <div className="bg-white bg-opacity-20 p-4 rounded-full">
+              <div className="bg-opacity-20 p-4 rounded-full">
                 <Trophy className="text-white" size={32} />
               </div>
               <div>
@@ -343,7 +367,7 @@ const CertificateManager = () => {
                             <Award className="text-yellow-600" size={24} />
                           </div>
                           <div>
-                            <h3 className="font-bold text-gray-800">{certificate.userName}</h3>
+                            <h3 className="font-bold text-gray-800">{certificate.studentName || certificate.userName || 'Unknown Student'}</h3>
                             <p className="text-gray-600">{certificate.courseName}</p>
                             <p className="text-sm text-gray-500">No: {certificate.certificateNumber}</p>
                           </div>

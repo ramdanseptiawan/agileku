@@ -12,6 +12,7 @@ import PostWork from './PostWork';
 import FinalProject from './FinalProject';
 import Certificate from './Certificate';
 import ProgressTracker from './ProgressTracker';
+import DebugPanel from './DebugPanel';
 
 const CourseView = ({ 
   currentLesson, 
@@ -25,8 +26,12 @@ const CourseView = ({
   const { getCourseById } = useAuth();
   const [surveyData, setSurveyData] = useState(null);
   const [showCertificate, setShowCertificate] = useState(false);
+  const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   
   // Use custom hooks for progress and certificate management
+  // Get the latest course data from context
+  const course = currentLesson ? getCourseById(currentLesson.id) || currentLesson : null;
+  
   const {
     progress,
     setCurrentStep,
@@ -35,7 +40,7 @@ const CourseView = ({
     saveQuizScore,
     saveSubmission,
     markCourseCompleted
-  } = useLearningProgress(currentLesson?.id);
+  } = useLearningProgress(course?.id);
   
   const {
     certificates,
@@ -43,10 +48,7 @@ const CourseView = ({
     isGenerating,
     generateCertificate,
     getCertificateForCourse
-  } = useCertificate(currentLesson?.id, progress);
-  
-  // Get the latest course data from context
-  const course = currentLesson ? getCourseById(currentLesson.id) || currentLesson : null;
+  } = useCertificate(course?.id, progress);
   
   // Auto-resume to last saved progress
   useEffect(() => {
@@ -55,6 +57,23 @@ const CourseView = ({
       console.log('Resuming to step:', progress.currentStep);
     }
   }, [progress.currentStep]);
+  
+  // Sync currentLessonIndex with saved progress
+  useEffect(() => {
+    if (progress.lessonProgress?.currentLessonIndex !== undefined) {
+      setCurrentLessonIndex(progress.lessonProgress.currentLessonIndex);
+    }
+  }, [progress.lessonProgress?.currentLessonIndex]);
+  
+  // Handle lesson change and save to progress
+  const handleLessonChange = (newIndex) => {
+    setCurrentLessonIndex(newIndex);
+    updateLessonProgress(course.id, {
+      currentLessonIndex: newIndex,
+      completedLessons: progress.lessonProgress?.completedLessons || [],
+      timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
+    });
+  };
   
   if (!course) return null;
 
@@ -85,7 +104,8 @@ const CourseView = ({
   // Handle survey submission
   const handleSurveySubmit = (data) => {
     setSurveyData(data);
-    saveQuizScore(`posttest_${currentLesson?.id}`, data.score || 0, data);
+    console.log('Survey submit - Course ID:', course?.id, 'Score:', data.score);
+    saveQuizScore(course?.id, data.score || 0, false);
     handleStepComplete('posttest');
   };
 
@@ -108,11 +128,29 @@ const CourseView = ({
 
   // Enhanced quiz submit handler
   const handleQuizSubmit = (quizId, isPreTest, answers) => {
+    // First call the parent handler to calculate score
     onQuizSubmit(quizId, isPreTest, answers);
     
-    // Update quiz score in progress
-    const quizType = isPreTest ? 'pretest' : 'posttest';
-    saveQuizScore(`${quizType}_${currentLesson?.id}`, answers.score || 0, answers);
+    // Calculate score locally to save to progress
+    const quiz = isPreTest ? course?.preTest : course?.postTest;
+    if (quiz) {
+      let score = 0;
+      quiz.questions.forEach(q => {
+        if (answers[q.id] === q.correct) score++;
+      });
+      const percentage = Math.round((score / quiz.questions.length) * 100);
+      
+      console.log('Quiz submitted:', {
+        quizId,
+        isPreTest,
+        courseId: course?.id,
+        score: percentage,
+        answers
+      });
+      
+      // Update quiz score in progress
+      saveQuizScore(course?.id, percentage, isPreTest);
+    }
     
     // For pretest, don't auto-complete step - wait for user to continue
     // For posttest, mark as complete when quiz is submitted
@@ -127,9 +165,38 @@ const CourseView = ({
   };
 
   // Enhanced lesson complete handler
-  const handleLessonComplete = () => {
-    onMarkComplete();
+  const handleLessonComplete = (lessonId) => {
+    console.log('handleLessonComplete called with:', { lessonId, currentLessonIndex, courseId: course.id });
+    
+    // Mark current lesson as completed
+    const existingCompleted = progress.lessonProgress?.completedLessons || [];
+    const completedLessons = [...new Set([...existingCompleted, currentLessonIndex])];
+    
+    console.log('Updating lesson progress:', {
+      currentLessonIndex,
+      completedLessons,
+      totalLessons: course.lessons.length
+    });
+    
+    // Update lesson progress with completion
+    updateLessonProgress(course.id, {
+      currentLessonIndex,
+      completedLessons,
+      timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1,
+      lastCompletedLesson: currentLessonIndex,
+      lastCompletedAt: new Date().toISOString()
+    });
+    
+    // Mark current lesson as completed and navigate to post test
+    console.log('Lesson completed! Marking lessons step as complete and navigating to post test.');
+    markStepCompleted('lessons');
     handleStepComplete('lessons');
+    
+    // Call parent onMarkComplete if provided
+    if (onMarkComplete) {
+      console.log('Calling parent onMarkComplete');
+      onMarkComplete();
+    }
   };
 
   return (
@@ -193,6 +260,9 @@ const CourseView = ({
             <LessonContent 
               lessons={course.lessons}
               onMarkComplete={handleLessonComplete}
+              courseId={course.id}
+              currentLessonIndex={currentLessonIndex}
+              onLessonChange={handleLessonChange}
             />
           )}
           
@@ -288,6 +358,8 @@ const CourseView = ({
           onClose={() => setShowCertificate(false)}
         />
       )}
+      
+      {/* Debug Panel */}
     </div>
   );
 };

@@ -158,7 +158,7 @@ const AnnouncementList = ({ isModal = false, onClose }) => {
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <div className="bg-white bg-opacity-20 p-4 rounded-full">
+                <div className="bg-opacity-20 p-4 rounded-full">
                   <Megaphone className="text-white" size={32} />
                 </div>
                 <div>

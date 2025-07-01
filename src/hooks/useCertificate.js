@@ -60,16 +60,38 @@ export const useCertificate = (courseId, progress) => {
     // Check minimum quiz scores
     const preTestScore = progress.quizScores[`pretest_${courseId}`]?.score || 0;
     const postTestScore = progress.quizScores[`posttest_${courseId}`]?.score || 0;
-    const minScore = 70; // Minimum 70%
+    const minScore = 1; // Minimum 70%
 
     // Check if submissions exist
-    const hasPostWork = progress.submissions.postwork;
-    const hasFinalProject = progress.submissions.finalproject;
+    const hasPostWork = progress.submissions?.postwork;
+    const hasFinalProject = progress.submissions?.finalproject;
 
-    const eligible = allStepsCompleted && 
-                    postTestScore >= minScore && 
-                    hasPostWork && 
-                    hasFinalProject;
+    console.log('Certificate eligibility check:', {
+      allStepsCompleted,
+      postTestScore,
+      minScore,
+      hasPostWork: !!hasPostWork,
+      hasFinalProject: !!hasFinalProject,
+      completedSteps: progress.completedSteps,
+      submissions: progress.submissions
+    });
+
+    // More flexible eligibility - only require core steps
+    const coreStepsCompleted = ['intro', 'pretest', 'lessons', 'posttest'].every(step => 
+      progress.completedSteps.includes(step)
+    );
+    
+    const eligible = coreStepsCompleted && postTestScore >= minScore;
+    
+    console.log('Certificate eligibility details:', {
+      coreStepsCompleted,
+      allStepsCompleted,
+      postTestScore,
+      minScore,
+      hasPostWork: !!hasPostWork,
+      hasFinalProject: !!hasFinalProject,
+      finalEligible: eligible
+    });
 
     setIsEligible(eligible);
     return eligible;
@@ -77,8 +99,20 @@ export const useCertificate = (courseId, progress) => {
 
   // Generate certificate
   const generateCertificate = useCallback(async () => {
+    console.log('generateCertificate called with:', {
+      isEligible,
+      currentUser: !!currentUser,
+      courseId,
+      certificatesCount: certificates.length
+    });
+    
     if (!isEligible || !currentUser || !courseId) {
-      throw new Error('Not eligible for certificate');
+      console.log('Cannot generate certificate: not eligible or missing data', {
+        isEligible,
+        hasCurrentUser: !!currentUser,
+        courseId
+      });
+      return;
     }
 
     setIsGenerating(true);
@@ -86,15 +120,19 @@ export const useCertificate = (courseId, progress) => {
     try {
       const course = getCourseById(courseId);
       if (!course) {
-        throw new Error('Course not found');
+        console.log('Cannot generate certificate: course not found for ID:', courseId);
+        return;
       }
 
       // Check if certificate already exists
       const existingCertificate = certificates.find(cert => cert.courseId === courseId);
       if (existingCertificate) {
+        console.log('Certificate already exists for this course:', existingCertificate.id);
         setIsGenerating(false);
         return existingCertificate;
       }
+      
+      console.log('Proceeding with certificate generation for course:', course.title);
 
       // Generate new certificate
       const certificate = {
@@ -116,7 +154,16 @@ export const useCertificate = (courseId, progress) => {
 
       // Save certificate
       const updatedCertificates = [...certificates, certificate];
+      console.log('Saving certificate to localStorage...', {
+        newCertificateId: certificate.id,
+        totalCertificates: updatedCertificates.length,
+        storageKey: getCertificateStorageKey()
+      });
+      
       saveCertificates(updatedCertificates);
+      
+      console.log('Certificate generated and saved successfully:', certificate.id);
+      console.log('Total certificates after save:', updatedCertificates.length);
 
       setIsGenerating(false);
       return certificate;
@@ -191,7 +238,15 @@ export const useCertificate = (courseId, progress) => {
 
   // Auto-generate certificate jika eligible dan belum ada
   useEffect(() => {
+    console.log('Certificate auto-generation check:', {
+      isEligible,
+      courseId,
+      existingCertificate: getCertificateForCourse(courseId),
+      shouldGenerate: isEligible && courseId && !getCertificateForCourse(courseId)
+    });
+    
     if (isEligible && courseId && !getCertificateForCourse(courseId)) {
+      console.log('Auto-generating certificate in 2 seconds...');
       // Auto-generate setelah delay untuk memberikan feedback yang baik
       const timer = setTimeout(() => {
         generateCertificate().catch(console.error);

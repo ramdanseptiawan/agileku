@@ -39,12 +39,14 @@ export const useLearningProgress = (courseId) => {
       const savedProgress = localStorage.getItem(storageKey);
       if (savedProgress) {
         const parsedProgress = JSON.parse(savedProgress);
+        console.log('Loading progress for course:', courseId, parsedProgress);
         setProgress(prev => ({
           ...prev,
           ...parsedProgress,
           lastAccessed: new Date().toISOString()
         }));
       } else {
+        console.log('No saved progress found for course:', courseId);
         // Initialize new progress
         const newProgress = {
           ...progress,
@@ -122,6 +124,13 @@ export const useLearningProgress = (courseId) => {
   // Save quiz score
   const saveQuizScore = useCallback((quizId, score, isPreTest = false) => {
     const quizKey = isPreTest ? `pretest_${quizId}` : `posttest_${quizId}`;
+    console.log('Saving quiz score:', {
+      quizId,
+      score,
+      isPreTest,
+      quizKey,
+      currentQuizScores: progress.quizScores
+    });
     updateProgress({
       quizScores: {
         ...progress.quizScores,

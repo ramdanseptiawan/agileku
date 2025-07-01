@@ -16,7 +16,10 @@ import {
   Star,
   Menu,
   GraduationCap,
-  Shield
+  Shield,
+  MessageSquare,
+  UserCog,
+  Edit
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import AnnouncementBell from './AnnouncementBell';
@@ -26,8 +29,7 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
   // Bottom navigation items for mobile
   const bottomNavItems = [
     { id: 'dashboard', label: 'Home', icon: Home, badge: null },
-    { id: 'courses', label: 'Courses', icon: BookOpen, badge: '3' },
-    { id: 'assignments', label: 'Tasks', icon: FileText, badge: '5' },
+    { id: 'courses', label: 'Courses', icon: BookOpen, badge: null },
     { id: 'profile', label: 'Profile', icon: User, badge: null },
     { id: 'menu', label: 'Menu', icon: Menu, badge: null }
   ];
@@ -42,23 +44,24 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
 
     if (userRole === 'admin') {
       return [
-        { id: 'dashboard', label: 'Admin Dashboard', icon: Shield, badge: null },
-        { id: 'courses', label: 'Manage Courses', icon: BookOpen, badge: null },
+        { id: 'overview', label: 'Overview', icon: BarChart3, badge: null },
+        { id: 'courses', label: 'Courses', icon: BookOpen, badge: null },
+        { id: 'quizzes', label: 'Quiz Manager', icon: HelpCircle, badge: null },
+        { id: 'surveys', label: 'Survey Manager', icon: MessageSquare, badge: null },
+        { id: 'announcements', label: 'Announcements', icon: Bell, badge: null },
+        { id: 'certificates', label: 'Certificates', icon: Award, badge: null },
+        { id: 'project-instructions', label: 'Project Instructions', icon: FileText, badge: null },
+        { id: 'course-instructions', label: 'Course Instructions', icon: Settings, badge: null },
+        { id: 'users', label: 'User Management', icon: UserCog, badge: null },
         { id: 'students', label: 'Students', icon: Users, badge: null },
-        { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: null },
         ...commonItems
       ];
     } else {
       return [
         { id: 'dashboard', label: 'Dashboard', icon: Home, badge: null },
-        { id: 'courses', label: 'My Courses', icon: BookOpen, badge: '3' },
-        { id: 'assignments', label: 'Assignments', icon: FileText, badge: '5' },
+        { id: 'courses', label: 'My Courses', icon: BookOpen, badge: null },
         { id: 'announcements', label: 'Announcements', icon: Bell, badge: null },
-        { id: 'calendar', label: 'Schedule', icon: Calendar, badge: '2' },
-        { id: 'progress', label: 'Progress', icon: BarChart3, badge: null },
         { id: 'achievements', label: 'Achievements', icon: Award, badge: null },
-        { id: 'grades', label: 'Grades', icon: Star, badge: null },
-        { id: 'classmates', label: 'Classmates', icon: Users, badge: null },
         ...commonItems
       ];
     }

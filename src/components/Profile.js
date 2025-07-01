@@ -1,13 +1,35 @@
-import React, { useState } from 'react';
-import { User, Mail, Save, Camera } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Mail, Save, Camera, Phone, MapPin, Briefcase, GraduationCap } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Profile = () => {
+  const { currentUser } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     bio: '',
+    phone: '',
+    location: '',
+    occupation: '',
+    education: '',
     avatar: null
   });
+  
+  useEffect(() => {
+    // Populate form with user data if available
+    if (currentUser) {
+      setFormData({
+        name: currentUser.fullName || currentUser.username || '',
+        email: currentUser.email || '',
+        bio: currentUser.bio || 'Saya adalah peserta kursus yang bersemangat untuk belajar dan mengembangkan keterampilan baru.',
+        phone: currentUser.phone || '+62 812-3456-7890',
+        location: currentUser.location || 'Jakarta, Indonesia',
+        occupation: currentUser.occupation || 'Software Developer',
+        education: currentUser.education || 'S1 Teknik Informatika',
+        avatar: currentUser.avatar || null
+      });
+    }
+  }, [currentUser]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -92,6 +114,70 @@ const Profile = () => {
                   onChange={handleInputChange}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
                   placeholder="your@email.com" 
+                />
+              </div>
+              
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Phone size={16} className="inline mr-2" />
+                  Phone Number
+                </label>
+                <input 
+                  type="tel" 
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                  placeholder="+62 812-3456-7890" 
+                />
+              </div>
+              
+              {/* Location */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <MapPin size={16} className="inline mr-2" />
+                  Location
+                </label>
+                <input 
+                  type="text" 
+                  name="location"
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                  placeholder="Jakarta, Indonesia" 
+                />
+              </div>
+              
+              {/* Occupation */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Briefcase size={16} className="inline mr-2" />
+                  Occupation
+                </label>
+                <input 
+                  type="text" 
+                  name="occupation"
+                  value={formData.occupation}
+                  onChange={handleInputChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                  placeholder="Software Developer" 
+                />
+              </div>
+              
+              {/* Education */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <GraduationCap size={16} className="inline mr-2" />
+                  Education
+                </label>
+                <input 
+                  type="text" 
+                  name="education"
+                  value={formData.education}
+                  onChange={handleInputChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
+                  placeholder="S1 Teknik Informatika" 
                 />
               </div>
             </div>

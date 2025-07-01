@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Login from '../components/Login';
 import Header from '../components/Header';
@@ -9,10 +9,14 @@ import AdminDashboard from '../components/AdminDashboard';
 import CourseView from '../components/CourseView';
 import Profile from '../components/Profile';
 import AnnouncementList from '../components/AnnouncementList';
+import Achievements from '../components/Achievements';
+import ContactAdminButton from '../components/ContactAdminButton';
 
 const LMS = () => {
   const { currentUser, isLoading, courses, updateCourses } = useAuth();
-  const [currentView, setCurrentView] = useState('dashboard');
+  const [currentView, setCurrentView] = useState(
+    currentUser?.role === 'admin' ? 'overview' : 'dashboard'
+  );
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [currentLesson, setCurrentLesson] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -32,6 +36,13 @@ const LMS = () => {
     score: 0
   });
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+
+  // Update currentView when user role changes
+  useEffect(() => {
+    if (currentUser) {
+      setCurrentView(currentUser.role === 'admin' ? 'overview' : 'dashboard');
+    }
+  }, [currentUser]);
 
   const handleQuizSubmit = (quizId, isPreTest, quizAnswers) => {
     const currentCourse = courses.find(c => 
@@ -143,8 +154,11 @@ const LMS = () => {
             />
           )}
           
-          {currentView === 'dashboard' && currentUser.role === 'admin' && (
-            <AdminDashboard />
+          {(currentView === 'overview' || currentView === 'courses' || currentView === 'quizzes' || 
+            currentView === 'surveys' || currentView === 'announcements' || currentView === 'certificates' || 
+            currentView === 'project-instructions' || currentView === 'course-instructions' || 
+            currentView === 'users' || currentView === 'students') && currentUser.role === 'admin' && (
+            <AdminDashboard activeTab={currentView} />
           )}
           
           {currentView === 'course' && (
@@ -160,6 +174,8 @@ const LMS = () => {
           )}
           
           {currentView === 'profile' && <Profile />}
+          
+          {currentView === 'achievements' && <Achievements />}
           
           {currentView === 'announcements' && (
             <AnnouncementList 
@@ -177,6 +193,9 @@ const LMS = () => {
           onClose={() => setShowAnnouncementModal(false)}
         />
       )}
+      
+      {/* Contact Admin Button - only show for logged in users */}
+      {currentUser && <ContactAdminButton />}
     </div>
   );
 };

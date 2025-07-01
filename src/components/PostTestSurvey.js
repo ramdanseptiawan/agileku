@@ -41,7 +41,11 @@ const PostTestSurvey = ({ quiz, onQuizSubmit, showQuizResult, currentQuizScore, 
   };
 
   const handleSurveySubmit = () => {
-    onSurveySubmit(surveyData);
+    console.log('PostTestSurvey - Submitting with score:', currentQuizScore);
+    onSurveySubmit({
+      ...surveyData,
+      score: currentQuizScore
+    });
     setSurveySubmitted(true);
   };
 

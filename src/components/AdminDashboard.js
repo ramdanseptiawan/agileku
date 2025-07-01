@@ -12,9 +12,8 @@ import CertificateManager from './CertificateManager';
 import ProjectInstructionManager from './ProjectInstructionManager';
 import CourseInstructionManager from './CourseInstructionManager';
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ activeTab = 'overview' }) => {
   const { courses, addCourse, updateCourse, deleteCourse } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
 
@@ -53,18 +52,7 @@ const AdminDashboard = () => {
     completionRate: 78 // Mock data
   };
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'courses', label: 'Courses', icon: Book },
-    { id: 'quizzes', label: 'Quiz Manager', icon: HelpCircle },
-    { id: 'surveys', label: 'Survey Manager', icon: MessageSquare },
-    { id: 'announcements', label: 'Announcements', icon: Bell },
-    { id: 'certificates', label: 'Certificates', icon: Award },
-    { id: 'project-instructions', label: 'Project Instructions', icon: FileText },
-    { id: 'course-instructions', label: 'Course Instructions', icon: Settings },
-    { id: 'users', label: 'User Management', icon: UserCog },
-    { id: 'students', label: 'Students', icon: Users }
-  ];
+  // Removed tabs array - now using sidebar navigation
 
   if (showCourseForm) {
     return (
@@ -147,28 +135,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Icon className="h-4 w-4 mr-2" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      {/* Tab navigation removed - now using sidebar */}
 
       {/* Tab Content */}
       <div className="mt-6">

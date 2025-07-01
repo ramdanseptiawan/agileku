@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import { getFileFromIndexedDB, getBlobUrl } from '../utils/indexedDB';
 import { useLearningProgress } from '../hooks/useLearningProgress';
 
-const LessonContent = ({ lessons, onMarkComplete, courseId }) => {
+const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex = 0, onLessonChange }) => {
   const [fileUrls, setFileUrls] = useState({});
   
   // Use learning progress hook
@@ -15,9 +15,6 @@ const LessonContent = ({ lessons, onMarkComplete, courseId }) => {
     updateLessonProgress,
     markStepCompleted
   } = useLearningProgress(courseId);
-  
-  // Get current lesson index from progress or default to 0
-  const currentLessonIndex = progress.lessonProgress?.currentLessonIndex || 0;
   
   // Load file URLs from IndexedDB when component mounts or lesson changes
   useEffect(() => {
@@ -391,36 +388,40 @@ const LessonContent = ({ lessons, onMarkComplete, courseId }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 space-y-4 sm:space-y-0">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{lesson.title}</h2>
         <div className="flex space-x-2">
+            {/* Previous Button */}
           <button
             onClick={() => {
-              if (currentLessonIndex > 0) {
-                const newIndex = currentLessonIndex - 1;
-                updateLessonProgress({
-                  ...progress.lessonProgress,
-                  currentLessonIndex: newIndex
-                });
+              if (currentLessonIndex > 0 && onLessonChange) {
+                onLessonChange(currentLessonIndex - 1);
               }
             }}
             disabled={currentLessonIndex === 0}
-            className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 text-sm ${
+              currentLessonIndex === 0 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={16} />
+            <span className="hidden sm:inline">Previous</span>
           </button>
+          
+          {/* Next Button */}
           <button
             onClick={() => {
-              if (currentLessonIndex < lessons.length - 1) {
-                const newIndex = currentLessonIndex + 1;
-                updateLessonProgress({
-                  currentLessonIndex: newIndex,
-                  completedLessons: [...(progress.lessonProgress?.completedLessons || []), currentLessonIndex],
-                  timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
-                });
+              if (currentLessonIndex < lessons.length - 1 && onLessonChange) {
+                onLessonChange(currentLessonIndex + 1);
               }
             }}
             disabled={currentLessonIndex === lessons.length - 1}
-            className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 text-sm ${
+              currentLessonIndex === lessons.length - 1 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
           >
-            <ArrowRight size={20} />
+            <span className="hidden sm:inline">Next</span>
+            <ArrowRight size={16} />
           </button>
         </div>
       </div>
@@ -546,12 +547,8 @@ const LessonContent = ({ lessons, onMarkComplete, courseId }) => {
           {/* Previous Button */}
           <button
             onClick={() => {
-              if (currentLessonIndex > 0) {
-                updateLessonProgress({
-                  currentLessonIndex: currentLessonIndex - 1,
-                  completedLessons: progress.lessonProgress?.completedLessons || [],
-                  timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
-                });
+              if (currentLessonIndex > 0 && onLessonChange) {
+                onLessonChange(currentLessonIndex - 1);
               }
             }}
             disabled={currentLessonIndex === 0}
@@ -568,12 +565,8 @@ const LessonContent = ({ lessons, onMarkComplete, courseId }) => {
           {/* Next Button */}
           <button
             onClick={() => {
-              if (currentLessonIndex < lessons.length - 1) {
-                updateLessonProgress({
-                  currentLessonIndex: currentLessonIndex + 1,
-                  completedLessons: progress.lessonProgress?.completedLessons || [],
-                  timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
-                });
+              if (currentLessonIndex < lessons.length - 1 && onLessonChange) {
+                onLessonChange(currentLessonIndex + 1);
               }
             }}
             disabled={currentLessonIndex === lessons.length - 1}
@@ -590,26 +583,20 @@ const LessonContent = ({ lessons, onMarkComplete, courseId }) => {
           {/* Mark Complete Button */}
           <button
             onClick={() => {
-              // Mark current lesson as completed
-              const completedLessons = [...new Set([...(progress.lessonProgress?.completedLessons || []), currentLessonIndex])];
-              
-              if (currentLessonIndex === lessons.length - 1) {
-                // All lessons completed
-                updateLessonProgress({
-                  currentLessonIndex,
-                  completedLessons,
-                  allLessonsCompleted: true,
-                  timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
-                });
-                markStepCompleted('lessons');
-                onMarkComplete(lesson.id);
+              const currentLesson = lessons[currentLessonIndex];
+              if (onMarkComplete && currentLesson) {
+                console.log('Marking lesson complete:', currentLesson.id);
+                onMarkComplete(currentLesson.id);
+                
+                // Auto advance to next lesson if not the last one
+                if (currentLessonIndex < lessons.length - 1 && onLessonChange) {
+                  console.log('Auto advancing to next lesson');
+                  setTimeout(() => onLessonChange(currentLessonIndex + 1), 500);
+                } else {
+                  console.log('All lessons completed!');
+                }
               } else {
-                // Mark as completed and move to next lesson
-                updateLessonProgress({
-                  currentLessonIndex: currentLessonIndex + 1,
-                  completedLessons,
-                  timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1
-                });
+                console.log('Missing onMarkComplete or currentLesson:', { onMarkComplete: !!onMarkComplete, currentLesson });
               }
             }}
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 text-sm sm:text-base"
