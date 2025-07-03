@@ -808,7 +808,7 @@ UI/UX Design adalah bidang yang menggabungkan seni dan sains untuk menciptakan p
         },
         {
           type: "pdf",
-          title: "Node.js Best Practices Guide",
+          title: "Node.js Practices Guide",
           description: "Panduan lengkap best practices untuk Node.js development",
           url: "https://www.anuragkapur.com/assets/blog/programming/node/PDF-Guide-Node-Andrew-Mead-v3.pdf",
           downloadUrl: "https://www.anuragkapur.com/assets/blog/programming/node/PDF-Guide-Node-Andrew-Mead-v3.pdf",
