@@ -71,6 +71,21 @@ type SubmissionRequest struct {
 	Attachments json.RawMessage `json:"attachments,omitempty"`
 }
 
+// SubmissionWithGrade represents a submission with grade information for admin review
+type SubmissionWithGrade struct {
+	ID           int        `json:"id"`
+	UserID       int        `json:"userId"`
+	UserName     string     `json:"userName"`
+	CourseID     int        `json:"courseId"`
+	Type         string     `json:"type"` // "postwork" or "final_project"
+	Title        string     `json:"title"`
+	Description  string     `json:"description"`
+	FileName     *string    `json:"fileName,omitempty"`
+	SubmittedAt  time.Time  `json:"submittedAt"`
+	Grade        *float64   `json:"grade,omitempty"`
+	Feedback     string     `json:"feedback,omitempty"`
+}
+
 // CreatePostWorkSubmissionTable creates the postwork_submissions table
 func CreatePostWorkSubmissionTable(db *sql.DB) error {
 	// First, try to alter the existing table to allow NULL lesson_id
@@ -373,4 +388,71 @@ func GetFileUpload(db *sql.DB, fileID int) (*FileUpload, error) {
 	}
 
 	return &upload, nil
+}
+
+// GetCourseSubmissionsWithGrades gets all submissions for a course with grade information
+func GetCourseSubmissionsWithGrades(db *sql.DB, courseID int) ([]SubmissionWithGrade, error) {
+	query := `
+		SELECT 
+			s.id, s.user_id, u.full_name as user_name, s.course_id, 
+			'postwork' as type, s.title, '' as description, 
+			NULL as file_name, s.submitted_at,
+			g.grade, COALESCE(g.feedback, '') as feedback
+		FROM postwork_submissions s
+		JOIN users u ON s.user_id = u.id
+		LEFT JOIN grades g ON g.user_id = s.user_id AND g.course_id = s.course_id AND g.submission_id = s.id
+		WHERE s.course_id = $1
+		UNION ALL
+		SELECT 
+			f.id, f.user_id, u.full_name as user_name, f.course_id, 
+			'final_project' as type, f.title, f.description, 
+			NULL as file_name, f.submitted_at,
+			g.grade, COALESCE(g.feedback, '') as feedback
+		FROM final_project_submissions f
+		JOIN users u ON f.user_id = u.id
+		LEFT JOIN grades g ON g.user_id = f.user_id AND g.course_id = f.course_id AND g.submission_id = f.id
+		WHERE f.course_id = $1
+		ORDER BY submitted_at DESC
+	`
+
+	rows, err := db.Query(query, courseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var submissions []SubmissionWithGrade
+	for rows.Next() {
+		var submission SubmissionWithGrade
+		var grade sql.NullFloat64
+		var fileName sql.NullString
+		
+		err := rows.Scan(
+			&submission.ID,
+			&submission.UserID,
+			&submission.UserName,
+			&submission.CourseID,
+			&submission.Type,
+			&submission.Title,
+			&submission.Description,
+			&fileName,
+			&submission.SubmittedAt,
+			&grade,
+			&submission.Feedback,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if grade.Valid {
+			submission.Grade = &grade.Float64
+		}
+		if fileName.Valid {
+			submission.FileName = &fileName.String
+		}
+
+		submissions = append(submissions, submission)
+	}
+
+	return submissions, nil
 }

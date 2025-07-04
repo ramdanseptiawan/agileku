@@ -20,6 +20,8 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	progressHandler := handlers.NewProgressHandler(db)
 	quizHandler := handlers.NewQuizHandler(db)
 	submissionHandler := handlers.NewSubmissionHandler(db)
+	certificateHandler := handlers.NewCertificateHandler(db)
+	adminHandler := handlers.NewAdminHandler(db)
 
 	// Apply JSON middleware to all routes
 	router.Use(middleware.JSONMiddleware)
@@ -39,6 +41,9 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	public.HandleFunc("/courses", courseHandler.GetAllCourses).Methods("GET", "OPTIONS")
 	public.HandleFunc("/courses/{id:[0-9]+}", courseHandler.GetCourseByID).Methods("GET", "OPTIONS")
 	public.HandleFunc("/courses/search", courseHandler.SearchCourses).Methods("GET", "OPTIONS")
+
+	// Public certificate verification
+	public.HandleFunc("/certificates/verify/{certNumber}", certificateHandler.VerifyCertificate).Methods("GET", "OPTIONS")
 
 	// Protected routes (authentication required)
 	protected := api.PathPrefix("/protected").Subrouter()
@@ -78,6 +83,10 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	protected.HandleFunc("/uploads/file", submissionHandler.UploadFileHandler).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/uploads/file/{id:[0-9]+}", submissionHandler.GetFileHandler).Methods("GET", "OPTIONS")
 
+	// Certificate routes
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/certificate", certificateHandler.GenerateCertificate).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/user/certificates", certificateHandler.GetUserCertificates).Methods("GET", "OPTIONS")
+
 	// Admin routes (admin role required)
 	admin := protected.PathPrefix("/admin").Subrouter()
 	admin.Use(middleware.AdminMiddleware)
@@ -87,6 +96,27 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	admin.HandleFunc("/quizzes", quizHandler.CreateQuizHandler).Methods("POST", "OPTIONS")
 	admin.HandleFunc("/quizzes/{id:[0-9]+}", quizHandler.UpdateQuizHandler).Methods("PUT", "OPTIONS")
 	admin.HandleFunc("/quizzes/{id:[0-9]+}", quizHandler.DeleteQuizHandler).Methods("DELETE", "OPTIONS")
+
+	// Admin course management routes
+	admin.HandleFunc("/courses", adminHandler.CreateCourse).Methods("POST", "OPTIONS")
+	admin.HandleFunc("/courses/{id:[0-9]+}", adminHandler.UpdateCourse).Methods("PUT", "OPTIONS")
+	admin.HandleFunc("/courses/{id:[0-9]+}", adminHandler.DeleteCourse).Methods("DELETE", "OPTIONS")
+
+	// Admin grading system routes
+	admin.HandleFunc("/grading", adminHandler.CreateGrade).Methods("POST", "OPTIONS")
+	admin.HandleFunc("/grading", adminHandler.GetGrades).Methods("GET", "OPTIONS")
+
+	// Admin submissions review routes
+	admin.HandleFunc("/courses/{courseId:[0-9]+}/submissions", adminHandler.GetCourseSubmissions).Methods("GET", "OPTIONS")
+
+	// Admin certificate management
+	admin.HandleFunc("/certificates", certificateHandler.GetAllCertificates).Methods("GET", "OPTIONS")
+
+	// Admin user management routes
+	admin.HandleFunc("/users", adminHandler.GetAllUsers).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/users", adminHandler.CreateUser).Methods("POST", "OPTIONS")
+	admin.HandleFunc("/users/{id:[0-9]+}", adminHandler.UpdateUser).Methods("PUT", "OPTIONS")
+	admin.HandleFunc("/users/{id:[0-9]+}", adminHandler.DeleteUser).Methods("DELETE", "OPTIONS")
 
 	// Health check endpoint
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

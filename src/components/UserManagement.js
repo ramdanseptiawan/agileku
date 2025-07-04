@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, User, Shield, Eye, EyeOff } from 'lucide-react';
+import { adminAPI } from '../services/api';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
-  const [showForm, setShowForm] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
     username: '',
@@ -13,46 +14,31 @@ const UserManagement = () => {
     fullName: ''
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Load users from localStorage on component mount
+  // Load users from API on component mount
   useEffect(() => {
-    const savedUsers = localStorage.getItem('users');
-    if (savedUsers) {
-      setUsers(JSON.parse(savedUsers));
-    } else {
-      // Initialize with default users
-      const defaultUsers = [
-        { 
-          id: '1', 
-          username: 'admin', 
-          password: '123', 
-          role: 'admin', 
-          email: 'admin@agileku.com',
-          fullName: 'Administrator',
-          createdAt: new Date().toISOString()
-        },
-        { 
-          id: '2', 
-          username: 'user', 
-          password: '123', 
-          role: 'user', 
-          email: 'user@agileku.com',
-          fullName: 'Default User',
-          createdAt: new Date().toISOString()
-        }
-      ];
-      setUsers(defaultUsers);
-      localStorage.setItem('users', JSON.stringify(defaultUsers));
-    }
+    loadUsers();
   }, []);
 
-  // Save users to localStorage whenever users state changes
-  const saveUsers = (updatedUsers) => {
-    setUsers(updatedUsers);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await adminAPI.getAllUsers();
+      if (response && response.users) {
+        setUsers(response.users);
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+      setError('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Validate form
@@ -61,68 +47,69 @@ const UserManagement = () => {
       return;
     }
 
-    // Check if username already exists (except when editing)
-    const existingUser = users.find(user => 
-      user.username === formData.username && 
-      (!editingUser || user.id !== editingUser.id)
-    );
-    
-    if (existingUser) {
-      alert('Username sudah digunakan!');
-      return;
-    }
+    try {
+      setLoading(true);
+      setError('');
 
-    if (editingUser) {
-      // Update existing user
-      const updatedUsers = users.map(user => 
-        user.id === editingUser.id 
-          ? { ...formData, id: editingUser.id, updatedAt: new Date().toISOString() }
-          : user
-      );
-      saveUsers(updatedUsers);
-    } else {
-      // Create new user
-      const newUser = {
-        ...formData,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString()
-      };
-      saveUsers([...users, newUser]);
-    }
+      if (editingUser) {
+        // Update existing user
+        await adminAPI.updateUser(editingUser.id, formData);
+      } else {
+        // Create new user
+        await adminAPI.createUser(formData);
+      }
 
-    // Reset form
-    setFormData({
-      username: '',
-      password: '',
-      role: 'user',
-      email: '',
-      fullName: ''
-    });
-    setShowForm(false);
-    setEditingUser(null);
+      // Reload users list
+      await loadUsers();
+
+      // Reset form
+       setFormData({
+         username: '',
+         fullName: '',
+         email: '',
+         role: 'user',
+         password: ''
+       });
+       setShowAddForm(false);
+       setEditingUser(null);
+    } catch (error) {
+      console.error('Error saving user:', error);
+      setError(error.message || 'Failed to save user');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEdit = (user) => {
     setEditingUser(user);
     setFormData({
       username: user.username,
-      password: user.password,
-      role: user.role,
+      fullName: user.fullName || '',
       email: user.email || '',
-      fullName: user.fullName || ''
+      role: user.role,
+      password: '' // Don't pre-fill password for security
     });
-    setShowForm(true);
+    setShowAddForm(true);
   };
 
-  const handleDelete = (userId) => {
+  const handleDelete = async (userId) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus user ini?')) {
-      const updatedUsers = users.filter(user => user.id !== userId);
-      saveUsers(updatedUsers);
+      try {
+        setLoading(true);
+        setError('');
+        await adminAPI.deleteUser(userId);
+        await loadUsers();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        setError(error.message || 'Failed to delete user');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   const handleCancel = () => {
-    setShowForm(false);
+    setShowAddForm(false);
     setEditingUser(null);
     setFormData({
       username: '',
@@ -142,16 +129,32 @@ const UserManagement = () => {
           <p className="text-gray-600 mt-1">Kelola user dan hak akses sistem</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Tambah User
-        </button>
+           onClick={() => setShowAddForm(true)}
+           disabled={loading}
+           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+         >
+           <Plus className="h-4 w-4 mr-2" />
+           Tambah User
+         </button>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {/* Loading Indicator */}
+      {loading && (
+        <div className="text-center py-4">
+          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Loading...</span>
+        </div>
+      )}
+
       {/* User Form */}
-      {showForm && (
+       {showAddForm && (
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             {editingUser ? 'Edit User' : 'Tambah User Baru'}
@@ -234,16 +237,27 @@ const UserManagement = () => {
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
-                onClick={handleCancel}
+                onClick={() => {
+                  setShowAddForm(false);
+                  setEditingUser(null);
+                  setFormData({
+                    username: '',
+                    fullName: '',
+                    email: '',
+                    role: 'user',
+                    password: ''
+                  });
+                }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
-                {editingUser ? 'Update' : 'Simpan'}
+                {loading ? 'Menyimpan...' : (editingUser ? 'Update' : 'Simpan')}
               </button>
             </div>
           </form>
@@ -294,7 +308,7 @@ const UserManagement = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {user.email || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

@@ -240,10 +240,103 @@ export const apiUtils = {
   },
 };
 
+// Certificate API
+export const certificateAPI = {
+  // Generate certificate for course completion
+  generateCertificate: async (courseId) => {
+    return await apiRequest(`/protected/courses/${courseId}/certificate`, {
+      method: 'POST',
+    });
+  },
+
+  // Get user certificates
+  getUserCertificates: async () => {
+    return await apiRequest('/protected/user/certificates');
+  },
+
+  // Verify certificate by certificate number
+  verifyCertificate: async (certNumber) => {
+    return await apiRequest(`/public/certificates/verify/${certNumber}`);
+  },
+};
+
+// Admin API
+export const adminAPI = {
+  // Course Management
+  createCourse: async (courseData) => {
+    return await apiRequest('/protected/admin/courses', {
+      method: 'POST',
+      body: JSON.stringify(courseData),
+    });
+  },
+
+  updateCourse: async (courseId, courseData) => {
+    return await apiRequest(`/protected/admin/courses/${courseId}`, {
+      method: 'PUT',
+      body: JSON.stringify(courseData),
+    });
+  },
+
+  deleteCourse: async (courseId) => {
+    return await apiRequest(`/protected/admin/courses/${courseId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Grading System
+  createGrade: async (gradeData) => {
+    return await apiRequest('/protected/admin/grading', {
+      method: 'POST',
+      body: JSON.stringify(gradeData),
+    });
+  },
+
+  getGrades: async () => {
+    return await apiRequest('/protected/admin/grading');
+  },
+
+  // Submissions Review
+  getCourseSubmissions: async (courseId) => {
+    return await apiRequest(`/protected/admin/courses/${courseId}/submissions`);
+  },
+
+  // Certificate Management
+  getAllCertificates: async () => {
+    return await apiRequest('/protected/admin/certificates');
+  },
+
+  // User Management
+  getAllUsers: async () => {
+    return await apiRequest('/protected/admin/users');
+  },
+  
+  createUser: async (userData) => {
+    return await apiRequest('/protected/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  },
+  
+  updateUser: async (userId, userData) => {
+    return await apiRequest(`/protected/admin/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  },
+  
+  deleteUser: async (userId) => {
+    return await apiRequest(`/protected/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 export default {
   auth: authAPI,
   course: courseAPI,
   submission: submissionAPI,
   quiz: quizAPI,
+  certificate: certificateAPI,
+  admin: adminAPI,
   utils: apiUtils,
 };

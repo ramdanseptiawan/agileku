@@ -1,7 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Eye, Book, Users, BarChart3, HelpCircle, MessageSquare, UserCog, Bell, Award, FileText, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { adminAPI, courseAPI } from '../services/api';
 import CourseForm from './CourseForm';
 import CourseList from './CourseList';
 import QuizManager from './QuizManager';
@@ -11,11 +12,39 @@ import AnnouncementManager from './AnnouncementManager';
 import CertificateManager from './CertificateManager';
 import ProjectInstructionManager from './ProjectInstructionManager';
 import CourseInstructionManager from './CourseInstructionManager';
+import GradingSystem from './GradingSystem';
+import SubmissionReview from './SubmissionReview';
 
 const AdminDashboard = ({ activeTab = 'overview' }) => {
-  const { courses, addCourse, updateCourse, deleteCourse } = useAuth();
+  const { currentUser } = useAuth();
+  const [courses, setCourses] = useState([]);
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load courses on component mount
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        const response = await courseAPI.getAllCourses();
+        // Ensure courses is always an array
+        if (Array.isArray(response)) {
+          setCourses(response);
+        } else if (response && Array.isArray(response.courses)) {
+          setCourses(response.courses);
+        } else {
+          setCourses([]);
+        }
+      } catch (error) {
+        console.error('Error loading courses:', error);
+        setCourses([]); // Ensure courses is set to empty array on error
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadCourses();
+  }, []);
 
   const handleCreateCourse = () => {
     setEditingCourse(null);
@@ -27,30 +56,65 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
     setShowCourseForm(true);
   };
 
-  const handleDeleteCourse = (courseId) => {
+  const handleDeleteCourse = async (courseId) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus course ini?')) {
-      deleteCourse(courseId);
+      try {
+        await adminAPI.deleteCourse(courseId);
+        setCourses(courses.filter(course => course.id !== courseId));
+        alert('Course berhasil dihapus!');
+      } catch (error) {
+        console.error('Error deleting course:', error);
+        alert('Gagal menghapus course. Silakan coba lagi.');
+      }
     }
   };
 
-  const handleSaveCourse = (courseData) => {
-    if (editingCourse) {
-      // Update existing course
-      updateCourse(editingCourse.id, courseData);
-    } else {
-      // Create new course
-      addCourse(courseData);
+  const handleSaveCourse = async (courseData) => {
+    try {
+      if (editingCourse) {
+        // Update existing course
+        const response = await adminAPI.updateCourse(editingCourse.id, courseData);
+        if (response.success) {
+          setCourses(courses.map(course => 
+            course.id === editingCourse.id ? response.course : course
+          ));
+          alert('Course berhasil diperbarui!');
+        }
+      } else {
+        // Create new course
+        const response = await adminAPI.createCourse(courseData);
+        if (response.success) {
+          setCourses([...courses, response.course]);
+          alert('Course berhasil dibuat!');
+        }
+      }
+      setShowCourseForm(false);
+      setEditingCourse(null);
+    } catch (error) {
+      console.error('Error saving course:', error);
+      alert('Gagal menyimpan course. Silakan coba lagi.');
     }
-    setShowCourseForm(false);
-    setEditingCourse(null);
   };
 
   const stats = {
-    totalCourses: courses.length,
-    totalLessons: courses.reduce((total, course) => total + course.lessons.length, 0),
+    totalCourses: Array.isArray(courses) ? courses.length : 0,
+    totalLessons: Array.isArray(courses) ? courses.reduce((total, course) => {
+      if (course && course.lessons && Array.isArray(course.lessons)) {
+        return total + course.lessons.length;
+      }
+      return total;
+    }, 0) : 0,
     totalStudents: 156, // Mock data
     completionRate: 78 // Mock data
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   // Removed tabs array - now using sidebar navigation
 
@@ -195,6 +259,14 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
 
         {activeTab === 'users' && (
           <UserManagement />
+        )}
+
+        {activeTab === 'grading' && (
+          <GradingSystem />
+        )}
+
+        {activeTab === 'submissions' && (
+          <SubmissionReview />
         )}
 
         {activeTab === 'students' && (

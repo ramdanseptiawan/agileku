@@ -66,7 +66,7 @@ export const AuthProvider = ({ children }) => {
         if (apiUtils.isAuthenticated()) {
           try {
             const userProfile = await authAPI.getProfile();
-            const userData = userProfile.user || userProfile;
+            const userData = userProfile.data || userProfile.user || userProfile;
             setCurrentUser(userData);
             localStorage.setItem('currentUser', JSON.stringify(userData));
             
@@ -115,9 +115,9 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login(username, password);
       
       // Check if login was successful and we have user data
-      if (response && response.user && response.token) {
-        setCurrentUser(response.user);
-        localStorage.setItem('currentUser', JSON.stringify(response.user));
+      if (response && response.success && response.data && response.data.user && response.data.token) {
+        setCurrentUser(response.data.user);
+        localStorage.setItem('currentUser', JSON.stringify(response.data.user));
         
         // Load user enrollments after login
         try {
@@ -142,7 +142,7 @@ export const AuthProvider = ({ children }) => {
           setEnrollments([]);
         }
         
-        return { success: true, user: response.user };
+        return { success: true, user: response.data.user };
       }
       
       return { success: false, error: 'Login gagal' };

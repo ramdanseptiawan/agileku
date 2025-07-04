@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Award, Download, Search, Filter, Calendar, User, Trophy, Eye, Trash2, FileText } from 'lucide-react';
+import { Award, Download, Search, Filter, Calendar, User, Trophy, Eye, Trash2, FileText, BarChart3 } from 'lucide-react';
+import { certificateAPI, adminAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const CertificateManager = () => {
@@ -10,7 +11,31 @@ const CertificateManager = () => {
   const [selectedCertificate, setSelectedCertificate] = useState(null);
   const { currentUser } = useAuth();
 
-  const loadCertificates = useCallback(() => {
+  const loadCertificates = useCallback(async () => {
+    try {
+      let response;
+      
+      // Check if user is admin to load all certificates or just user certificates
+      if (currentUser?.role === 'admin') {
+        response = await adminAPI.getAllCertificates();
+      } else {
+        response = await certificateAPI.getUserCertificates();
+      }
+      
+      if (response.success) {
+        setCertificates(response.certificates || []);
+      } else {
+        // Fallback to localStorage
+        loadCertificatesFromLocalStorage();
+      }
+    } catch (error) {
+      console.error('Error loading certificates from backend:', error);
+      // Fallback to localStorage
+      loadCertificatesFromLocalStorage();
+    }
+  }, [currentUser]);
+  
+  const loadCertificatesFromLocalStorage = () => {
     // Load all certificates from all users for admin management
     const allCertificates = [];
     
@@ -29,7 +54,7 @@ const CertificateManager = () => {
     
     console.log('CertificateManager: Loaded certificates:', allCertificates);
     setCertificates(allCertificates);
-  }, []);
+  };
 
   const filterCertificates = useCallback(() => {
     let filtered = certificates;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Award, Download, Calendar, User, CheckCircle, Star, Trophy, Medal } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { certificateAPI } from '../services/api';
 
 const Certificate = ({ courseId, courseName, onClose }) => {
   const { currentUser } = useAuth();
@@ -16,34 +17,68 @@ const Certificate = ({ courseId, courseName, onClose }) => {
   }, [courseId, currentUser?.id]);
 
   useEffect(() => {
-    loadCertificate();
-  }, [loadCertificate]);
+    const loadCertificate = async () => {
+      try {
+        // First try to load from backend
+        const response = await certificateAPI.getUserCertificates();
+        if (response.success) {
+          const existingCert = response.certificates.find(cert => 
+            cert.courseId === parseInt(courseId)
+          );
+          if (existingCert) {
+            setCertificate(existingCert);
+            return;
+          }
+        }
+      } catch (error) {
+        console.log('Could not load from backend, trying localStorage');
+      }
+      
+      // Fallback to localStorage
+      const certificates = JSON.parse(localStorage.getItem(`certificates_${currentUser.id}`) || '[]');
+      const existingCert = certificates.find(cert => 
+        cert.courseId === parseInt(courseId)
+      );
+      
+      if (existingCert) {
+        setCertificate(existingCert);
+      }
+    };
+    
+    if (currentUser && courseId) {
+      loadCertificate();
+    }
+  }, [courseId, currentUser]);
 
   const generateCertificate = async () => {
     setIsGenerating(true);
     
-    // Simulate certificate generation delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const newCertificate = {
-      id: Date.now().toString(),
-      courseId,
-      courseName,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userEmail: currentUser.email,
-      completionDate: new Date().toISOString(),
-      certificateNumber: `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      grade: 'A', // This could be calculated based on course performance
-      issueDate: new Date().toISOString()
-    };
-
-    const certificates = JSON.parse(localStorage.getItem('certificates') || '[]');
-    certificates.push(newCertificate);
-    localStorage.setItem('certificates', JSON.stringify(certificates));
-    
-    setCertificate(newCertificate);
-    setIsGenerating(false);
+    try {
+      const response = await certificateAPI.generateCertificate(courseId);
+      
+      if (response.success) {
+        setCertificate(response.certificate);
+        
+        // Also save to localStorage for offline access
+        const existingCerts = JSON.parse(localStorage.getItem(`certificates_${currentUser.id}`) || '[]');
+        existingCerts.push(response.certificate);
+        localStorage.setItem(`certificates_${currentUser.id}`, JSON.stringify(existingCerts));
+        
+        alert('Sertifikat berhasil dibuat!');
+      } else {
+        alert(response.message || 'Gagal membuat sertifikat.');
+      }
+      
+    } catch (error) {
+      console.error('Error generating certificate:', error);
+      if (error.message.includes('already exists')) {
+        alert('Sertifikat untuk kursus ini sudah ada.');
+      } else {
+        alert('Gagal membuat sertifikat. Silakan coba lagi.');
+      }
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const downloadCertificate = () => {
