@@ -15,13 +15,17 @@ const Login = () => {
     setError('');
     setIsLoading(true);
 
-    const result = login(username, password);
-    
-    if (!result.success) {
-      setError(result.error);
+    try {
+      const result = await login(username, password);
+      
+      if (!result.success) {
+        setError(result.error);
+      }
+    } catch (error) {
+      setError('Terjadi kesalahan saat login');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (

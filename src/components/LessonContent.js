@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Play, CheckCircle, FileText, ExternalLink, Download, Image, Code, List, ListOrdered, Video, BookOpen, Globe } from 'lucide-react';
+import VideoPlayer from './VideoPlayer';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ReactMarkdown from 'react-markdown';
@@ -7,6 +8,10 @@ import { getFileFromIndexedDB, getBlobUrl } from '../utils/indexedDB';
 import { useLearningProgress } from '../hooks/useLearningProgress';
 
 const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex = 0, onLessonChange }) => {
+  console.log('=== LessonContent RENDERED ===');
+  console.log('Lessons received:', lessons);
+  console.log('Current lesson index:', currentLessonIndex);
+  
   const [fileUrls, setFileUrls] = useState({});
   
   // Use learning progress hook
@@ -58,6 +63,9 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
   const lesson = lessons[currentLessonIndex];
 
   const renderContent = (content) => {
+    console.log('=== renderContent CALLED ===');
+    console.log('Content received:', content);
+    
     // If content is already an array of objects, use renderMixedContent
     if (Array.isArray(content)) {
       return renderMixedContent(content);
@@ -132,7 +140,11 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
   };
 
   const renderMixedContent = (contentArray) => {
+    console.log('=== renderMixedContent CALLED ===');
+    console.log('Content array:', contentArray);
+    
     return contentArray.map((item, index) => {
+      console.log(`Processing item ${index}:`, item);
       switch (item.type) {
         case 'text':
           return (
@@ -273,9 +285,12 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
             </div>
           );
         case 'video':
+          console.log('=== RENDERING VIDEO CASE ===');
+          console.log('Video item:', item);
+          console.log('FileUrls available:', fileUrls);
           return (
             <div key={index} className="my-8">
-              <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
                   <div className="flex items-center space-x-3">
@@ -285,7 +300,9 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
                     <div className="flex-1">
                       <h4 className="text-lg font-semibold text-gray-900">{item.title}</h4>
                       <div className="flex items-center space-x-4 mt-1">
-                        <p className="text-sm text-gray-600">{item.description}</p>
+                        {item.description && (
+                          <p className="text-sm text-gray-600">{item.description}</p>
+                        )}
                         {item.duration && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             <Play className="mr-1" size={12} />
@@ -299,27 +316,7 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
                 
                 {/* Video Content */}
                 <div className="p-6">
-                  <div className="relative bg-black rounded-lg overflow-hidden shadow-lg" style={{paddingBottom: '56.25%'}}>
-                    {item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId] ? (
-                      <video
-                        src={fileUrls[item.fileId]}
-                        className="absolute top-0 left-0 w-full h-full"
-                        controls
-                        title={item.title}
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    ) : (
-                      <iframe
-                        src={item.src || item.url}
-                        className="absolute top-0 left-0 w-full h-full"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        title={item.title}
-                      ></iframe>
-                    )}
-                  </div>
+                  <VideoPlayer item={item} fileUrls={fileUrls} />
                 </div>
               </div>
             </div>
@@ -363,10 +360,10 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
                       Kunjungi
                     </a>
                   </div>
-                </div>
               </div>
             </div>
-          );
+          </div>
+        );
         default:
           return null;
       }
@@ -381,6 +378,10 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
       </div>
     );
   }
+
+  console.log('=== CURRENT LESSON ===');
+  console.log('Current lesson:', lessons[currentLessonIndex]);
+  console.log('Lesson content:', lessons[currentLessonIndex]?.content);
 
   return (
     <div className="px-4">
@@ -457,46 +458,39 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
         </div>
       )}
 
-      {lesson.type === 'video' && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Video className="text-blue-600" size={24} />
+      {lesson.type === 'video' && (() => {
+        console.log('=== LESSON TYPE VIDEO DETECTED ===');
+        console.log('Lesson data:', lesson);
+        return (
+          <div className="prose max-w-none">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Video className="text-blue-600" size={24} />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">Video Tutorial</h3>
+                    <p className="text-sm text-gray-600 mt-1">Tonton video pembelajaran berikut</p>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">{lesson.title}</h3>
-                <div className="flex items-center space-x-4 mt-1">
-                  {lesson.description && (
-                    <p className="text-sm text-gray-600">{lesson.description}</p>
-                  )}
-                  {lesson.duration && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      <Play className="mr-1" size={12} />
-                      {lesson.duration}
-                    </span>
-                  )}
+              
+              {/* Video Content */}
+              <div className="p-6 sm:p-8">
+                <div className="text-gray-700 leading-relaxed">
+                  {(() => {
+                    console.log('=== CALLING renderContent for lesson.content ===');
+                    console.log('lesson.content:', lesson.content);
+                    return renderContent(lesson.content);
+                  })()}
                 </div>
               </div>
             </div>
           </div>
-          
-          {/* Video Content */}
-          <div className="p-6">
-            <div className="relative bg-black rounded-lg overflow-hidden shadow-lg" style={{paddingBottom: '56.25%'}}>
-              <iframe
-                src={lesson.videoUrl}
-                className="absolute top-0 left-0 w-full h-full"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={lesson.title}
-              ></iframe>
-            </div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {lesson.type === 'mixed' && (
         <div className="prose max-w-none">
@@ -520,7 +514,11 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
                 renderMixedContent(lesson.content)
               ) : (
                 <div className="text-gray-700 leading-relaxed">
-                  {renderContent(lesson.content)}
+                  {(() => {
+                    console.log('=== CALLING renderContent for lesson.content ===');
+                    console.log('lesson.content:', lesson.content);
+                    return renderContent(lesson.content);
+                  })()}
                 </div>
               )}
             </div>

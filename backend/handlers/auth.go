@@ -1,171 +1,288 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
-	"strconv"
+	"strings"
 
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
-
-	"lms-backend/config"
+	"lms-backend/middleware"
 	"lms-backend/models"
-	"lms-backend/utils"
 )
 
-// RegisterRequest represents user registration request
-type RegisterRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	FullName string `json:"full_name"`
+type AuthHandler struct {
+	DB *sql.DB
 }
 
-// LoginRequest represents user login request
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+type ErrorResponse struct {
+	Error   string `json:"error"`
+	Message string `json:"message,omitempty"`
 }
 
-// LoginResponse represents login response
-type LoginResponse struct {
-	Token string      `json:"token"`
-	User  models.User `json:"user"`
+type SuccessResponse struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message,omitempty"`
+	Data    interface{} `json:"data,omitempty"`
+}
+
+// NewAuthHandler creates a new auth handler
+func NewAuthHandler(db *sql.DB) *AuthHandler {
+	return &AuthHandler{DB: db}
 }
 
 // Register handles user registration
-func Register(w http.ResponseWriter, r *http.Request) {
-	var req RegisterRequest
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.SendErrorResponse(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Invalid request body",
+			Message: err.Error(),
+		})
 		return
 	}
 
 	// Validate required fields
 	if req.Username == "" || req.Email == "" || req.Password == "" || req.FullName == "" {
-		utils.SendErrorResponse(w, http.StatusBadRequest, "Missing required fields", "username, email, password, and full_name are required")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Missing required fields",
+			Message: "Username, email, password, and full name are required",
+		})
+		return
+	}
+
+	// Validate email format (basic validation)
+	if !strings.Contains(req.Email, "@") {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Invalid email format",
+			Message: "Please provide a valid email address",
+		})
+		return
+	}
+
+	// Validate password length
+	if len(req.Password) < 3 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Password too short",
+			Message: "Password must be at least 3 characters long",
+		})
 		return
 	}
 
 	// Check if user already exists
-	db := config.GetDB()
-	var existingUser models.User
-	if err := db.Where("email = ? OR username = ?", req.Email, req.Username).First(&existingUser).Error; err == nil {
-		utils.SendErrorResponse(w, http.StatusConflict, "User already exists", "Email or username already registered")
+	existingUser, _ := models.GetUserByUsername(h.DB, req.Username)
+	if existingUser != nil {
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "User already exists",
+			Message: "Username is already taken",
+		})
 		return
 	}
 
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	// Create new user
+	user := &models.User{
+		Username: req.Username,
+		Email:    req.Email,
+		Password: req.Password,
+		FullName: req.FullName,
+		Role:     "user", // Default role
+	}
+
+	err := models.CreateUser(h.DB, user)
 	if err != nil {
-		utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to hash password", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Failed to create user",
+			Message: err.Error(),
+		})
 		return
 	}
 
-	// Create user
-	user := models.User{
-			Username: req.Username,
-			Email:    req.Email,
-			Password: string(hashedPassword),
-			Name:     req.FullName,
-			Role:     "student",
-		}
-
-	if err := db.Create(&user).Error; err != nil {
-		utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to create user", err.Error())
-		return
-	}
-
-	// Generate token
-	token, err := utils.GenerateToken(user.ID, user.Username, user.Role)
+	// Generate JWT token
+	token, err := middleware.GenerateJWT(user)
 	if err != nil {
-		utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to generate token", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Failed to generate token",
+			Message: err.Error(),
+		})
 		return
 	}
 
-	// Remove password from response
-	user.Password = ""
-
-	response := LoginResponse{
-		Token: token,
-		User:  user,
-	}
-
-	utils.SendCreatedResponse(w, "User registered successfully", response)
+	// Return success response
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(SuccessResponse{
+		Success: true,
+		Message: "User registered successfully",
+		Data: models.LoginResponse{
+			User:  *user,
+			Token: token,
+		},
+	})
 }
 
-// Login handles user login
-func Login(w http.ResponseWriter, r *http.Request) {
-	var req LoginRequest
+// Login handles user authentication
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.SendErrorResponse(w, http.StatusBadRequest, "Invalid request body", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Invalid request body",
+			Message: err.Error(),
+		})
 		return
 	}
 
 	// Validate required fields
-	if req.Email == "" || req.Password == "" {
-		utils.SendErrorResponse(w, http.StatusBadRequest, "Missing required fields", "email and password are required")
+	if req.Username == "" || req.Password == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Missing credentials",
+			Message: "Username and password are required",
+		})
 		return
 	}
 
-	// Find user
-	db := config.GetDB()
-	var user models.User
-	if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			utils.SendErrorResponse(w, http.StatusUnauthorized, "Invalid credentials", "User not found")
-		} else {
-			utils.SendErrorResponse(w, http.StatusInternalServerError, "Database error", err.Error())
-		}
-		return
-	}
-
-	// Verify password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		utils.SendErrorResponse(w, http.StatusUnauthorized, "Invalid credentials", "Incorrect password")
-		return
-	}
-
-	// Generate token
-	token, err := utils.GenerateToken(user.ID, user.Username, user.Role)
+	// Get user from database
+	user, err := models.GetUserByUsername(h.DB, req.Username)
 	if err != nil {
-		utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to generate token", err.Error())
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Invalid credentials",
+			Message: "Username atau password salah",
+		})
 		return
 	}
 
-	// Remove password from response
-	user.Password = ""
-
-	response := LoginResponse{
-		Token: token,
-		User:  user,
+	// Check password
+	if !user.CheckPassword(req.Password) {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Invalid credentials",
+			Message: "Username atau password salah",
+		})
+		return
 	}
 
-	utils.SendSuccessResponse(w, "Login successful", response)
+	// Generate JWT token
+	token, err := middleware.GenerateJWT(user)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Failed to generate token",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Return success response
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(SuccessResponse{
+		Success: true,
+		Message: "Login successful",
+		Data: models.LoginResponse{
+			User:  *user,
+			Token: token,
+		},
+	})
 }
 
-// GetProfile returns user profile
-func GetProfile(w http.ResponseWriter, r *http.Request) {
-	userIDStr := r.Header.Get("X-User-ID")
-	userID, err := strconv.Atoi(userIDStr)
+// GetProfile returns the current user's profile
+func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	user, err := middleware.GetUserFromContext(r)
 	if err != nil {
-		utils.SendErrorResponse(w, http.StatusBadRequest, "Invalid user ID", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Failed to get user",
+			Message: err.Error(),
+		})
 		return
 	}
 
-	db := config.GetDB()
-	var user models.User
-	if err := db.First(&user, userID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			utils.SendErrorResponse(w, http.StatusNotFound, "User not found", "")
-		} else {
-			utils.SendErrorResponse(w, http.StatusInternalServerError, "Database error", err.Error())
-		}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(SuccessResponse{
+		Success: true,
+		Data:    user,
+	})
+}
+
+// UpdateProfile updates the current user's profile
+func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Remove password from response
-	user.Password = ""
+	user, err := middleware.GetUserFromContext(r)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Failed to get user",
+			Message: err.Error(),
+		})
+		return
+	}
 
-	utils.SendSuccessResponse(w, "Profile retrieved successfully", user)
+	var updateReq struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		FullName string `json:"fullName"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&updateReq); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Invalid request body",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Update user fields
+	if updateReq.Username != "" {
+		user.Username = updateReq.Username
+	}
+	if updateReq.Email != "" {
+		user.Email = updateReq.Email
+	}
+	if updateReq.FullName != "" {
+		user.FullName = updateReq.FullName
+	}
+
+	// Update in database
+	err = models.UpdateUser(h.DB, user)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Failed to update user",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(SuccessResponse{
+		Success: true,
+		Message: "Profile updated successfully",
+		Data:    user,
+	})
 }

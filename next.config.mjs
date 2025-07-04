@@ -39,7 +39,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "frame-src 'self' https://nodejs.org https://www.youtube.com https://docs.google.com;",
+            value: "frame-src 'self' https://nodejs.org https://www.youtube.com https://www.youtube.com/embed https://youtube.com https://docs.google.com;",
           },
         ],
       },

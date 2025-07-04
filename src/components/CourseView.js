@@ -7,7 +7,7 @@ import { useCertificate } from '../hooks/useCertificate';
 import IntroductoryMaterial from './IntroductoryMaterial';
 import PreTest from './PreTest';
 import LessonContent from './LessonContent';
-import PostTestSurvey from './PostTestSurvey';
+import PostTest from './PostTest';
 import PostWork from './PostWork';
 import FinalProject from './FinalProject';
 import Certificate from './Certificate';
@@ -23,14 +23,69 @@ const CourseView = ({
   onRetakeQuiz,
   onMarkComplete 
 }) => {
-  const { getCourseById } = useAuth();
+  const { getCourseById, getCoursePreTest, getCoursePostTest } = useAuth();
   const [surveyData, setSurveyData] = useState(null);
   const [showCertificate, setShowCertificate] = useState(false);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
+  const [course, setCourse] = useState(currentLesson);
+  const [isLoadingCourse, setIsLoadingCourse] = useState(false);
+  const [preTest, setPreTest] = useState(null);
+  const [postTest, setPostTest] = useState(null);
+  const [isLoadingTests, setIsLoadingTests] = useState(false);
+  
+  // Load course data from API
+  useEffect(() => {
+    const loadCourse = async () => {
+      if (currentLesson?.id) {
+        setIsLoadingCourse(true);
+        try {
+          const courseData = await getCourseById(currentLesson.id);
+          setCourse(courseData || currentLesson);
+        } catch (error) {
+          console.error('Failed to load course:', error);
+          setCourse(currentLesson); // Fallback to passed data
+        } finally {
+          setIsLoadingCourse(false);
+        }
+      }
+    };
+    
+    loadCourse();
+  }, [currentLesson?.id, getCourseById]);
+  
+  // Load pre-test and post-test from API
+  useEffect(() => {
+    const loadTests = async () => {
+      const courseId = course?.id || currentLesson?.id;
+      if (courseId && !isLoadingCourse) {
+        setIsLoadingTests(true);
+        try {
+          const [preTestData, postTestData] = await Promise.all([
+            getCoursePreTest(courseId),
+            getCoursePostTest(courseId)
+          ]);
+          
+          // Debug: Log received test data
+          if (preTestData) console.log('Pre-test loaded successfully');
+          if (postTestData) console.log('Post-test loaded successfully');
+          
+          setPreTest(preTestData?.data || preTestData);
+          setPostTest(postTestData?.data || postTestData);
+        } catch (error) {
+          console.error('Failed to load tests:', error);
+          // Fallback to course data if available
+          setPreTest(course?.preTest || null);
+          setPostTest(course?.postTest || null);
+        } finally {
+          setIsLoadingTests(false);
+        }
+      }
+    };
+    
+    loadTests();
+  }, [course?.id, currentLesson?.id, isLoadingCourse, getCoursePreTest, getCoursePostTest, course?.preTest, course?.postTest]);
   
   // Use custom hooks for progress and certificate management
-  // Get the latest course data from context
-  const course = currentLesson ? getCourseById(currentLesson.id) || currentLesson : null;
   
   const {
     progress,
@@ -75,7 +130,27 @@ const CourseView = ({
     });
   };
   
-  if (!course) return null;
+  if (!course) {
+    return (
+      <div className="max-w-6xl mx-auto p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading course...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (isLoadingCourse) {
+    return (
+      <div className="max-w-6xl mx-auto p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading course details...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Handle step completion
   const handleStepComplete = (stepId) => {
@@ -128,12 +203,13 @@ const CourseView = ({
 
   // Enhanced quiz submit handler
   const handleQuizSubmit = (quizId, isPreTest, answers) => {
-    // First call the parent handler to calculate score
-    onQuizSubmit(quizId, isPreTest, answers);
+    // First call the parent handler to calculate score, including courseId
+    onQuizSubmit(quizId, isPreTest, answers, course?.id);
     
     // Calculate score locally to save to progress
-    const quiz = isPreTest ? course?.preTest : course?.postTest;
-    if (quiz) {
+    // Use the loaded test data instead of course.preTest/postTest
+    const quiz = isPreTest ? (preTest || course?.preTest) : (postTest || course?.postTest);
+    if (quiz && quiz.questions && Array.isArray(quiz.questions)) {
       let score = 0;
       quiz.questions.forEach(q => {
         if (answers[q.id] === q.correct) score++;
@@ -149,7 +225,11 @@ const CourseView = ({
       });
       
       // Update quiz score in progress
-      saveQuizScore(course?.id, percentage, isPreTest);
+      if (course?.id) {
+        saveQuizScore(course.id, percentage, isPreTest);
+      }
+    } else {
+      console.warn('Quiz data not available:', { quiz, isPreTest, course: course?.id });
     }
     
     // For pretest, don't auto-complete step - wait for user to continue
@@ -246,14 +326,21 @@ const CourseView = ({
           )}
           
           {progress.currentStep === 'pretest' && (
-            <PreTest 
-              quiz={course.preTest} 
-              onQuizSubmit={handleQuizSubmit}
-              showQuizResult={preTestState.showResult}
-              currentQuizScore={preTestState.score}
-              onRetakeQuiz={() => onRetakeQuiz(true)}
-              onContinueToLessons={handleContinueToLessons}
-            />
+            isLoadingTests ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading pre-test...</p>
+              </div>
+            ) : (
+              <PreTest 
+                quiz={preTest || course?.preTest} 
+                onQuizSubmit={handleQuizSubmit}
+                showQuizResult={preTestState.showResult}
+                currentQuizScore={preTestState.score}
+                onRetakeQuiz={() => onRetakeQuiz(true)}
+                onContinueToLessons={handleContinueToLessons}
+              />
+            )
           )}
           
           {progress.currentStep === 'lessons' && (
@@ -267,14 +354,21 @@ const CourseView = ({
           )}
           
           {progress.currentStep === 'posttest' && (
-            <PostTestSurvey 
-              quiz={course.postTest} 
-              onQuizSubmit={handleQuizSubmit}
-              showQuizResult={postTestState.showResult}
-              currentQuizScore={postTestState.score}
-              onRetakeQuiz={() => onRetakeQuiz(false)}
-              onSurveySubmit={handleSurveySubmit}
-            />
+            isLoadingTests ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading post-test...</p>
+              </div>
+            ) : (
+              <PostTest 
+                 quiz={postTest || course?.postTest} 
+                 onQuizSubmit={handleQuizSubmit}
+                 showQuizResult={postTestState.showResult}
+                 currentQuizScore={postTestState.score}
+                 onRetakeQuiz={() => onRetakeQuiz(false)}
+                 onCompleteCourse={() => handleStepComplete('posttest')}
+               />
+            )
           )}
           
           {progress.currentStep === 'postwork' && (

@@ -54,15 +54,15 @@ const Achievements = () => {
         <div class="certificate">
           <div class="title">CERTIFICATE OF COMPLETION</div>
           <div class="subtitle">This is to certify that</div>
-          <div class="name">${certificate.studentName}</div>
+          <div class="name">${certificate.studentName || 'Student'}</div>
           <div class="subtitle">has successfully completed the course</div>
-          <div class="course">${certificate.courseName}</div>
-          <div class="details">Grade: ${certificate.grade}%</div>
-          <div class="details">Completion Date: ${new Date(certificate.completionDate).toLocaleDateString()}</div>
-          <div class="details">Certificate Number: ${certificate.certificateNumber}</div>
+          <div class="course">${certificate.courseName || 'Course'}</div>
+          <div class="details">Grade: ${certificate.grade || 0}%</div>
+          <div class="details">Completion Date: ${certificate.completionDate ? new Date(certificate.completionDate).toLocaleDateString() : 'N/A'}</div>
+          <div class="details">Certificate Number: ${certificate.certificateNumber || 'N/A'}</div>
           <div class="signature">
             <p>AgileKu Learning Platform</p>
-            <p>Issued on: ${new Date(certificate.issueDate).toLocaleDateString()}</p>
+            <p>Issued on: ${certificate.issueDate ? new Date(certificate.issueDate).toLocaleDateString() : 'N/A'}</p>
           </div>
         </div>
       </body>
@@ -73,7 +73,7 @@ const Achievements = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `certificate-${certificate.courseName.replace(/\s+/g, '-').toLowerCase()}.html`;
+    a.download = `certificate-${(certificate.courseName || 'course').replace(/\s+/g, '-').toLowerCase()}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -128,9 +128,9 @@ const Achievements = () => {
                     ))}
                   </div>
                 </div>
-                <h3 className="text-xl font-bold mb-2">{certificate.courseName}</h3>
+                <h3 className="text-xl font-bold mb-2">{certificate.courseName || 'Course'}</h3>
                 <p className="text-blue-100 text-sm">
-                  Certificate #{certificate.certificateNumber}
+                  Certificate #{certificate.certificateNumber || 'N/A'}
                 </p>
               </div>
 
@@ -140,12 +140,12 @@ const Achievements = () => {
                   <div className="flex items-center gap-3 text-gray-600">
                     <Calendar className="w-4 h-4" />
                     <span className="text-sm">
-                      Completed: {new Date(certificate.completionDate).toLocaleDateString()}
+                      Completed: {certificate.completionDate ? new Date(certificate.completionDate).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-gray-600">
                     <Trophy className="w-4 h-4" />
-                    <span className="text-sm">Grade: {certificate.grade}%</span>
+                    <span className="text-sm">Grade: {certificate.grade || 0}%</span>
                   </div>
                   {certificate.timeSpent && (
                     <div className="flex items-center gap-3 text-gray-600">
@@ -199,10 +199,10 @@ const Achievements = () => {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-green-600 mb-2">
-                {Math.round(
-                  certificates.reduce((sum, cert) => sum + cert.grade, 0) /
+                {certificates.length > 0 ? Math.round(
+                  certificates.reduce((sum, cert) => sum + (cert.grade || 0), 0) /
                     certificates.length
-                )}%
+                ) : 0}%
               </div>
               <div className="text-gray-600">Average Grade</div>
             </div>

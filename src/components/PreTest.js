@@ -5,6 +5,15 @@ const PreTest = ({ quiz, onQuizSubmit, showQuizResult, currentQuizScore, onRetak
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState({});
   
+  const handleAnswerSelect = (questionId, answerIndex) => {
+    // Ensure questionId is converted to string for consistent key handling
+    const keyId = String(questionId);
+    setQuizAnswers(prev => ({
+      ...prev,
+      [keyId]: answerIndex
+    }));
+  };
+  
   // Handle case when quiz is undefined or doesn't have questions
   if (!quiz || !quiz.questions || quiz.questions.length === 0) {
     return (
@@ -102,9 +111,9 @@ const PreTest = ({ quiz, onQuizSubmit, showQuizResult, currentQuizScore, onRetak
           {currentQuestion.options.map((option, index) => (
             <button
               key={index}
-              onClick={() => setQuizAnswers(prev => ({ ...prev, [currentQuestion.id]: index }))}
-              className={`w-full text-left p-3 sm:p-4 rounded-lg border-2 transition-all ${
-                quizAnswers[currentQuestion.id] === index
+              onClick={() => handleAnswerSelect(currentQuestion.id, index)}
+               className={`w-full text-left p-3 sm:p-4 rounded-lg border-2 transition-all ${
+                 quizAnswers[String(currentQuestion.id)] === index
                   ? 'border-blue-600 bg-blue-50 text-blue-700'
                   : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600'
               }`}
@@ -139,8 +148,15 @@ const PreTest = ({ quiz, onQuizSubmit, showQuizResult, currentQuizScore, onRetak
 
         {currentQuestionIndex === quiz.questions.length - 1 ? (
           <button
-            onClick={handleSubmit}
-            disabled={!quiz.questions.every(q => quizAnswers[q.id] !== undefined)}
+            onClick={() => {
+              console.log('Quiz questions:', quiz.questions.map(q => ({ id: q.id, answered: quizAnswers[q.id] !== undefined })));
+              console.log('Quiz answers:', quizAnswers);
+              handleSubmit();
+            }}
+            disabled={!quiz.questions.every(q => {
+              const keyId = String(q.id);
+              return quizAnswers[keyId] !== undefined;
+            })}
             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 text-sm sm:text-base font-semibold"
           >
             <CheckCircle size={16} />

@@ -1,107 +1,106 @@
 package routes
 
 import (
+	"database/sql"
 	"net/http"
-
-	"github.com/gorilla/mux"
 
 	"lms-backend/handlers"
 	"lms-backend/middleware"
+
+	"github.com/gorilla/mux"
 )
 
 // SetupRoutes configures all API routes
-func SetupRoutes() *mux.Router {
-	r := mux.NewRouter()
+func SetupRoutes(db *sql.DB) *mux.Router {
+	router := mux.NewRouter()
+
+	// Initialize handlers
+	authHandler := handlers.NewAuthHandler(db)
+	courseHandler := handlers.NewCourseHandler(db)
+	progressHandler := handlers.NewProgressHandler(db)
+	quizHandler := handlers.NewQuizHandler(db)
+	submissionHandler := handlers.NewSubmissionHandler(db)
+
+	// Apply JSON middleware to all routes
+	router.Use(middleware.JSONMiddleware)
+	router.Use(middleware.LoggingMiddleware)
 
 	// API prefix
-	api := r.PathPrefix("/api").Subrouter()
+	api := router.PathPrefix("/api").Subrouter()
 
 	// Public routes (no authentication required)
 	public := api.PathPrefix("/public").Subrouter()
-	public.HandleFunc("/register", handlers.Register).Methods("POST")
-	public.HandleFunc("/login", handlers.Login).Methods("POST")
-	public.HandleFunc("/courses", handlers.GetCourses).Methods("GET")
-	public.HandleFunc("/courses/{id}", handlers.GetCourse).Methods("GET")
-	public.HandleFunc("/certificates/verify/{certNumber}", handlers.VerifyCertificate).Methods("GET")
 
-	// File serving (public)
-	api.HandleFunc("/uploads/{filename}", handlers.GetFile).Methods("GET")
+	// Authentication routes
+	public.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
+	public.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
+
+	// Public course routes
+	public.HandleFunc("/courses", courseHandler.GetAllCourses).Methods("GET", "OPTIONS")
+	public.HandleFunc("/courses/{id:[0-9]+}", courseHandler.GetCourseByID).Methods("GET", "OPTIONS")
+	public.HandleFunc("/courses/search", courseHandler.SearchCourses).Methods("GET", "OPTIONS")
 
 	// Protected routes (authentication required)
 	protected := api.PathPrefix("/protected").Subrouter()
+	protected.Use(middleware.AuthMiddleware(db))
 
-	// User routes
-	user := protected.PathPrefix("/user").Subrouter()
-	user.HandleFunc("/profile", middleware.AuthMiddleware(handlers.GetProfile)).Methods("GET")
-	user.HandleFunc("/enrollments", middleware.AuthMiddleware(handlers.GetUserEnrollments)).Methods("GET")
-	user.HandleFunc("/certificates", middleware.AuthMiddleware(handlers.GetUserCertificates)).Methods("GET")
-	user.HandleFunc("/files", middleware.AuthMiddleware(handlers.GetUserFiles)).Methods("GET")
+	// User profile routes
+	protected.HandleFunc("/user/profile", authHandler.GetProfile).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/user/profile", authHandler.UpdateProfile).Methods("PUT", "OPTIONS")
 
-	// Course routes
-	courses := protected.PathPrefix("/courses").Subrouter()
-	courses.HandleFunc("/enroll", middleware.AuthMiddleware(handlers.EnrollInCourse)).Methods("POST")
-	courses.HandleFunc("/{courseId}/progress", middleware.AuthMiddleware(handlers.GetCourseProgress)).Methods("GET")
-	courses.HandleFunc("/{courseId}/quizzes", middleware.AuthMiddleware(handlers.GetCourseQuizzes)).Methods("GET")
-	courses.HandleFunc("/{courseId}/submissions", middleware.AuthMiddleware(handlers.GetUserSubmissions)).Methods("GET")
-	courses.HandleFunc("/{courseId}/certificate", middleware.AuthMiddleware(handlers.GenerateCertificate)).Methods("POST")
+	// Course enrollment routes
+	protected.HandleFunc("/courses", courseHandler.GetCoursesWithEnrollment).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/courses/enroll", courseHandler.EnrollInCourse).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/courses/enrollments", courseHandler.GetUserEnrollments).Methods("GET", "OPTIONS")
+
+	// Progress tracking routes
+	protected.HandleFunc("/progress/lesson", progressHandler.UpdateLessonProgressHandler).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/lessons/{lessonId:[0-9]+}/progress", progressHandler.GetLessonProgressHandler).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/progress", progressHandler.GetCourseProgressHandler).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/progress", progressHandler.GetUserProgressListHandler).Methods("GET", "OPTIONS")
 
 	// Quiz routes
-	quizzes := protected.PathPrefix("/quizzes").Subrouter()
-	quizzes.HandleFunc("/{id}", middleware.AuthMiddleware(handlers.GetQuiz)).Methods("GET")
-	quizzes.HandleFunc("/submit", middleware.AuthMiddleware(handlers.SubmitQuiz)).Methods("POST")
-	quizzes.HandleFunc("/{quizId}/attempts", middleware.AuthMiddleware(handlers.GetQuizAttempts)).Methods("GET")
-
-	// Progress routes
-	progress := protected.PathPrefix("/progress").Subrouter()
-	progress.HandleFunc("/lesson", middleware.AuthMiddleware(handlers.UpdateLessonProgress)).Methods("POST")
+	protected.HandleFunc("/quizzes/{id:[0-9]+}", quizHandler.GetQuizHandler).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/quizzes", quizHandler.GetQuizzesByCourseHandler).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/quizzes/{quizId:[0-9]+}/attempts", quizHandler.GetQuizAttemptsHandler).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/quizzes/{quizId:[0-9]+}/start", quizHandler.StartQuizAttemptHandler).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/quizzes/submit", quizHandler.SubmitQuizHandler).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/pretest", quizHandler.GetPreTestHandler).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/posttest", quizHandler.GetPostTestHandler).Methods("GET", "OPTIONS")
 
 	// Submission routes
-	submissions := protected.PathPrefix("/submissions").Subrouter()
-	submissions.HandleFunc("/postwork", middleware.AuthMiddleware(handlers.SubmitPostWork)).Methods("POST")
-	submissions.HandleFunc("/finalproject", middleware.AuthMiddleware(handlers.SubmitFinalProject)).Methods("POST")
-
-	// Survey routes
-	surveys := protected.PathPrefix("/surveys").Subrouter()
-	surveys.HandleFunc("/submit", middleware.AuthMiddleware(handlers.SubmitSurvey)).Methods("POST")
+	protected.HandleFunc("/submissions/postwork", submissionHandler.CreatePostWorkSubmissionHandler).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/submissions/postwork", submissionHandler.GetPostWorkSubmissionsHandler).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/submissions/finalproject", submissionHandler.CreateFinalProjectSubmissionHandler).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/submissions/finalproject/{courseId:[0-9]+}", submissionHandler.GetFinalProjectSubmissionHandler).Methods("GET", "OPTIONS")
 
 	// File upload routes
-	uploads := protected.PathPrefix("/uploads").Subrouter()
-	uploads.HandleFunc("/file", middleware.AuthMiddleware(handlers.UploadFile)).Methods("POST")
-	uploads.HandleFunc("/file", middleware.AuthMiddleware(handlers.DeleteFile)).Methods("DELETE")
+	protected.HandleFunc("/uploads/file", submissionHandler.UploadFileHandler).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/uploads/file/{id:[0-9]+}", submissionHandler.GetFileHandler).Methods("GET", "OPTIONS")
 
-	// Certificate routes
-	certificates := protected.PathPrefix("/certificates").Subrouter()
-	certificates.HandleFunc("/{id}", middleware.AuthMiddleware(handlers.GetCertificate)).Methods("GET")
+	// Admin routes (admin role required)
+	admin := protected.PathPrefix("/admin").Subrouter()
+	admin.Use(middleware.AdminMiddleware)
 
-	// Admin routes (admin authentication required)
-	admin := api.PathPrefix("/admin").Subrouter()
+	// Admin quiz management routes
+	admin.HandleFunc("/quizzes", quizHandler.GetAllQuizzesHandler).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/quizzes", quizHandler.CreateQuizHandler).Methods("POST", "OPTIONS")
+	admin.HandleFunc("/quizzes/{id:[0-9]+}", quizHandler.UpdateQuizHandler).Methods("PUT", "OPTIONS")
+	admin.HandleFunc("/quizzes/{id:[0-9]+}", quizHandler.DeleteQuizHandler).Methods("DELETE", "OPTIONS")
 
-	// Admin course management
-	adminCourses := admin.PathPrefix("/courses").Subrouter()
-	adminCourses.HandleFunc("", middleware.AdminMiddleware(handlers.CreateCourse)).Methods("POST")
-	adminCourses.HandleFunc("/{id}", middleware.AdminMiddleware(handlers.UpdateCourse)).Methods("PUT")
-	adminCourses.HandleFunc("/{id}", middleware.AdminMiddleware(handlers.DeleteCourse)).Methods("DELETE")
-	adminCourses.HandleFunc("/{courseId}/submissions", middleware.AdminMiddleware(handlers.GetCourseSubmissions)).Methods("GET")
-	adminCourses.HandleFunc("/{courseId}/surveys", middleware.AdminMiddleware(handlers.GetCourseSurveys)).Methods("GET")
-
-	// Admin grading
-	adminGrading := admin.PathPrefix("/grading").Subrouter()
-	adminGrading.HandleFunc("/postwork/{id}", middleware.AdminMiddleware(handlers.GradePostWork)).Methods("POST")
-	adminGrading.HandleFunc("/finalproject/{id}", middleware.AdminMiddleware(handlers.GradeFinalProject)).Methods("POST")
-
-	// Health check
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	// Health check endpoint
+	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok","message":"LMS Backend is running"}`))
-	}).Methods("GET")
+		w.Write([]byte(`{"status":"ok","message":"LMS Backend API is running"}`))
+	}).Methods("GET", "OPTIONS")
 
 	// Root endpoint
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message":"Welcome to LMS Backend API","version":"1.0.0"}`))
-	}).Methods("GET")
+		w.Write([]byte(`{"message":"Welcome to LMS Backend API","version":"1.0.0","endpoints":{"/api/public":["POST /register","POST /login","GET /courses","GET /courses/{id}","GET /courses/search"],"/api/protected":["GET /user/profile","PUT /user/profile","GET /courses","POST /courses/enroll","GET /courses/enrollments"]}}`))
+	}).Methods("GET", "OPTIONS")
 
-	return r
+	return router
 }

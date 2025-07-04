@@ -1,249 +1,313 @@
 # LMS Backend API
 
-Backend API untuk Learning Management System (LMS) yang dibangun dengan Go, Gorilla Mux, dan PostgreSQL.
+Backend REST API untuk Learning Management System (LMS) menggunakan Go dan PostgreSQL.
 
-## 🏗️ Arsitektur
+## Features
 
-Proyek ini menggunakan arsitektur yang terstruktur dengan pemisahan concerns:
+### Phase 1: Authentication & User Management ✅
+- User registration dan login
+- JWT token authentication
+- User profile management
+- Role-based access control (user/admin)
 
+### Phase 2: Course Data Management ✅
+- Public course listing
+- Course details dengan struktur lengkap (intro material, lessons, tests)
+- Course enrollment untuk authenticated users
+- Search courses
+- User enrollment tracking
+
+## Tech Stack
+
+- **Language**: Go 1.21+
+- **Database**: PostgreSQL
+- **Router**: Gorilla Mux
+- **Authentication**: JWT
+- **Password Hashing**: bcrypt
+- **CORS**: rs/cors
+
+## Prerequisites
+
+1. Go 1.21 atau lebih baru
+2. PostgreSQL 12+
+3. Git
+
+## Setup Instructions
+
+### 1. Clone Repository
+```bash
+cd /Users/tjphack/new/lms/agileku/backend
 ```
-backend/
-├── main.go              # Entry point aplikasi
-├── config/              # Konfigurasi database dan environment
-│   └── database.go
-├── models/              # Model database dan schema
-│   └── models.go
-├── handlers/            # HTTP handlers untuk setiap endpoint
-│   ├── auth.go
-│   ├── courses.go
-│   ├── enrollments.go
-│   ├── quizzes.go
-│   ├── submissions.go
-│   ├── certificates.go
-│   └── uploads.go
-├── middleware/          # Middleware untuk authentication, CORS, dll
-│   ├── auth.go
-│   └── cors.go
-├── routes/              # Definisi routing API
-│   └── routes.go
-├── utils/               # Utility functions
-│   ├── jwt.go
-│   ├── response.go
-│   └── file.go
-├── uploads/             # Directory untuk file uploads
-├── docker-compose.yml   # Docker setup untuk development
-├── init.sql            # Database initialization
-├── Makefile            # Development commands
-└── README.md           # Dokumentasi ini
+
+### 2. Install Dependencies
+```bash
+go mod tidy
 ```
 
-## 🚀 Fitur
+### 3. Setup Database
 
-### Authentication & Authorization
-- ✅ User registration dan login
-- ✅ JWT token authentication
-- ✅ Role-based access control (student/admin)
-- ✅ Password hashing dengan bcrypt
+#### Install PostgreSQL (jika belum ada)
+```bash
+# macOS dengan Homebrew
+brew install postgresql
+brew services start postgresql
 
-### Course Management
-- ✅ CRUD operations untuk courses
-- ✅ Course enrollment system
-- ✅ Learning progress tracking
-- ✅ Lesson management
+# Atau download dari https://www.postgresql.org/download/
+```
 
-### Assessment System
-- ✅ Pre-test dan Post-test
-- ✅ Quiz dengan multiple choice questions
-- ✅ Survey system
-- ✅ Automatic grading
+#### Create Database
+```bash
+# Login ke PostgreSQL
+psql postgres
 
-### Assignment System
-- ✅ Post-work submissions
-- ✅ Final project submissions
-- ✅ File upload support
-- ✅ Grading system
+# Create database dan user
+CREATE DATABASE lms_db;
+CREATE USER lms_user WITH PASSWORD 'password';
+GRANT ALL PRIVILEGES ON DATABASE lms_db TO lms_user;
+\q
+```
 
-### Certificate System
-- ✅ Automatic certificate generation
-- ✅ Certificate verification
-- ✅ Grade calculation based on all assessments
+### 4. Environment Configuration
 
-### File Management
-- ✅ Secure file upload
-- ✅ File validation (type, size)
-- ✅ File serving
-
-## 🛠️ Setup Development
-
-### Prerequisites
-- Go 1.21+
-- PostgreSQL 14+
-- Docker & Docker Compose (optional)
-
-### Environment Variables
-Buat file `.env` di root directory:
+File `.env` sudah dibuat dengan konfigurasi default:
 
 ```env
-# Database
+# Database Configuration
 DB_HOST=localhost
 DB_PORT=5432
-DB_USER=test
-DB_PASSWORD=test
-DB_NAME=lms
+DB_USER=postgres
+DB_PASSWORD=password
+DB_NAME=lms_db
 DB_SSLMODE=disable
 
-# JWT
-JWT_SECRET=your-super-secret-jwt-key-here
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_EXPIRY=24h
 
-# Server
+# Server Configuration
 PORT=8080
+ENVIRONMENT=development
 
-# CORS
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+# CORS Configuration
+ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
-### Quick Start dengan Docker
+**⚠️ PENTING**: Ganti `JWT_SECRET` dan `DB_PASSWORD` untuk production!
+
+### 5. Run Application
 
 ```bash
-# Start services dengan Docker Compose
-make docker-up
-
-# Setup database
-make db-setup
-
-# Build dan run aplikasi
-make build
-make run
+# Development mode (dengan auto-seeding)
+go run main.go
 ```
 
-### Manual Setup
+Server akan berjalan di `http://localhost:8080`
 
+## API Endpoints
+
+### Public Endpoints (No Authentication)
+
+#### Authentication
+- `POST /api/public/register` - User registration
+- `POST /api/public/login` - User login
+
+#### Courses
+- `GET /api/public/courses` - Get all courses
+- `GET /api/public/courses/{id}` - Get course by ID
+- `GET /api/public/courses/search?q={query}` - Search courses
+
+### Protected Endpoints (Requires JWT Token)
+
+#### User Profile
+- `GET /api/protected/user/profile` - Get current user profile
+- `PUT /api/protected/user/profile` - Update user profile
+
+#### Course Enrollment
+- `GET /api/protected/courses` - Get courses with enrollment status
+- `POST /api/protected/courses/enroll` - Enroll in a course
+- `GET /api/protected/courses/enrollments` - Get user enrollments
+
+### Utility Endpoints
+- `GET /health` - Health check
+- `GET /` - API information
+
+## Authentication
+
+### Register User
 ```bash
-# Install dependencies
-go mod tidy
-
-# Setup PostgreSQL database
-createdb lms
-psql -d lms -f init.sql
-
-# Build aplikasi
-go build -o lms-backend
-
-# Run aplikasi
-./lms-backend
+curl -X POST http://localhost:8080/api/public/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "email": "test@example.com",
+    "password": "password123",
+    "fullName": "Test User"
+  }'
 ```
 
-## 📚 API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/auth/profile` - Get user profile (protected)
-
-### Courses
-- `GET /api/courses` - Get all courses
-- `GET /api/courses/{id}` - Get course by ID
-- `POST /api/courses` - Create course (admin only)
-- `PUT /api/courses/{id}` - Update course (admin only)
-- `DELETE /api/courses/{id}` - Delete course (admin only)
-
-### Enrollments
-- `POST /api/courses/{id}/enroll` - Enroll in course
-- `GET /api/enrollments` - Get user enrollments
-- `PUT /api/courses/{courseId}/lessons/{lessonId}/progress` - Update lesson progress
-- `GET /api/courses/{id}/progress` - Get course progress
-
-### Quizzes & Surveys
-- `GET /api/courses/{courseId}/quizzes` - Get course quizzes
-- `GET /api/quizzes/{id}` - Get quiz details
-- `POST /api/quizzes/{id}/submit` - Submit quiz
-- `GET /api/quizzes/{id}/attempts` - Get quiz attempts
-- `POST /api/courses/{courseId}/surveys` - Submit survey
-
-### Submissions
-- `POST /api/courses/{courseId}/postwork` - Submit post-work
-- `POST /api/courses/{courseId}/finalproject` - Submit final project
-- `GET /api/submissions` - Get user submissions
-- `PUT /api/submissions/postwork/{id}/grade` - Grade post-work (admin)
-- `PUT /api/submissions/finalproject/{id}/grade` - Grade final project (admin)
-
-### Certificates
-- `POST /api/courses/{courseId}/certificate` - Generate certificate
-- `GET /api/certificates` - Get user certificates
-- `GET /api/certificates/{id}` - Get certificate details
-- `GET /api/certificates/{id}/verify` - Verify certificate
-
-### File Upload
-- `POST /api/upload` - Upload file
-- `GET /api/files/{id}` - Get file
-- `DELETE /api/files/{id}` - Delete file
-- `GET /api/files` - Get user files
-
-### Health Check
-- `GET /health` - Health check endpoint
-
-## 🗄️ Database Schema
-
-### Core Tables
-- `users` - User accounts dan profiles
-- `courses` - Course information
-- `lessons` - Course lessons/materials
-- `enrollments` - User course enrollments
-- `lesson_progress` - Individual lesson progress
-
-### Assessment Tables
-- `intro_materials` - Course introduction materials
-- `quizzes` - Pre-test dan Post-test
-- `questions` - Quiz questions
-- `quiz_attempts` - User quiz submissions
-- `survey_responses` - Survey responses
-
-### Assignment Tables
-- `post_works` - Post-work assignments
-- `final_projects` - Final project assignments
-- `submissions` - File submissions
-
-### Certificate & File Tables
-- `certificates` - Generated certificates
-- `file_uploads` - Uploaded files metadata
-
-## 🧪 Testing
-
+### Login
 ```bash
-# Run tests
-make test
-
-# Run tests dengan coverage
-make test-coverage
-
-# Run linting
-make lint
+curl -X POST http://localhost:8080/api/public/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "password": "password123"
+  }'
 ```
 
-## 📦 Deployment
-
-### Docker Production
-
+### Using JWT Token
 ```bash
-# Build production image
-docker build -t lms-backend:latest .
-
-# Run dengan environment variables
-docker run -p 8080:8080 --env-file .env lms-backend:latest
+# Gunakan token dari response login
+curl -X GET http://localhost:8080/api/protected/user/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
 ```
 
-## 🔧 Development Commands
+## Database Schema
 
-Gunakan Makefile untuk development:
+### Users Table
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    role VARCHAR(20) DEFAULT 'user',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
+### Courses Table
+```sql
+CREATE TABLE courses (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    level VARCHAR(50),
+    duration VARCHAR(50),
+    instructor VARCHAR(100),
+    rating DECIMAL(3,2) DEFAULT 0.0,
+    students INTEGER DEFAULT 0,
+    image VARCHAR(500),
+    intro_material JSONB,
+    lessons JSONB,
+    pre_test JSONB,
+    post_test JSONB,
+    post_work JSONB,
+    final_project JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Course Enrollments Table
+```sql
+CREATE TABLE course_enrollments (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+    enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    progress INTEGER DEFAULT 0,
+    completed_at TIMESTAMP,
+    UNIQUE(user_id, course_id)
+);
+```
+
+## Default Users (Development)
+
+Seeder akan membuat user default:
+
+1. **Admin User**
+   - Username: `admin`
+   - Password: `123`
+   - Role: `admin`
+   - Email: `admin@agileku.com`
+
+2. **Regular User**
+   - Username: `user`
+   - Password: `123`
+   - Role: `user`
+   - Email: `user@agileku.com`
+
+## Development
+
+### Project Structure
+```
+backend/
+├── main.go              # Entry point
+├── go.mod              # Go modules
+├── .env                # Environment variables
+├── config/
+│   └── database.go     # Database configuration
+├── models/
+│   ├── user.go         # User model
+│   └── course.go       # Course model
+├── handlers/
+│   ├── auth.go         # Authentication handlers
+│   └── course.go       # Course handlers
+├── middleware/
+│   ├── auth.go         # JWT middleware
+│   └── cors.go         # CORS middleware
+├── routes/
+│   └── routes.go       # Route definitions
+└── seed/
+    └── seeder.go       # Database seeder
+```
+
+### Adding New Features
+
+1. **Add Model**: Create struct in `models/`
+2. **Add Handler**: Create handler functions in `handlers/`
+3. **Add Routes**: Register routes in `routes/routes.go`
+4. **Update Database**: Add migration in `config/database.go`
+
+## Troubleshooting
+
+### Database Connection Issues
 ```bash
-make help          # Show available commands
-make build         # Build aplikasi
-make run           # Run aplikasi
-make test          # Run tests
-make clean         # Clean build files
-make docker-up     # Start Docker services
-make docker-down   # Stop Docker services
-make db-setup      # Setup database
-make db-reset      # Reset database
+# Check PostgreSQL status
+brew services list | grep postgresql
+
+# Restart PostgreSQL
+brew services restart postgresql
+
+# Check if database exists
+psql -l | grep lms_db
 ```
+
+### Port Already in Use
+```bash
+# Find process using port 8080
+lsof -i :8080
+
+# Kill process
+kill -9 <PID>
+
+# Or change port in .env file
+PORT=8081
+```
+
+### CORS Issues
+Pastikan frontend URL sudah ditambahkan di `ALLOWED_ORIGINS` dalam file `.env`
+
+## Next Steps (Future Phases)
+
+- [ ] Phase 3: Learning Progress & Tracking
+- [ ] Phase 4: Quiz & Assessment System
+- [ ] Phase 5: Submissions & Projects
+- [ ] Phase 6: Certificates & Achievements
+- [ ] Phase 7: Admin Features
+
+## Contributing
+
+1. Fork repository
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Create Pull Request
+
+## License
+
+MIT License

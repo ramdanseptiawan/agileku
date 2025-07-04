@@ -1,418 +1,512 @@
 package seed
 
 import (
+	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
-	"time"
-	"lms-backend/config"
+
 	"lms-backend/models"
-	"golang.org/x/crypto/bcrypt"
 )
 
-// SeedData populates the database with initial data based on CourseData.js
-func SeedData() {
-	fmt.Println("Seeding database...")
+// SeedData populates the database with initial data
+func SeedData(db *sql.DB) {
+	log.Println("Starting database seeding...")
 
-	// Get database connection
-	db := config.GetDB()
+	// Create tables first
+	createNewTables(db)
 
-	// Check if data already exists
-	var courseCount int64
-	db.Model(&models.Course{}).Count(&courseCount)
-	if courseCount > 0 {
-		fmt.Println("Database already seeded")
+	// Seed users
+	seedUsers(db)
+
+	// Seed courses
+	seedCourses(db)
+
+	// Seed quizzes from course data
+	seedQuizzes(db)
+
+	log.Println("Database seeding completed")
+}
+
+// createNewTables creates the new tables for progress, quiz, and submission features
+func createNewTables(db *sql.DB) {
+	log.Println("Creating new tables...")
+
+	// Create lesson progress table
+	if err := models.CreateLessonProgressTable(db); err != nil {
+		log.Printf("Error creating lesson_progress table: %v", err)
+	} else {
+		log.Println("Created lesson_progress table")
+	}
+
+	// Create course progress table
+	if err := models.CreateCourseProgressTable(db); err != nil {
+		log.Printf("Error creating course_progress table: %v", err)
+	} else {
+		log.Println("Created course_progress table")
+	}
+
+	// Create quiz table
+	if err := models.CreateQuizTable(db); err != nil {
+		log.Printf("Error creating quizzes table: %v", err)
+	} else {
+		log.Println("Created quizzes table")
+	}
+
+	// Create quiz attempt table
+	if err := models.CreateQuizAttemptTable(db); err != nil {
+		log.Printf("Error creating quiz_attempts table: %v", err)
+	} else {
+		log.Println("Created quiz_attempts table")
+	}
+
+	// Create postwork submission table
+	if err := models.CreatePostWorkSubmissionTable(db); err != nil {
+		log.Printf("Error creating postwork_submissions table: %v", err)
+	} else {
+		log.Println("Created postwork_submissions table")
+	}
+
+	// Create final project submission table
+	if err := models.CreateFinalProjectSubmissionTable(db); err != nil {
+		log.Printf("Error creating final_project_submissions table: %v", err)
+	} else {
+		log.Println("Created final_project_submissions table")
+	}
+
+	// Create file upload table
+	if err := models.CreateFileUploadTable(db); err != nil {
+		log.Printf("Error creating file_uploads table: %v", err)
+	} else {
+		log.Println("Created file_uploads table")
+	}
+
+	log.Println("New tables creation completed")
+}
+
+func seedUsers(db *sql.DB) {
+	// Check if users already exist
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+	if err != nil {
+		log.Printf("Error checking users: %v", err)
 		return
 	}
 
-	// Create admin user
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("123"), bcrypt.DefaultCost)
-	adminUser := models.User{
-		Username: "admin",
-		Email:    "admin@lms.com",
-		Password: string(hashedPassword),
-		Role:     "admin",
+	if count > 0 {
+		log.Println("Users already exist, skipping user seeding")
+		return
 	}
-	db.Create(&adminUser)
 
-	// Create student user
-	studentPassword, _ := bcrypt.GenerateFromPassword([]byte("123"), bcrypt.DefaultCost)
-	studentUser := models.User{
-		Username: "student",
-		Email:    "student@lms.com",
-		Password: string(studentPassword),
-		Role:     "student",
-	}
-	db.Create(&studentUser)
-
-	// Create courses based on CourseData.js
-	courses := []models.Course{
+	// Create default users
+	users := []*models.User{
 		{
-			Title:       "Introduction to React",
-			Description: "Learn the fundamentals of React development",
-			Category:    "Programming",
-			Level:       "Beginner",
-			Duration:    "4 weeks",
-			Instructor:  "John Doe",
-			Rating:      4.8,
-			Students:    1234,
-			Image:       "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=300&h=200&fit=crop&crop=center",
+			Username: "admin",
+			Email:    "admin@agileku.com",
+			Password: "123",
+			FullName: "Administrator",
+			Role:     "admin",
 		},
 		{
-			Title:       "Advanced JavaScript",
-			Description: "Master advanced JavaScript concepts and patterns",
-			Category:    "Programming",
-			Level:       "Advanced",
-			Duration:    "6 weeks",
-			Instructor:  "Jane Smith",
-			Rating:      4.9,
-			Students:    856,
-			Image:       "https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=300&h=200&fit=crop&crop=center",
-		},
-		{
-			Title:       "Python for Data Science",
-			Description: "Learn Python programming for data analysis and machine learning",
-			Category:    "Data Science",
-			Level:       "Intermediate",
-			Duration:    "8 weeks",
-			Instructor:  "Dr. Michael Johnson",
-			Rating:      4.7,
-			Students:    2341,
-			Image:       "https://images.unsplash.com/photo-1526379879527-8559ecfcaec0?w=300&h=200&fit=crop&crop=center",
-		},
-		{
-			Title:       "UI/UX Design Fundamentals",
-			Description: "Master the principles of user interface and user experience design",
-			Category:    "Design",
-			Level:       "Beginner",
-			Duration:    "5 weeks",
-			Instructor:  "Sarah Wilson",
-			Rating:      4.6,
-			Students:    1876,
-			Image:       "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=300&h=200&fit=crop&crop=center",
-		},
-		{
-			Title:       "Digital Marketing Strategy",
-			Description: "Learn effective digital marketing strategies and tools",
-			Category:    "Marketing",
-			Level:       "Intermediate",
-			Duration:    "6 weeks",
-			Instructor:  "Mark Davis",
-			Rating:      4.5,
-			Students:    1543,
-			Image:       "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop&crop=center",
+			Username: "user",
+			Email:    "user@agileku.com",
+			Password: "123",
+			FullName: "Default User",
+			Role:     "user",
 		},
 	}
 
-	for i, courseData := range courses {
-		// Create course
-		db.Create(&courseData)
+	for _, user := range users {
+		err := models.CreateUser(db, user)
+		if err != nil {
+			log.Printf("Error creating user %s: %v", user.Username, err)
+		} else {
+			log.Printf("Created user: %s", user.Username)
+		}
+	}
+}
 
-		// Create lessons for each course
-		lessons := []models.Lesson{
-			{
-				CourseID: courseData.ID,
-				Title:    fmt.Sprintf("Pengenalan %s", courseData.Title),
-				Type:     "reading",
-				Content:  fmt.Sprintf("# Pengenalan %s\n\nSelamat datang di kursus %s. Dalam pelajaran ini, Anda akan mempelajari dasar-dasar dan konsep fundamental.", courseData.Title, courseData.Title),
-				Order:    1,
+func seedCourses(db *sql.DB) {
+	// Check if courses already exist
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM courses").Scan(&count)
+	if err != nil {
+		log.Printf("Error checking courses: %v", err)
+		return
+	}
+
+	if count > 0 {
+		log.Println("Courses already exist, skipping course seeding")
+		return
+	}
+
+	// Course data matching frontend structure
+	courses := []map[string]interface{}{
+		{
+			"title":       "Introduction to React",
+			"description": "Learn the fundamentals of React development",
+			"category":    "Programming",
+			"level":       "Beginner",
+			"duration":    "4 weeks",
+			"instructor":  "John Doe",
+			"rating":      4.8,
+			"students":    1234,
+			"image":       "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=300&h=200&fit=crop&crop=center",
+			"introMaterial": map[string]interface{}{
+				"title": "Selamat Datang di Kursus React",
+				"content": []map[string]interface{}{
+					{
+						"type":    "text",
+						"content": "Selamat datang di kursus **Introduction to React**! Dalam kursus ini, Anda akan mempelajari dasar-dasar pengembangan aplikasi web menggunakan React, salah satu library JavaScript paling populer saat ini.",
+					},
+					{
+						"type": "list",
+						"items": []string{
+							"Konsep dasar React dan JSX",
+							"Component-based architecture",
+							"State management dan Props",
+							"Event handling dan lifecycle methods",
+							"Hooks dan functional components",
+							"Best practices dalam React development",
+						},
+					},
+				},
 			},
-			{
-				CourseID: courseData.ID,
-				Title:    fmt.Sprintf("Video Tutorial %s", courseData.Title),
-				Type:     "video",
-				Content:  fmt.Sprintf("Video tutorial komprehensif untuk %s", courseData.Title),
-				Order:    2,
+			"lessons": []map[string]interface{}{
+				{
+					"id":    1,
+					"title": "Pengenalan React",
+					"type":  "reading",
+					"content": []map[string]interface{}{
+						{
+							"type":    "text",
+							"content": "# Pengenalan React\n\nReact adalah library JavaScript yang dikembangkan oleh Facebook untuk membangun user interface yang interaktif dan efisien.",
+						},
+					},
+				},
+				{
+					"id":    2,
+					"title": "Video Tutorial React Basics",
+					"type":  "video",
+					"content": []map[string]interface{}{
+						{
+							"type":    "text",
+							"content": "# Video Tutorial React Basics\n\nDalam video tutorial ini, Anda akan mempelajari dasar-dasar React melalui demonstrasi langsung.",
+						},
+						{
+							"type":     "video",
+							"title":    "React Basics Tutorial",
+							"src":      "https://www.youtube.com/embed/Ke90Tje7VS0",
+							"duration": "20:15",
+						},
+					},
+				},
 			},
-			{
-				CourseID: courseData.ID,
-				Title:    fmt.Sprintf("Praktik %s", courseData.Title),
-				Type:     "assignment",
-				Content:  fmt.Sprintf("Tugas praktik untuk menguji pemahaman Anda tentang %s", courseData.Title),
-				Order:    3,
+			"preTest": map[string]interface{}{
+				"id":    "pre1",
+				"title": "Pre-Test: React Fundamentals",
+				"questions": []map[string]interface{}{
+					{
+						"id":       1,
+						"question": "React dikembangkan oleh?",
+						"options":  []string{"Google", "Facebook", "Microsoft", "Apple"},
+						"correct":  1,
+					},
+					{
+						"id":       2,
+						"question": "Apa kepanjangan dari JSX?",
+						"options":  []string{"JavaScript XML", "Java Syntax Extension", "JSON XML", "JavaScript Extension"},
+						"correct":  0,
+					},
+				},
 			},
+			"postTest": map[string]interface{}{
+				"id":    "post1",
+				"title": "Post-Test: React Fundamentals",
+				"questions": []map[string]interface{}{
+					{
+						"id":       1,
+						"question": "Virtual DOM dalam React berfungsi untuk?",
+						"options":  []string{"Styling", "Meningkatkan performa", "Database", "Testing"},
+						"correct":  1,
+					},
+				},
+			},
+		},
+		{
+			"title":       "Advanced JavaScript",
+			"description": "Master advanced JavaScript concepts and patterns",
+			"category":    "Programming",
+			"level":       "Advanced",
+			"duration":    "6 weeks",
+			"instructor":  "Jane Smith",
+			"rating":      4.9,
+			"students":    856,
+			"image":       "https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=300&h=200&fit=crop&crop=center",
+			"introMaterial": map[string]interface{}{
+				"title": "Menguasai JavaScript Tingkat Lanjut",
+				"content": []map[string]interface{}{
+					{
+						"type":    "text",
+						"content": "Selamat datang di kursus Advanced JavaScript! Kursus ini dirancang untuk developer yang sudah memiliki pemahaman dasar JavaScript dan ingin menguasai konsep-konsep advanced.",
+					},
+				},
+			},
+			"lessons": []map[string]interface{}{
+				{
+					"id":    1,
+					"title": "Closures dan Scope",
+					"type":  "reading",
+					"content": []map[string]interface{}{
+						{
+							"type":    "text",
+							"content": "# Closures dan Scope\n\nClosure adalah fungsi yang memiliki akses ke variabel di scope luar bahkan setelah fungsi luar selesai dieksekusi.",
+						},
+					},
+				},
+			},
+			"preTest": map[string]interface{}{
+				"id":    "pre2",
+				"title": "Pre-Test: Advanced JavaScript",
+				"questions": []map[string]interface{}{
+					{
+						"id":       1,
+						"question": "Apa itu closure dalam JavaScript?",
+						"options":  []string{"Fungsi yang memiliki akses ke scope luar", "Tipe data", "Method", "Variable"},
+						"correct":  0,
+					},
+				},
+			},
+			"postTest": map[string]interface{}{
+				"id":    "post2",
+				"title": "Post-Test: Advanced JavaScript",
+				"questions": []map[string]interface{}{
+					{
+						"id":       1,
+						"question": "Prototype dalam JavaScript digunakan untuk?",
+						"options":  []string{"Inheritance", "Styling", "Database", "Testing"},
+						"correct":  0,
+					},
+				},
+			},
+		},
+		{
+			"title":       "UI/UX Design Fundamentals",
+			"description": "Learn the principles of user interface and user experience design",
+			"category":    "Design",
+			"level":       "Beginner",
+			"duration":    "5 weeks",
+			"instructor":  "Sarah Wilson",
+			"rating":      4.7,
+			"students":    2156,
+			"image":       "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=300&h=200&fit=crop&crop=center",
+			"introMaterial": map[string]interface{}{
+				"title": "Dasar-dasar UI/UX Design",
+				"content": []map[string]interface{}{
+					{
+						"type":    "text",
+						"content": "Selamat datang di kursus UI/UX Design Fundamentals! Dalam kursus ini, Anda akan mempelajari prinsip-prinsip dasar desain antarmuka pengguna dan pengalaman pengguna.",
+					},
+				},
+			},
+			"lessons": []map[string]interface{}{
+				{
+					"id":    1,
+					"title": "Pengenalan UI/UX",
+					"type":  "reading",
+					"content": []map[string]interface{}{
+						{
+							"type":    "text",
+							"content": "# Pengenalan UI/UX\n\nUI (User Interface) dan UX (User Experience) adalah dua aspek penting dalam desain produk digital.",
+						},
+					},
+				},
+			},
+			"preTest": map[string]interface{}{
+				"id":    "pre3",
+				"title": "Pre-Test: UI/UX Design",
+				"questions": []map[string]interface{}{
+					{
+						"id":       1,
+						"question": "Apa kepanjangan dari UI?",
+						"options":  []string{"User Interface", "User Integration", "Universal Interface", "Unique Interface"},
+						"correct":  0,
+					},
+				},
+			},
+			"postTest": map[string]interface{}{
+				"id":    "post3",
+				"title": "Post-Test: UI/UX Design",
+				"questions": []map[string]interface{}{
+					{
+						"id":       1,
+						"question": "UX Design berfokus pada?",
+						"options":  []string{"Pengalaman pengguna", "Warna", "Font", "Layout"},
+						"correct":  0,
+					},
+				},
+			},
+		},
+		{
+			"title":       "Backend Development with Node.js",
+			"description": "Build robust backend applications using Node.js and Express",
+			"category":    "Programming",
+			"level":       "Intermediate",
+			"duration":    "8 weeks",
+			"instructor":  "Mike Johnson",
+			"rating":      4.6,
+			"students":    987,
+			"image":       "https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=300&h=200&fit=crop&crop=center",
+			"introMaterial": map[string]interface{}{
+				"title": "Backend Development dengan Node.js",
+				"content": []map[string]interface{}{
+					{
+						"type":    "text",
+						"content": "Selamat datang di kursus Backend Development with Node.js! Dalam kursus ini, Anda akan mempelajari cara membangun aplikasi backend yang robust menggunakan Node.js dan Express.",
+					},
+				},
+			},
+			"lessons": []map[string]interface{}{
+				{
+					"id":    1,
+					"title": "Pengenalan Node.js",
+					"type":  "reading",
+					"content": []map[string]interface{}{
+						{
+							"type":    "text",
+							"content": "# Pengenalan Node.js\n\nNode.js adalah runtime environment untuk JavaScript yang memungkinkan kita menjalankan JavaScript di server.",
+						},
+					},
+				},
+			},
+			"preTest": map[string]interface{}{
+				"id":    "pre4",
+				"title": "Pre-Test: Backend Development",
+				"questions": []map[string]interface{}{
+					{
+						"id":       1,
+						"question": "Node.js adalah?",
+						"options":  []string{"Runtime environment untuk JavaScript", "Database", "Framework", "Library"},
+						"correct":  0,
+					},
+				},
+			},
+			"postTest": map[string]interface{}{
+				"id":    "post4",
+				"title": "Post-Test: Backend Development",
+				"questions": []map[string]interface{}{
+					{
+						"id":       1,
+						"question": "Express.js digunakan untuk?",
+						"options":  []string{"Web framework untuk Node.js", "Database", "Frontend", "Testing"},
+						"correct":  0,
+					},
+				},
+			},
+		},
+	}
+
+	for _, courseData := range courses {
+		// Convert complex fields to JSON
+		introMaterialJSON, _ := json.Marshal(courseData["introMaterial"])
+		lessonsJSON, _ := json.Marshal(courseData["lessons"])
+		preTestJSON, _ := json.Marshal(courseData["preTest"])
+		postTestJSON, _ := json.Marshal(courseData["postTest"])
+
+		// Insert course
+		query := `
+			INSERT INTO courses (
+				title, description, category, level, duration, instructor,
+				rating, students, image, intro_material, lessons, pre_test, post_test
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		`
+
+		_, err := db.Exec(query,
+			courseData["title"], courseData["description"], courseData["category"],
+			courseData["level"], courseData["duration"], courseData["instructor"],
+			courseData["rating"], courseData["students"], courseData["image"],
+			introMaterialJSON, lessonsJSON, preTestJSON, postTestJSON,
+		)
+
+		if err != nil {
+			log.Printf("Error creating course %s: %v", courseData["title"], err)
+		} else {
+			log.Printf("Created course: %s", courseData["title"])
+		}
+	}
+}
+
+func seedQuizzes(db *sql.DB) {
+	// Check if quizzes already exist
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM quizzes").Scan(&count)
+	if err != nil {
+		log.Printf("Error checking quizzes: %v", err)
+		return
+	}
+
+	if count > 0 {
+		log.Println("Quizzes already exist, skipping quiz seeding")
+		return
+	}
+
+	// Get courses with pre_test and post_test data
+	query := `SELECT id, title, pre_test, post_test FROM courses WHERE pre_test IS NOT NULL OR post_test IS NOT NULL`
+	rows, err := db.Query(query)
+	if err != nil {
+		log.Printf("Error getting courses for quiz seeding: %v", err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var courseID int
+		var courseTitle string
+		var preTestJSON, postTestJSON sql.NullString
+
+		err := rows.Scan(&courseID, &courseTitle, &preTestJSON, &postTestJSON)
+		if err != nil {
+			log.Printf("Error scanning course data: %v", err)
+			continue
 		}
 
-		for _, lesson := range lessons {
-			db.Create(&lesson)
-		}
+		// Create pre-test quiz if exists
+		if preTestJSON.Valid {
+			var preTestData map[string]interface{}
+			if err := json.Unmarshal([]byte(preTestJSON.String), &preTestData); err == nil {
+				questions, _ := json.Marshal(preTestData["questions"])
+				title := preTestData["title"].(string)
 
-		// Create pre-test and post-test quizzes
-		preTest := models.Quiz{
-			CourseID: courseData.ID,
-			Title:    fmt.Sprintf("Pre-Test: %s", courseData.Title),
-			Type:     "preTest",
-		}
-		db.Create(&preTest)
-
-		postTest := models.Quiz{
-			CourseID: courseData.ID,
-			Title:    fmt.Sprintf("Post-Test: %s", courseData.Title),
-			Type:     "postTest",
-		}
-		db.Create(&postTest)
-
-		// Create questions for pre-test
-		preTestQuestions := getPreTestQuestions(i)
-		for j, q := range preTestQuestions {
-			optionsJSON, _ := json.Marshal(q.Options)
-			question := models.Question{
-				QuizID:   preTest.ID,
-				Question: q.Question,
-				Options:  string(optionsJSON),
-				Correct:  q.Correct,
-				Order:    j + 1,
+				insertQuery := `
+					INSERT INTO quizzes (course_id, title, description, questions, quiz_type, time_limit, max_attempts, passing_score, is_active, created_at, updated_at)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				`
+				_, err := db.Exec(insertQuery, courseID, title, "Pre-test for "+courseTitle, questions, "pretest", 30, 3, 70, true)
+				if err != nil {
+					log.Printf("Error creating pre-test for course %s: %v", courseTitle, err)
+				} else {
+					log.Printf("Created pre-test quiz for course: %s", courseTitle)
+				}
 			}
-			db.Create(&question)
 		}
 
-		// Create questions for post-test
-		postTestQuestions := getPostTestQuestions(i)
-		for j, q := range postTestQuestions {
-			optionsJSON, _ := json.Marshal(q.Options)
-			question := models.Question{
-				QuizID:   postTest.ID,
-				Question: q.Question,
-				Options:  string(optionsJSON),
-				Correct:  q.Correct,
-				Order:    j + 1,
+		// Create post-test quiz if exists
+		if postTestJSON.Valid {
+			var postTestData map[string]interface{}
+			if err := json.Unmarshal([]byte(postTestJSON.String), &postTestData); err == nil {
+				questions, _ := json.Marshal(postTestData["questions"])
+				title := postTestData["title"].(string)
+
+				insertQuery := `
+					INSERT INTO quizzes (course_id, title, description, questions, quiz_type, time_limit, max_attempts, passing_score, is_active, created_at, updated_at)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				`
+				_, err := db.Exec(insertQuery, courseID, title, "Post-test for "+courseTitle, questions, "posttest", 30, 3, 70, true)
+				if err != nil {
+					log.Printf("Error creating post-test for course %s: %v", courseTitle, err)
+				} else {
+					log.Printf("Created post-test quiz for course: %s", courseTitle)
+				}
 			}
-			db.Create(&question)
 		}
-	}
-
-	// Create sample enrollments
-	enrollments := []models.Enrollment{
-		{
-			UserID:   studentUser.ID,
-			CourseID: 1,
-			Progress: 65,
-			StartedAt: time.Now(),
-		},
-		{
-			UserID:   studentUser.ID,
-			CourseID: 2,
-			Progress: 30,
-			StartedAt: time.Now(),
-		},
-	}
-
-	for _, enrollment := range enrollments {
-		db.Create(&enrollment)
-	}
-
-	fmt.Println("Database seeded successfully!")
-	log.Println("Default users created:")
-	log.Println("Admin - Username: admin, Password: admin123")
-	log.Println("Student - Username: student, Password: student123")
-}
-
-type QuestionData struct {
-	Question string   `json:"question"`
-	Options  []string `json:"options"`
-	Correct  int      `json:"correct"`
-}
-
-func getPreTestQuestions(courseIndex int) []QuestionData {
-	switch courseIndex {
-	case 0: // React
-		return []QuestionData{
-			{
-				Question: "React dikembangkan oleh?",
-				Options:  []string{"Google", "Facebook", "Microsoft", "Apple"},
-				Correct:  1,
-			},
-			{
-				Question: "Apa kepanjangan dari JSX?",
-				Options:  []string{"JavaScript XML", "Java Syntax Extension", "JSON XML", "JavaScript Extension"},
-				Correct:  0,
-			},
-			{
-				Question: "React adalah?",
-				Options:  []string{"Framework", "Library", "Database", "Server"},
-				Correct:  1,
-			},
-			{
-				Question: "Apa itu component dalam React?",
-				Options:  []string{"Fungsi atau class yang mengembalikan JSX", "Database", "CSS file", "HTML file"},
-				Correct:  0,
-			},
-		}
-	case 1: // JavaScript
-		return []QuestionData{
-			{
-				Question: "JavaScript adalah bahasa pemrograman?",
-				Options:  []string{"Compiled", "Interpreted", "Assembly", "Machine"},
-				Correct:  1,
-			},
-			{
-				Question: "Apa itu closure dalam JavaScript?",
-				Options:  []string{"Function yang memiliki akses ke scope luar", "Loop", "Variable", "Object"},
-				Correct:  0,
-			},
-			{
-				Question: "Event loop berfungsi untuk?",
-				Options:  []string{"Styling", "Menangani asynchronous operations", "Database", "Networking"},
-				Correct:  1,
-			},
-		}
-	case 2: // Python
-		return []QuestionData{
-			{
-				Question: "Python dikembangkan oleh?",
-				Options:  []string{"Guido van Rossum", "Linus Torvalds", "Dennis Ritchie", "Bjarne Stroustrup"},
-				Correct:  0,
-			},
-			{
-				Question: "Library Python untuk data science yang populer?",
-				Options:  []string{"Django", "Pandas", "Flask", "Requests"},
-				Correct:  1,
-			},
-			{
-				Question: "Apa itu NumPy?",
-				Options:  []string{"Web framework", "Library untuk numerical computing", "Database", "Text editor"},
-				Correct:  1,
-			},
-		}
-	case 3: // UI/UX
-		return []QuestionData{
-			{
-				Question: "UI adalah singkatan dari?",
-				Options:  []string{"User Interface", "Universal Internet", "Unique Identifier", "User Information"},
-				Correct:  0,
-			},
-			{
-				Question: "UX fokus pada?",
-				Options:  []string{"Visual design", "User experience", "Programming", "Database"},
-				Correct:  1,
-			},
-			{
-				Question: "Wireframe adalah?",
-				Options:  []string{"Final design", "Blueprint atau sketsa layout", "Color palette", "Typography"},
-				Correct:  1,
-			},
-		}
-	case 4: // Digital Marketing
-		return []QuestionData{
-			{
-				Question: "SEO adalah singkatan dari?",
-				Options:  []string{"Search Engine Optimization", "Social Engine Optimization", "System Engine Operation", "Search Engine Operation"},
-				Correct:  0,
-			},
-			{
-				Question: "Platform media sosial yang cocok untuk B2B marketing?",
-				Options:  []string{"TikTok", "LinkedIn", "Instagram", "Snapchat"},
-				Correct:  1,
-			},
-			{
-				Question: "CTR adalah singkatan dari?",
-				Options:  []string{"Click Through Rate", "Cost To Revenue", "Customer Target Rate", "Content Transfer Rate"},
-				Correct:  0,
-			},
-		}
-	default:
-		return []QuestionData{}
-	}
-}
-
-func getPostTestQuestions(courseIndex int) []QuestionData {
-	switch courseIndex {
-	case 0: // React
-		return []QuestionData{
-			{
-				Question: "Virtual DOM dalam React berfungsi untuk?",
-				Options:  []string{"Styling", "Meningkatkan performa", "Database", "Testing"},
-				Correct:  1,
-			},
-			{
-				Question: "useState adalah?",
-				Options:  []string{"Hook untuk mengelola state", "Component", "Props", "Event handler"},
-				Correct:  0,
-			},
-			{
-				Question: "useEffect digunakan untuk?",
-				Options:  []string{"Side effects dan lifecycle methods", "Styling", "State management", "Routing"},
-				Correct:  0,
-			},
-			{
-				Question: "Props dalam React digunakan untuk?",
-				Options:  []string{"Mengirim data dari parent ke child component", "Styling", "Database connection", "Routing"},
-				Correct:  0,
-			},
-		}
-	case 1: // JavaScript
-		return []QuestionData{
-			{
-				Question: "Promise digunakan untuk?",
-				Options:  []string{"Synchronous operations", "Asynchronous operations", "Styling", "Database"},
-				Correct:  1,
-			},
-			{
-				Question: "Async/await adalah?",
-				Options:  []string{"Syntactic sugar untuk Promise", "Loop", "Variable declaration", "Function type"},
-				Correct:  0,
-			},
-			{
-				Question: "Destructuring assignment digunakan untuk?",
-				Options:  []string{"Menghapus variable", "Mengekstrak nilai dari array/object", "Membuat loop", "Error handling"},
-				Correct:  1,
-			},
-		}
-	case 2: // Python
-		return []QuestionData{
-			{
-				Question: "Matplotlib digunakan untuk?",
-				Options:  []string{"Web development", "Data visualization", "Database", "Networking"},
-				Correct:  1,
-			},
-			{
-				Question: "Scikit-learn adalah library untuk?",
-				Options:  []string{"Web scraping", "Machine learning", "GUI development", "Game development"},
-				Correct:  1,
-			},
-			{
-				Question: "Jupyter Notebook digunakan untuk?",
-				Options:  []string{"Text editing", "Interactive data analysis", "Web hosting", "Database management"},
-				Correct:  1,
-			},
-		}
-	case 3: // UI/UX
-		return []QuestionData{
-			{
-				Question: "Prinsip design yang baik meliputi?",
-				Options:  []string{"Kompleksitas", "Simplicity dan clarity", "Banyak warna", "Text yang kecil"},
-				Correct:  1,
-			},
-			{
-				Question: "User persona adalah?",
-				Options:  []string{"Real user", "Fictional character representing target user", "Developer", "Designer"},
-				Correct:  1,
-			},
-			{
-				Question: "A/B testing digunakan untuk?",
-				Options:  []string{"Bug testing", "Comparing two versions of design", "Performance testing", "Security testing"},
-				Correct:  1,
-			},
-		}
-	case 4: // Digital Marketing
-		return []QuestionData{
-			{
-				Question: "Conversion rate adalah?",
-				Options:  []string{"Jumlah visitor", "Persentase visitor yang melakukan action", "Jumlah page views", "Bounce rate"},
-				Correct:  1,
-			},
-			{
-				Question: "Google Analytics digunakan untuk?",
-				Options:  []string{"Social media management", "Website traffic analysis", "Email marketing", "Content creation"},
-				Correct:  1,
-			},
-			{
-				Question: "ROI adalah singkatan dari?",
-				Options:  []string{"Return on Investment", "Rate of Interest", "Revenue of Income", "Ratio of Investment"},
-				Correct:  0,
-			},
-		}
-	default:
-		return []QuestionData{}
 	}
 }

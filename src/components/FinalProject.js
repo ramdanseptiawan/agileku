@@ -9,6 +9,7 @@ import {
   handleDragEvents
 } from '../utils/fileUtils';
 import { useAuth } from '../contexts/AuthContext';
+import { submissionAPI } from '../services/api';
 
 const FinalProject = ({ courseId, onSubmit }) => {
   const { currentUser } = useAuth();
@@ -26,6 +27,10 @@ const FinalProject = ({ courseId, onSubmit }) => {
   const [autoSaveStatus, setAutoSaveStatus] = useState('saved'); // saved, saving, error
   const [lastSaved, setLastSaved] = useState(null);
   const [instructions, setInstructions] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedFileId, setUploadedFileId] = useState(null);
+  const [existingSubmission, setExistingSubmission] = useState(null);
+  const [isLoadingSubmission, setIsLoadingSubmission] = useState(false);
 
   const allowedFileTypes = {
     'application/pdf': '.pdf',
@@ -101,7 +106,40 @@ const FinalProject = ({ courseId, onSubmit }) => {
   useEffect(() => {
     loadProgress();
     loadInstructions();
-  }, [loadProgress, loadInstructions]);
+    
+    // Try to load existing submissions from backend
+     const loadExistingSubmission = async () => {
+       setIsLoadingSubmission(true);
+       try {
+         const response = await submissionAPI.getFinalProjectSubmission(parseInt(courseId));
+         if (response.success && response.data) {
+           const submission = response.data;
+           setExistingSubmission(submission);
+           setProjectStatus('submitted');
+           setProjectDescription(submission.content || '');
+           setSubmissionDate(new Date(submission.submittedAt).toLocaleDateString('id-ID'));
+           if (submission.feedback) {
+             setFeedback(submission.feedback);
+             setProjectStatus('reviewed');
+           }
+           if (submission.score) {
+             setGrade(submission.score);
+           }
+           if (submission.fileId) {
+             setUploadedFileId(submission.fileId);
+           }
+         }
+       } catch (error) {
+         console.error('Failed to load existing submission:', error);
+       } finally {
+         setIsLoadingSubmission(false);
+       }
+     };
+    
+    if (currentUser && courseId) {
+      loadExistingSubmission();
+    }
+  }, [loadProgress, loadInstructions, courseId, currentUser]);
 
   const saveProgress = useCallback(() => {
     if (!currentUser) return;
@@ -180,12 +218,47 @@ const FinalProject = ({ courseId, onSubmit }) => {
     alert('Selamat! Sertifikat Anda telah berhasil dibuat. Anda dapat mengunduhnya dari menu Sertifikat.');
   };
 
-  const handleFileSelect = (event) => {
+  const handleFileSelect = async (event) => {
     const file = event.target.files[0];
-    validateAndSetFile(file);
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.zip', '.rar', '.jpg', '.jpeg', '.png'];
+      const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+      
+      if (!allowedTypes.includes(fileExtension)) {
+        alert('File type not supported. Please upload: ' + allowedTypes.join(', '));
+        return;
+      }
+      
+      // Validate file size (10MB)
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert('File size exceeds 10MB limit');
+        return;
+      }
+      
+      setSelectedFile(file);
+      setIsUploading(true);
+      
+      try {
+        const response = await submissionAPI.uploadFile(file);
+        if (response.success) {
+          setUploadedFileId(response.data.id);
+          setSelectedFile(null); // Clear selected file after successful upload
+          alert('File project berhasil diupload!');
+        } else {
+          alert('Upload gagal: ' + response.error);
+        }
+      } catch (error) {
+        console.error('Upload error:', error);
+        alert('Upload gagal: ' + error.message);
+      } finally {
+        setIsUploading(false);
+      }
+    }
   };
 
-  const validateAndSetFile = (file) => {
+  const validateAndSetFile = async (file) => {
     const validation = validateFile(file, 'project');
     
     if (!validation.isValid) {
@@ -194,6 +267,23 @@ const FinalProject = ({ courseId, onSubmit }) => {
     }
 
     setSelectedFile(file);
+    setIsUploading(true);
+    setAutoSaveStatus('saving');
+    
+    try {
+      const uploadResponse = await submissionAPI.uploadFile(file);
+      if (uploadResponse.success) {
+        setUploadedFileId(uploadResponse.data.id);
+        setAutoSaveStatus('saved');
+        setLastSaved(new Date().toISOString());
+      }
+    } catch (error) {
+      console.error('File upload failed:', error);
+      setAutoSaveStatus('error');
+      setSelectedFile(null);
+    } finally {
+      setIsUploading(false);
+    }
     
     // Create PDF preview URL if it's a PDF
     if (canPreviewFile(file) && file.type === 'application/pdf') {
@@ -212,63 +302,114 @@ const FinalProject = ({ courseId, onSubmit }) => {
     }
   }, []);
 
-  const handleDrop = useCallback((e) => {
+  const handleDrop = useCallback(async (e) => {
     setDragActive(false);
-    handleDragEvents.onDrop(e, validateAndSetFile, 'project');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      await validateAndSetFile(files[0]);
+    }
   }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const isValid = submissionType === 'file' 
-      ? (selectedFile && projectDescription.trim())
+      ? (projectDescription.trim() && uploadedFileId)
       : (projectLink.trim() && projectDescription.trim());
 
     if (isValid) {
-      setProjectStatus('submitted');
-      setSubmissionDate(new Date().toLocaleDateString('id-ID'));
-      
-      // Call parent submit handler
-      if (onSubmit) {
-        onSubmit({
-          type: submissionType,
-          file: selectedFile,
-          link: projectLink,
+      try {
+        setAutoSaveStatus('saving');
+        
+        const submissionData = {
+          courseId: parseInt(courseId),
+          title: 'Final Project Submission',
           description: projectDescription,
-          submissionDate: new Date().toISOString()
-        });
+          content: projectDescription,
+          attachments: submissionType === 'file' ? JSON.stringify([uploadedFileId]) : null,
+          githubUrl: submissionType === 'link' ? projectLink : null,
+          liveUrl: submissionType === 'link' ? projectLink : null
+        };
+        
+        const response = await submissionAPI.createFinalProjectSubmission(submissionData);
+        
+        if (response.success) {
+          setProjectStatus('submitted');
+          setSubmissionDate(new Date().toLocaleDateString('id-ID'));
+          setAutoSaveStatus('saved');
+          
+          // Call parent submit handler
+          if (onSubmit) {
+            onSubmit({
+              type: submissionType,
+              file: selectedFile,
+              link: projectLink,
+              description: projectDescription,
+              submissionDate: new Date().toISOString(),
+              submissionId: response.data.id
+            });
+          }
+          
+          alert('Proyek akhir berhasil dikumpulkan!');
+        }
+      } catch (error) {
+        console.error('Submission failed:', error);
+        setAutoSaveStatus('error');
+        alert('Gagal mengumpulkan proyek akhir. Silakan coba lagi.');
       }
-      
-      alert('Proyek akhir berhasil dikumpulkan!');
     } else {
       const message = submissionType === 'file' 
-        ? 'Silakan pilih file dan berikan deskripsi proyek.'
+        ? 'Silakan upload file dan berikan deskripsi proyek.'
         : 'Silakan masukkan link dan berikan deskripsi proyek.';
       alert(message);
     }
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     const isValid = submissionType === 'file' 
-      ? (selectedFile && projectDescription.trim())
+      ? (projectDescription.trim() && uploadedFileId)
       : (projectLink.trim() && projectDescription.trim());
 
     if (isValid) {
-      setSubmissionDate(new Date().toLocaleDateString('id-ID'));
-      
-      if (onSubmit) {
-        onSubmit({
-          type: submissionType,
-          file: selectedFile,
-          link: projectLink,
+      try {
+        setAutoSaveStatus('saving');
+        
+        const submissionData = {
+          courseId: parseInt(courseId),
+          title: 'Final Project Update',
           description: projectDescription,
-          submissionDate: new Date().toISOString(),
-          isUpdate: true
-        });
+          content: projectDescription,
+          attachments: submissionType === 'file' ? JSON.stringify([uploadedFileId]) : null,
+          githubUrl: submissionType === 'link' ? projectLink : null,
+          liveUrl: submissionType === 'link' ? projectLink : null
+        };
+        
+        const response = await submissionAPI.createFinalProjectSubmission(submissionData);
+        
+        if (response.success) {
+          setSubmissionDate(new Date().toLocaleDateString('id-ID'));
+          setAutoSaveStatus('saved');
+          
+          if (onSubmit) {
+            onSubmit({
+              type: submissionType,
+              file: selectedFile,
+              link: projectLink,
+              description: projectDescription,
+              submissionDate: new Date().toISOString(),
+              isUpdate: true,
+              submissionId: response.data.id
+            });
+          }
+          
+          alert('Proyek akhir berhasil diperbarui!');
+        }
+      } catch (error) {
+        console.error('Update failed:', error);
+        setAutoSaveStatus('error');
+        alert('Gagal memperbarui proyek akhir. Silakan coba lagi.');
       }
-      
-      alert('Proyek akhir berhasil diperbarui!');
     } else {
       const message = submissionType === 'file' 
-        ? 'Silakan pilih file dan berikan deskripsi proyek.'
+        ? 'Silakan upload file dan berikan deskripsi proyek.'
         : 'Silakan masukkan link dan berikan deskripsi proyek.';
       alert(message);
     }
@@ -461,6 +602,42 @@ const FinalProject = ({ courseId, onSubmit }) => {
                   </div>
                   <p className="text-sm text-gray-600">File siap untuk diunggah</p>
                 </div>
+              ) : uploadedFileId ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center p-4 bg-green-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="text-green-500" size={24} />
+                      <div>
+                        <p className="font-medium text-green-900">File project berhasil diupload</p>
+                        <p className="text-sm text-green-700">File siap untuk dikumpulkan</p>
+                      </div>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const response = await submissionAPI.getFile(uploadedFileId);
+                          if (response.success) {
+                            const url = window.URL.createObjectURL(response.data);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = response.filename || 'download';
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                          }
+                        } catch (error) {
+                          console.error('Failed to download file:', error);
+                        }
+                      }}
+                      className="flex items-center space-x-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                    >
+                      <Download size={16} />
+                      <span className="text-sm">Download</span>
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-4">
                   <Upload className="mx-auto text-gray-400" size={48} />
@@ -533,7 +710,9 @@ const FinalProject = ({ courseId, onSubmit }) => {
           {projectStatus === 'not_submitted' ? (
             <button
               onClick={handleSubmit}
-              disabled={submissionType === 'file' ? (!selectedFile || !projectDescription.trim()) : (!projectLink.trim() || !projectDescription.trim())}
+              disabled={submissionType === 'file' 
+                      ? (!projectDescription.trim() || isUploading || !uploadedFileId)
+                      : (!projectLink.trim() || !projectDescription.trim())}
               className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Kumpulkan Proyek Akhir
@@ -541,7 +720,7 @@ const FinalProject = ({ courseId, onSubmit }) => {
           ) : (
             <button
               onClick={handleUpdate}
-              disabled={submissionType === 'file' ? (!selectedFile || !projectDescription.trim()) : (!projectLink.trim() || !projectDescription.trim())}
+              disabled={submissionType === 'file' ? (!projectDescription.trim() || isUploading || !uploadedFileId) : (!projectLink.trim() || !projectDescription.trim())}
               className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Perbarui Proyek Akhir
@@ -644,6 +823,87 @@ const FinalProject = ({ courseId, onSubmit }) => {
       </div>
         </div>
       </div>
+
+      {/* Submission History */}
+      {existingSubmission && (
+        <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">📋 Submission Final Project</h3>
+          {isLoadingSubmission ? (
+            <div className="text-center py-4">
+              <span className="text-gray-500">⏳ Memuat submission...</span>
+            </div>
+          ) : (
+            <div className="border border-gray-200 rounded-lg p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <span className="text-sm font-medium text-gray-700">
+                    Final Project Submission
+                  </span>
+                  <span className="ml-2 text-sm text-gray-500">
+                    {new Date(existingSubmission.submittedAt).toLocaleDateString('id-ID', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+                {existingSubmission.score && (
+                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                    Score: {existingSubmission.score}
+                  </span>
+                )}
+              </div>
+              
+              {existingSubmission.content && (
+                <div className="mb-3">
+                  <p className="text-sm text-gray-600 mb-1">Deskripsi Project:</p>
+                  <p className="text-gray-800 text-sm bg-gray-50 p-2 rounded">
+                    {existingSubmission.content.substring(0, 300)}
+                    {existingSubmission.content.length > 300 && '...'}
+                  </p>
+                </div>
+              )}
+              
+              {existingSubmission.fileId && (
+                <div className="mb-3">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await submissionAPI.getFile(existingSubmission.fileId);
+                        if (response.success) {
+                          const url = window.URL.createObjectURL(response.data);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = response.filename || 'download';
+                          document.body.appendChild(a);
+                          a.click();
+                          window.URL.revokeObjectURL(url);
+                          document.body.removeChild(a);
+                        }
+                      } catch (error) {
+                        console.error('Failed to download file:', error);
+                      }
+                    }}
+                    className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    <Download size={16} />
+                    <span>Download Project File</span>
+                  </button>
+                </div>
+              )}
+              
+              {existingSubmission.feedback && (
+                <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900 mb-1">Feedback:</p>
+                  <p className="text-blue-800 text-sm">{existingSubmission.feedback}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* PDF Viewer Modal */}
       {showPdfViewer && pdfUrl && (

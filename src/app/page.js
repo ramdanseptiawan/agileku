@@ -10,13 +10,12 @@ import CourseView from '../components/CourseView';
 import Profile from '../components/Profile';
 import AnnouncementList from '../components/AnnouncementList';
 import Achievements from '../components/Achievements';
+import MyCourses from '../components/MyCourses';
 import ContactAdminButton from '../components/ContactAdminButton';
 
 const LMS = () => {
   const { currentUser, isLoading, courses, updateCourses } = useAuth();
-  const [currentView, setCurrentView] = useState(
-    currentUser?.role === 'admin' ? 'overview' : 'dashboard'
-  );
+  const [currentView, setCurrentView] = useState('dashboard');
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [currentLesson, setCurrentLesson] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -39,43 +38,111 @@ const LMS = () => {
 
   // Update currentView when user role changes
   useEffect(() => {
+    console.log('User changed:', currentUser);
     if (currentUser) {
-      setCurrentView(currentUser.role === 'admin' ? 'overview' : 'dashboard');
+      const newView = currentUser.role === 'admin' ? 'overview' : 'dashboard';
+      console.log('Setting view to:', newView);
+      setCurrentView(newView);
     }
   }, [currentUser]);
 
-  const handleQuizSubmit = (quizId, isPreTest, quizAnswers) => {
-    const currentCourse = courses.find(c => 
-      (isPreTest ? c.preTest.id === quizId : c.postTest.id === quizId)
-    );
-    const quiz = isPreTest ? currentCourse.preTest : currentCourse.postTest;
-    
-    let score = 0;
-    quiz.questions.forEach(q => {
-      if (quizAnswers[q.id] === q.correct) score++;
-    });
-    
-    const percentage = Math.round((score / quiz.questions.length) * 100);
-    
-    // Update appropriate state based on quiz type
-    if (isPreTest) {
-      setPreTestState({
-        showResult: true,
-        score: percentage
+
+
+  const handleQuizSubmit = async (quizId, isPreTest, quizAnswers, courseId = null) => {
+    try {
+      // Try to find course by quiz ID first, then by courseId if provided
+      let currentCourse = courses.find(c => 
+        (isPreTest ? c.preTest?.id === quizId : c.postTest?.id === quizId)
+      );
+      
+      // If not found and courseId is provided, find by courseId
+      if (!currentCourse && courseId) {
+        currentCourse = courses.find(c => c.id === courseId);
+      }
+      
+      if (!currentCourse) {
+        console.warn('Course not found for quiz:', quizId, 'courseId:', courseId);
+        return;
+      }
+      
+      const quiz = isPreTest ? currentCourse.preTest : currentCourse.postTest;
+      
+      if (!quiz || !quiz.questions || !Array.isArray(quiz.questions)) {
+        console.warn('Quiz data is invalid or missing:', quiz);
+        return;
+      }
+      
+      let score = 0;
+      quiz.questions.forEach(q => {
+        if (quizAnswers[q.id] === q.correct) score++;
       });
-    } else {
-      setPostTestState({
-        showResult: true,
-        score: percentage
-      });
+      
+      const percentage = Math.round((score / quiz.questions.length) * 100);
+      
+      // Submit quiz to backend
+      console.log('Starting quiz submission process for quiz:', quizId);
+      
+      // Import quizAPI dynamically to avoid circular imports
+      const { quizAPI } = await import('../services/api');
+      
+      // First, start a quiz attempt
+      const attemptResult = await quizAPI.startQuizAttempt(quizId);
+      
+      if (!attemptResult.success) {
+        console.error('Failed to start quiz attempt:', attemptResult.error);
+        throw new Error('Failed to start quiz attempt');
+      }
+      
+      console.log('Quiz attempt started:', attemptResult.data);
+      
+      // Then submit the quiz with the attempt ID
+      const submissionData = {
+        attemptId: attemptResult.data.id,
+        answers: quizAnswers,
+        timeSpent: 300 // Default 5 minutes, you can track actual time
+      };
+      
+      console.log('Submitting quiz to backend:', submissionData);
+      
+      const result = await quizAPI.submitQuiz(submissionData);
+      
+      console.log('Quiz submission result:', result);
+      
+      // Update appropriate state based on quiz type
+      if (isPreTest) {
+        setPreTestState({
+          showResult: true,
+          score: percentage
+        });
+      } else {
+        setPostTestState({
+          showResult: true,
+          score: percentage
+        });
+      }
+      
+      // Update progress
+      const progressKey = isPreTest ? 'preTest' : 'postTest';
+      setProgress(prev => ({
+        ...prev,
+        [progressKey]: { ...prev[progressKey], [quizId]: percentage }
+      }));
+      
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
+      // Still update UI state even if backend submission fails
+      if (isPreTest) {
+        setPreTestState({
+          showResult: true,
+          score: 0
+        });
+      } else {
+        setPostTestState({
+          showResult: true,
+          score: 0
+        });
+      }
     }
-    
-    // Update progress
-    const progressKey = isPreTest ? 'preTest' : 'postTest';
-    setProgress(prev => ({
-      ...prev,
-      [progressKey]: { ...prev[progressKey], [quizId]: percentage }
-    }));
   };
 
   const handleRetakeQuiz = (isPreTest = false) => {
@@ -148,8 +215,14 @@ const LMS = () => {
       {/* Main Content */}
       <div className="w-full lg:flex-1 pt-16 lg:pt-0 pb-20 lg:pb-0">
         <div className="p-4 sm:p-6 lg:p-8">
-          {currentView === 'dashboard' && currentUser.role === 'user' && (
+          {currentView === 'dashboard' && currentUser && currentUser.role !== 'admin' && (
             <Dashboard 
+              onStartLearning={handleStartLearning}
+            />
+          )}
+          
+          {currentView === 'courses' && currentUser && currentUser.role !== 'admin' && (
+            <MyCourses 
               onStartLearning={handleStartLearning}
             />
           )}
