@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Award, Download, Calendar, User, CheckCircle, Star, Trophy, Medal } from 'lucide-react';
+import { Award, Download, Calendar, User, CheckCircle, Star, Trophy, Medal, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCertificate } from '../hooks/useCertificate';
 // Remove unused import - we'll use getUserProgress from AuthContext instead
@@ -120,6 +120,83 @@ const Certificate = ({ courseId, courseName, onClose }) => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const downloadCertificateAsPDF = async () => {
+    try {
+      // Dynamic import to avoid SSR issues
+      const html2pdf = (await import('html2pdf.js')).default;
+      
+      // Create certificate content for PDF
+      const certificateContent = `
+        <div style="
+          font-family: 'Georgia', serif;
+          background: white;
+          padding: 60px;
+          text-align: center;
+          max-width: 800px;
+          margin: 0 auto;
+          border: 8px solid #f8f9fa;
+          position: relative;
+        ">
+          <div style="
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            border: 3px solid #667eea;
+            border-radius: 10px;
+          "></div>
+          <div style="color: #667eea; margin-bottom: 30px; position: relative; z-index: 1;">
+            <h1 style="font-size: 32px; margin: 0;">🏆 SERTIFIKAT PENYELESAIAN 🏆</h1>
+          </div>
+          <div style="font-size: 36px; font-weight: bold; margin: 20px 0; color: #2d3748; position: relative; z-index: 1;">CERTIFICATE OF COMPLETION</div>
+          <div style="font-size: 18px; margin: 20px 0; color: #4a5568; position: relative; z-index: 1;">Dengan ini menyatakan bahwa</div>
+          <div style="font-size: 28px; font-weight: bold; color: #667eea; margin: 30px 0; text-decoration: underline; position: relative; z-index: 1;">${certificate.userName}</div>
+          <div style="font-size: 18px; margin: 20px 0; color: #4a5568; position: relative; z-index: 1;">telah berhasil menyelesaikan kursus</div>
+          <div style="font-size: 22px; font-weight: bold; color: #2d3748; margin: 20px 0; position: relative; z-index: 1;">${courseName}</div>
+          <div style="margin: 30px 0; color: #718096; position: relative; z-index: 1;">
+            <p><strong>Nomor Sertifikat:</strong> ${certificate.certificateNumber}</p>
+            <p><strong>Tanggal Penyelesaian:</strong> ${new Date(certificate.completionDate).toLocaleDateString('id-ID')}</p>
+            <p><strong>Grade:</strong> ${certificate.grade || 'A'}</p>
+          </div>
+          <div style="margin-top: 50px; display: flex; justify-content: space-between; position: relative; z-index: 1;">
+            <div style="border-top: 2px solid #e2e8f0; width: 200px; padding-top: 10px;">
+              <div>Direktur Akademik</div>
+            </div>
+            <div style="border-top: 2px solid #e2e8f0; width: 200px; padding-top: 10px;">
+              <div>Instruktur Kursus</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Create a temporary element
+      const element = document.createElement('div');
+      element.innerHTML = certificateContent;
+      element.style.position = 'absolute';
+      element.style.left = '-9999px';
+      document.body.appendChild(element);
+
+      // PDF options
+      const opt = {
+        margin: 1,
+        filename: `Sertifikat-${courseName.replace(/\s+/g, '-')}-${certificate.userName.replace(/\s+/g, '-')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+      };
+
+      // Generate PDF
+      await html2pdf().set(opt).from(element).save();
+      
+      // Remove temporary element
+      document.body.removeChild(element);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Gagal membuat PDF. Silakan coba lagi.');
+    }
   };
 
   if (!certificate) {
@@ -247,10 +324,17 @@ const Certificate = ({ courseId, courseName, onClose }) => {
                 </button>
                 <button
                   onClick={downloadCertificate}
-                  className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 transition-all duration-200 flex items-center gap-2"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center gap-2"
+                >
+                  <FileText size={20} />
+                  Download HTML
+                </button>
+                <button
+                  onClick={downloadCertificateAsPDF}
+                  className="px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-lg hover:from-red-700 hover:to-pink-700 transition-all duration-200 flex items-center gap-2"
                 >
                   <Download size={20} />
-                  Download Sertifikat
+                  Download PDF
                 </button>
               </div>
             </div>

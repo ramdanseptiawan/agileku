@@ -75,9 +75,20 @@ export const useCertificate = (courseId, userProgress) => {
     try {
       const progressData = await getCourseProgress(courseIdRef.current);
       if (progressData && progressData.data) {
-        setBackendProgress(progressData.data);
+        setBackendProgress(prev => {
+          // Only update if data actually changed
+          if (JSON.stringify(prev) !== JSON.stringify(progressData.data)) {
+            return progressData.data;
+          }
+          return prev;
+        });
       } else {
-        setBackendProgress(progressData);
+        setBackendProgress(prev => {
+          if (JSON.stringify(prev) !== JSON.stringify(progressData)) {
+            return progressData;
+          }
+          return prev;
+        });
       }
     } catch (error) {
       console.log('Backend progress not available (user may not be enrolled):', error.message);
@@ -90,7 +101,10 @@ export const useCertificate = (courseId, userProgress) => {
     const currentProgress = userProgressRef.current;
     
     if (!currentProgress && currentProgress !== 0) {
-      setIsEligible(false);
+      setIsEligible(prev => {
+        if (prev !== false) return false;
+        return prev;
+      });
       return false;
     }
 
@@ -103,7 +117,10 @@ export const useCertificate = (courseId, userProgress) => {
       hasBackendProgress: !!backendProgress
     });
 
-    setIsEligible(eligible);
+    setIsEligible(prev => {
+      if (prev !== eligible) return eligible;
+      return prev;
+    });
     return eligible;
   }, []); // Remove backendProgress dependency to prevent infinite loop
 
@@ -172,21 +189,21 @@ export const useCertificate = (courseId, userProgress) => {
     if (currentUser?.id) {
       loadCertificates();
     }
-  }, [currentUser?.id, loadCertificates]);
+  }, [currentUser?.id]); // Remove loadCertificates dependency
 
   // Load backend progress data - only when necessary
   useEffect(() => {
     if (courseId && currentUser?.id && userProgress !== undefined) {
       loadBackendProgress();
     }
-  }, [courseId, currentUser?.id, userProgress, loadBackendProgress]);
+  }, [courseId, currentUser?.id, userProgress]); // Remove loadBackendProgress dependency
 
   // Auto-check eligibility ketika progress berubah
   useEffect(() => {
     if (userProgress !== undefined) {
       checkEligibility();
     }
-  }, [userProgress, checkEligibility]); // Remove backendProgress to prevent loop
+  }, [userProgress]); // Remove checkEligibility dependency to prevent loop
 
   // Auto-generate certificate jika eligible dan belum ada - with debounce
   useEffect(() => {
@@ -201,7 +218,7 @@ export const useCertificate = (courseId, userProgress) => {
     }, 5000); // Increased delay to prevent rapid calls
 
     return () => clearTimeout(timer);
-  }, [isEligible, courseId, isGenerating, currentUser?.id]); // Remove generateCertificateForCourse dependency to prevent loop
+  }, [isEligible, courseId, isGenerating, currentUser?.id, certificates.length]); // Add certificates.length instead of generateCertificateForCourse
 
   return {
     certificates,

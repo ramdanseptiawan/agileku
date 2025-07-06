@@ -9,52 +9,164 @@ const Achievements = () => {
 
   // Certificates are automatically loaded by the hook
 
-  const downloadCertificate = (certificate) => {
-    // Create a simple certificate HTML for download
-    const certificateHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Certificate - ${certificate.courseName}</title>
-        <style>
-          body { font-family: 'Times New Roman', serif; text-align: center; padding: 50px; }
-          .certificate { border: 10px solid #0066cc; padding: 50px; max-width: 800px; margin: 0 auto; }
-          .title { font-size: 48px; color: #0066cc; margin-bottom: 20px; }
-          .subtitle { font-size: 24px; margin-bottom: 30px; }
-          .name { font-size: 36px; color: #333; margin: 30px 0; font-weight: bold; }
-          .course { font-size: 28px; color: #0066cc; margin: 20px 0; }
-          .details { font-size: 16px; margin: 10px 0; }
-          .signature { margin-top: 50px; }
-        </style>
-      </head>
-      <body>
-        <div class="certificate">
-             <div class="title">CERTIFICATE OF COMPLETION</div>
-             <div class="subtitle">This is to certify that</div>
-             <div class="name">${certificate.userName || 'Student'}</div>
-             <div class="subtitle">has successfully completed the course</div>
-             <div class="course">${certificate.courseName || 'Course'}</div>
-             <div class="details">Grade: ${certificate.grade || 100}%</div>
-             <div class="details">Completion Date: ${certificate.completionDate ? new Date(certificate.completionDate).toLocaleDateString() : 'N/A'}</div>
-             <div class="details">Certificate Number: ${certificate.certNumber || 'N/A'}</div>
-             <div class="signature">
-               <p>AgileKu Learning Platform</p>
-               <p>Issued on: ${certificate.issuedAt ? new Date(certificate.issuedAt).toLocaleDateString() : 'N/A'}</p>
-             </div>
-        </div>
-      </body>
-      </html>
-    `;
+  const downloadCertificate = async (certificate) => {
+    try {
+      // Dynamic import to avoid SSR issues
+      const html2pdf = (await import('html2pdf.js')).default;
+      
+      // Create certificate content for PDF with fixed dimensions
+      const certificateHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body {
+              margin: 0;
+              padding: 40px;
+              font-family: 'Georgia', serif;
+              background: white;
+              width: 1000px;
+              height: 700px;
+              box-sizing: border-box;
+            }
+            .certificate {
+              width: 100%;
+              height: 100%;
+              border: 8px solid #f8f9fa;
+              padding: 40px;
+              text-align: center;
+              position: relative;
+              background: white;
+              box-sizing: border-box;
+            }
+            .border-inner {
+              position: absolute;
+              top: 20px;
+              left: 20px;
+              right: 20px;
+              bottom: 20px;
+              border: 3px solid #667eea;
+              border-radius: 10px;
+            }
+            .content {
+              position: relative;
+              z-index: 1;
+              height: 100%;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+            }
+            .title {
+              color: #667eea;
+              margin-bottom: 20px;
+            }
+            .title h1 {
+              font-size: 28px;
+              margin: 0;
+            }
+            .main-title {
+              font-size: 32px;
+              font-weight: bold;
+              margin: 15px 0;
+              color: #2d3748;
+            }
+            .subtitle {
+              font-size: 16px;
+              margin: 15px 0;
+              color: #4a5568;
+            }
+            .name {
+              font-size: 24px;
+              font-weight: bold;
+              color: #667eea;
+              margin: 20px 0;
+              text-decoration: underline;
+            }
+            .course {
+              font-size: 20px;
+              font-weight: bold;
+              color: #2d3748;
+              margin: 15px 0;
+            }
+            .details {
+              margin: 20px 0;
+              color: #718096;
+            }
+            .details p {
+              margin: 8px 0;
+              font-size: 14px;
+            }
+            .signatures {
+              margin-top: 40px;
+              display: flex;
+              justify-content: space-between;
+            }
+            .signature {
+              border-top: 2px solid #e2e8f0;
+              width: 180px;
+              padding-top: 10px;
+              font-size: 14px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="certificate">
+            <div class="border-inner"></div>
+            <div class="content">
+              <div class="title">
+                <h1>🏆 SERTIFIKAT PENYELESAIAN 🏆</h1>
+              </div>
+              <div class="main-title">CERTIFICATE OF COMPLETION</div>
+              <div class="subtitle">Dengan ini menyatakan bahwa</div>
+              <div class="name">${certificate.userName || 'Student'}</div>
+              <div class="subtitle">telah berhasil menyelesaikan kursus</div>
+              <div class="course">${certificate.courseName || 'Course'}</div>
+              <div class="details">
+                <p><strong>Nomor Sertifikat:</strong> ${certificate.certNumber || 'N/A'}</p>
+                <p><strong>Tanggal Penyelesaian:</strong> ${certificate.completionDate ? new Date(certificate.completionDate).toLocaleDateString('id-ID') : 'N/A'}</p>
+              </div>
+              <div class="signatures">
+                <div class="signature">
+                  <div>Direktur Akademik</div>
+                </div>
+                <div class="signature">
+                  <div>Instruktur Kursus</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
 
-    const blob = new Blob([certificateHTML], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `certificate-${(certificate.courseName || 'course').replace(/\s+/g, '-').toLowerCase()}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      // PDF options with better settings
+      const opt = {
+        margin: 0.5,
+        filename: `Sertifikat-${(certificate.courseName || 'course').replace(/\s+/g, '-')}-${(certificate.userName || 'Student').replace(/\s+/g, '-')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true,
+          letterRendering: true,
+          allowTaint: false,
+          backgroundColor: '#ffffff'
+        },
+        jsPDF: { 
+          unit: 'in', 
+          format: 'a4', 
+          orientation: 'landscape',
+          compress: true
+        }
+      };
+
+      // Generate PDF directly from HTML string
+      await html2pdf().set(opt).from(certificateHTML).save();
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Gagal membuat PDF. Silakan coba lagi.');
+    }
   };
 
   return (
