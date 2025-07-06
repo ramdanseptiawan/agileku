@@ -14,12 +14,12 @@ const Certificate = ({ courseId, courseName, onClose }) => {
   const { 
     certificates, 
     isEligible, 
-    getCertificate, 
+    getCertificateForCourse, 
     generateCertificate: generateCert, 
     isGenerating 
   } = useCertificate(courseId, userProgress);
   
-  const certificate = getCertificate(courseId);
+  const certificate = getCertificateForCourse(courseId);
 
   const handleGenerateCertificate = async () => {
     try {

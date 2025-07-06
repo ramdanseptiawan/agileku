@@ -22,23 +22,30 @@ const CourseView = ({
   onRetakeQuiz,
   onMarkComplete 
 }) => {
-  const { getCourseById, currentUser, getUserProgress, refreshUserProgress } = useAuth();
+  const { getCourseById, currentUser, getUserProgress, getUserProgressSync, refreshUserProgress } = useAuth();
   const [showCertificate, setShowCertificate] = useState(false);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [course, setCourse] = useState(currentLesson);
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
   
-  // Load course data from API
+  // Load course data from API - always from backend, no fallback
   useEffect(() => {
     const loadCourse = async () => {
       if (currentLesson?.id) {
         setIsLoadingCourse(true);
         try {
           const courseData = await getCourseById(currentLesson.id);
-          setCourse(courseData || currentLesson);
+          if (courseData && (courseData.id || courseData.title)) {
+            setCourse(courseData);
+          } else {
+            console.error('Course data incomplete from backend:', courseData);
+            // Use fallback to currentLesson if backend data is incomplete
+            setCourse(currentLesson);
+          }
         } catch (error) {
-          console.error('Failed to load course:', error);
-          setCourse(currentLesson); // Fallback to passed data
+          console.error('Failed to load course from backend:', error);
+          // Don't set fallback data, keep loading state
+          setCourse(null);
         } finally {
           setIsLoadingCourse(false);
         }
@@ -54,6 +61,7 @@ const CourseView = ({
   
   const {
     progress,
+    isLoading: progressLoading,
     setCurrentStep,
     markStepCompleted,
     updateLessonProgress,
@@ -62,8 +70,8 @@ const CourseView = ({
     markCourseCompleted
   } = useLearningProgress(course?.id);
   
-  // Get user progress from backend (AuthContext)
-  const userProgress = getUserProgress(course?.id);
+  // Get user progress from backend (AuthContext) - this is the source of truth for display
+  const backendProgress = getUserProgressSync(course?.id) || 0;
   
   const {
     certificates,
@@ -71,15 +79,17 @@ const CourseView = ({
     isGenerating,
     generateCertificate,
     getCertificateForCourse
-  } = useCertificate(course?.id, userProgress);
+  } = useCertificate(course?.id, backendProgress);
   
   // Auto-resume to last saved progress
   useEffect(() => {
-    if (progress.currentStep && progress.currentStep !== 'intro') {
+    // Only resume if we have valid progress data and it's not the default 'intro' step
+    if (progress.currentStep && progress.currentStep !== 'intro' && !progressLoading) {
       // Resume to the last saved step
       console.log('Resuming to step:', progress.currentStep);
+      // The progress.currentStep is already the source of truth from backend
     }
-  }, [progress.currentStep]);
+  }, [progress.currentStep, progressLoading]);
   
   // Sync currentLessonIndex with saved progress
   useEffect(() => {
@@ -98,23 +108,16 @@ const CourseView = ({
     });
   };
   
-  if (!course) {
+  if (!course || isLoadingCourse || progressLoading) {
     return (
       <div className="max-w-6xl mx-auto p-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading course...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (isLoadingCourse) {
-    return (
-      <div className="max-w-6xl mx-auto p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading course details...</p>
+          <p className="text-gray-600">
+            {!course ? 'Loading course...' : 
+             isLoadingCourse ? 'Loading course details...' : 
+             'Loading progress...'}
+          </p>
         </div>
       </div>
     );
@@ -144,9 +147,26 @@ const CourseView = ({
   const handleStepClick = (stepId) => {
     const steps = ['intro', 'pretest', 'lessons', 'posttest', 'postwork', 'finalproject'];
     const stepIndex = steps.indexOf(stepId);
+    const currentStepIndex = steps.indexOf(progress.currentStep);
+    
+    // Check if course is completed (all steps completed)
+    const allStepsCompleted = steps.every(step => progress.completedSteps.includes(step));
     
     // Check if step is accessible
-    if (stepIndex === 0 || progress.completedSteps.includes(steps[stepIndex - 1])) {
+    // Allow access to:
+    // 1. First step (intro)
+    // 2. Any completed step (for review)
+    // 3. Current step
+    // 4. Next step if previous step is completed
+    // 5. Any step if course is completed
+    // 6. Any step that comes before or at the current step (for going back)
+    if (stepIndex === 0 || 
+        progress.completedSteps.includes(stepId) || 
+        stepId === progress.currentStep ||
+        progress.completedSteps.includes(steps[stepIndex - 1]) || 
+        allStepsCompleted || 
+        progress.isCompleted ||
+        stepIndex <= currentStepIndex) {
       setCurrentStep(stepId);
     }
   };
@@ -192,20 +212,28 @@ const CourseView = ({
     });
     
     // Update lesson progress with completion
-    await updateLessonProgress(course.id, {
+    await updateLessonProgress(currentLessonIndex, {
       currentLessonIndex,
       completedLessons,
       timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1,
       lastCompletedLesson: currentLessonIndex,
-      lastCompletedAt: new Date().toISOString(),
-      progress: 100,
-      completed: true
+      lastCompletedAt: new Date().toISOString()
     });
     
-    // Mark current lesson as completed and navigate to post test
-    console.log('Lesson completed! Marking lessons step as complete and navigating to post test.');
-    markStepCompleted('lessons');
-    await handleStepComplete('lessons');
+    // Check if all lessons are completed
+    const allLessonsCompleted = completedLessons.length >= course.lessons.length;
+    
+    if (allLessonsCompleted) {
+      // Mark lessons step as completed and navigate to post test only when ALL lessons are done
+      console.log('All lessons completed! Marking lessons step as complete and navigating to post test.');
+      await handleStepComplete('lessons');
+    } else {
+      console.log(`Lesson ${currentLessonIndex + 1} completed. ${completedLessons.length}/${course.lessons.length} lessons done.`);
+      // Move to next lesson if available
+      if (currentLessonIndex < course.lessons.length - 1) {
+        setCurrentLessonIndex(currentLessonIndex + 1);
+      }
+    }
     
     // Call parent onMarkComplete if provided
     if (onMarkComplete) {
@@ -231,13 +259,13 @@ const CourseView = ({
           <h1 className="text-2xl sm:text-3xl font-bold mb-2">{course.title}</h1>
           <p className="text-blue-100 text-sm sm:text-base">{course.description}</p>
           
-          {/* Quick Stats */}
+          {/* Quick Stats - Use backend progress for consistency */}
           <div className="mt-4 flex flex-wrap gap-4 text-sm">
             <div className="bg-white/20 rounded-lg px-3 py-1">
               <span className="font-medium">{progress.completedSteps.length}/6</span> Tahap Selesai
             </div>
             <div className="bg-white/20 rounded-lg px-3 py-1">
-              <span className="font-medium">{Math.round((progress.completedSteps.length / 6) * 100)}%</span> Progress
+              <span className="font-medium">{backendProgress}%</span> Progress
             </div>
           </div>
         </div>
@@ -248,6 +276,8 @@ const CourseView = ({
             currentStep={progress.currentStep}
             completedSteps={progress.completedSteps}
             onStepClick={handleStepClick}
+            isCourseCompleted={backendProgress === 100}
+            backendProgress={backendProgress}
           />
         </div>
         
@@ -265,7 +295,10 @@ const CourseView = ({
               courseId={course?.id}
               onComplete={(result) => {
                 console.log('Pre-test completed:', result);
-                if (result.passed) {
+                // Don't auto-navigate, let user see the score first
+                // The QuizEnhanced component will handle showing the score
+                // and provide a button to continue to lessons
+                if (result.shouldProceed && result.passed) {
                   handleContinueToLessons();
                 }
               }}
@@ -309,8 +342,8 @@ const CourseView = ({
             />
           )}
           
-          {/* Course Completion Banner */}
-          {progress.isCompleted && (
+          {/* Course Completion Banner - Use backend progress for consistency */}
+          {(progress.isCompleted || backendProgress === 100) && (
             <div className="mt-8 bg-gradient-to-r from-green-500 to-blue-600 text-white p-8 rounded-2xl text-center">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <Trophy size={48} className="text-yellow-300" />
@@ -321,7 +354,7 @@ const CourseView = ({
                 <Trophy size={48} className="text-yellow-300" />
               </div>
               
-              <div className="bg-white bg-opacity-20 p-6 rounded-xl mb-6">
+              <div className="bg-opacity-20 p-6 rounded-xl mb-6">
                 <p className="text-lg mb-4">Kursus <strong>{course.title}</strong> telah selesai!</p>
                 <p className="text-green-100">Dapatkan sertifikat resmi sebagai bukti pencapaian Anda</p>
               </div>

@@ -585,14 +585,7 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
               if (onMarkComplete && currentLesson) {
                 console.log('Marking lesson complete:', currentLesson.id);
                 onMarkComplete(currentLesson.id);
-                
-                // Auto advance to next lesson if not the last one
-                if (currentLessonIndex < lessons.length - 1 && onLessonChange) {
-                  console.log('Auto advancing to next lesson');
-                  setTimeout(() => onLessonChange(currentLessonIndex + 1), 500);
-                } else {
-                  console.log('All lessons completed!');
-                }
+                // Let CourseView.js handle navigation logic
               } else {
                 console.log('Missing onMarkComplete or currentLesson:', { onMarkComplete: !!onMarkComplete, currentLesson });
               }

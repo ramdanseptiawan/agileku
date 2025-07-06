@@ -13,7 +13,8 @@ const PreTestEnhanced = ({ courseId, onComplete, onBack }) => {
         passed: result.passed,
         score: result.result.score,
         canRetake: result.result.canRetake,
-        result: result.result
+        result: result.result,
+        shouldProceed: result.shouldProceed // Pass through shouldProceed from QuizEnhanced
       });
     }
   };

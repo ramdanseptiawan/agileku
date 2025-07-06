@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"lms-backend/middleware"
@@ -51,12 +52,9 @@ func (h *Handler) UpdateLessonProgressHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Update course progress
-	err = models.UpdateCourseProgress(h.DB, userID, req.CourseID)
-	if err != nil {
-		http.Error(w, "Failed to update course progress", http.StatusInternalServerError)
-		return
-	}
+	// Note: Course overall progress should only be updated via SyncProgressHandler
+	// which calculates progress based on all 6 steps (intro, pretest, lessons, posttest, postwork, finalproject)
+	// Individual lesson progress updates should not affect overall course completion percentage
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -138,22 +136,23 @@ func (h *Handler) GetCourseProgressHandler(w http.ResponseWriter, r *http.Reques
 
 	progress, err := models.GetCourseProgress(h.DB, userID, courseID)
 	if err != nil {
-		// If no progress record exists, return default progress
+		// If no progress record exists, return default progress structure that frontend expects
 		if err == sql.ErrNoRows {
-			defaultProgress := &models.CourseProgress{
-				UserID:          userID,
-				CourseID:        courseID,
-				OverallProgress: 0,
-				LessonsCompleted: 0,
-				TotalLessons:    0,
-				QuizzesCompleted: 0,
-				TotalQuizzes:    0,
-				TimeSpent:       0,
+			defaultProgressData := map[string]interface{}{
+				"currentStep":     "intro",
+				"completedSteps":  []string{},
+				"lessonProgress":  map[string]interface{}{},
+				"quizScores":      map[string]interface{}{},
+				"submissions":     map[string]interface{}{},
+				"totalTimeSpent":  0,
+				"startedAt":       nil,
+				"completedAt":     nil,
+				"overallProgress": 0,
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": true,
-				"data":    defaultProgress,
+				"data":    defaultProgressData,
 			})
 			return
 		}
@@ -161,10 +160,28 @@ func (h *Handler) GetCourseProgressHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Convert CourseProgress to frontend-expected format
+	progressData := map[string]interface{}{
+		"currentStep":     progress.CurrentStep,
+		"completedSteps":  []string{}, // Default, frontend will manage this
+		"lessonProgress":  map[string]interface{}{}, // Default, frontend will manage this
+		"quizScores":      map[string]interface{}{}, // Default, frontend will manage this
+		"submissions":     map[string]interface{}{}, // Default, frontend will manage this
+		"totalTimeSpent":  progress.TimeSpent,
+		"startedAt":       progress.StartedAt.Format(time.RFC3339),
+		"completedAt":     nil,
+		"overallProgress": progress.OverallProgress,
+	}
+
+	// Set completedAt if course is completed
+	if progress.CompletedAt != nil {
+		progressData["completedAt"] = progress.CompletedAt.Format(time.RFC3339)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
-		"data":    progress,
+		"data":    progressData,
 	})
 }
 
@@ -225,12 +242,29 @@ func (h *Handler) SyncProgressHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Calculate overall progress based on completed steps
-	totalSteps := 6 // intro, pretest, lessons, posttest, postwork, finalproject
-	completedCount := len(req.CompletedSteps)
-	overallProgress := 0
-	if totalSteps > 0 {
-		overallProgress = (completedCount * 100) / totalSteps
-	}
+  // Calculate overall progress with weighted steps
+  // Essential steps: intro(5%), pretest(10%), lessons(50%), posttest(15%), postwork(10%), finalproject(10%)
+  stepWeights := map[string]int{
+    "intro":       5,
+    "pretest":     10,
+    "lessons":     50,
+    "posttest":    15,
+    "postwork":    10,
+    "finalproject": 10,
+  }
+  
+  totalProgress := 0
+  for _, completedStep := range req.CompletedSteps {
+    if weight, exists := stepWeights[completedStep]; exists {
+      totalProgress += weight
+    }
+  }
+  
+  // Ensure progress doesn't exceed 100%
+  overallProgress := totalProgress
+  if overallProgress > 100 {
+    overallProgress = 100
+  }
 
 	// Update lesson progress if available
 	if req.LessonProgress != nil {
@@ -264,6 +298,13 @@ func (h *Handler) SyncProgressHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Update current step
+	err = models.UpdateCurrentStep(h.DB, userID, req.CourseID, req.CurrentStep)
+	if err != nil {
+		http.Error(w, "Failed to update current step", http.StatusInternalServerError)
+		return
+	}
+
 	// Update course progress with calculated overall progress
 	// First update lesson-based progress
 	err = models.UpdateCourseProgress(h.DB, userID, req.CourseID)
@@ -279,28 +320,53 @@ func (h *Handler) SyncProgressHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-generate certificate if course is 100% complete
-	if overallProgress >= 100 {
-		// Check if certificate already exists
-		existingCert, _ := models.GetCertificateForCourse(h.DB, userID, req.CourseID)
-		if existingCert == nil {
-			// Generate certificate automatically
-			err = models.AutoGenerateCertificate(h.DB, userID, req.CourseID)
-			if err != nil {
-				// Log error but don't fail the request
-				// Certificate can be generated manually later
-			}
-		}
+	// Auto-generate certificate only if ALL steps are actually completed
+  allRequiredSteps := []string{"intro", "pretest", "lessons", "posttest", "postwork", "finalproject"}
+  allStepsCompleted := true
+  for _, requiredStep := range allRequiredSteps {
+    found := false
+    for _, completedStep := range req.CompletedSteps {
+      if requiredStep == completedStep {
+        found = true
+        break
+      }
+    }
+    if !found {
+      allStepsCompleted = false
+      break
+    }
+  }
+  
+  if allStepsCompleted {
+    // Check if certificate already exists
+    existingCert, _ := models.GetCertificateForCourse(h.DB, userID, req.CourseID)
+    if existingCert == nil {
+      // Generate certificate automatically
+      err = models.AutoGenerateCertificate(h.DB, userID, req.CourseID)
+      if err != nil {
+        // Log error but don't fail the request
+        // Certificate can be generated manually later
+      }
+    }
+  }
+
+	// Return the complete progress data that frontend expects
+	responseData := map[string]interface{}{
+		"currentStep":     req.CurrentStep,
+		"completedSteps":  req.CompletedSteps,
+		"lessonProgress":  req.LessonProgress,
+		"quizScores":      req.QuizScores,
+		"submissions":     req.Submissions,
+		"totalTimeSpent":  req.TotalTimeSpent,
+		"completedAt":     req.CompletedAt,
+		"overallProgress": overallProgress,
+		"startedAt":       nil, // Will be set by frontend
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Progress synchronized successfully",
-		"data": map[string]interface{}{
-			"overallProgress": overallProgress,
-			"completedSteps":  completedCount,
-			"totalSteps":      totalSteps,
-		},
+		"data":    responseData,
 	})
 }

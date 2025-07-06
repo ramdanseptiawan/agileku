@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle, Circle, Lock, BookOpen, FileText, Award, Upload, Target } from 'lucide-react';
 
-const ProgressTracker = ({ currentStep, completedSteps, onStepClick }) => {
+const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCompleted = false, backendProgress = null }) => {
   const steps = [
     {
       id: 'intro',
@@ -34,25 +34,38 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick }) => {
     {
       id: 'postwork',
       title: 'Post Work',
-      description: 'Upload tugas kecil',
+      description: 'Tugas praktik lanjutan',
       icon: Upload,
-      color: 'red'
+      color: 'orange'
     },
     {
       id: 'finalproject',
       title: 'Final Project',
-      description: 'Proyek akhir',
+      description: 'Proyek akhir komprehensif',
       icon: Target,
-      color: 'indigo'
+      color: 'red'
     }
   ];
 
   const getStepStatus = (stepId, index) => {
+    // Check if course is completed (all steps completed)
+    const allStepsCompleted = steps.every(step => completedSteps.includes(step.id));
+    const currentStepIndex = steps.findIndex(step => step.id === currentStep);
+    
     if (completedSteps.includes(stepId)) {
       return 'completed';
     } else if (stepId === currentStep) {
       return 'current';
-    } else if (index === 0 || completedSteps.includes(steps[index - 1].id)) {
+    } else if (allStepsCompleted || isCourseCompleted) {
+      // If course is completed (either locally or from backend), all steps should be available for review
+      return 'available';
+    } else if (index === 0 || 
+               completedSteps.includes(steps[index - 1].id) ||
+               index <= currentStepIndex) {
+      // Allow access to:
+      // 1. First step (intro)
+      // 2. Next step if previous step is completed
+      // 3. Any step that comes before or at the current step (for going back)
       return 'available';
     } else {
       return 'locked';
@@ -104,6 +117,10 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick }) => {
   };
 
   const calculateProgress = () => {
+    // Use backend progress if available, otherwise calculate from completed steps
+    if (backendProgress !== null) {
+      return backendProgress;
+    }
     return Math.round((completedSteps.length / steps.length) * 100);
   };
 
@@ -113,9 +130,11 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick }) => {
       <div className="mb-6">
         <h3 className="text-xl font-bold text-gray-900 mb-2">Progress Pembelajaran</h3>
         <div className="flex items-center justify-between">
-          <p className="text-gray-600">Ikuti setiap tahap untuk menyelesaikan kursus</p>
+          <p className="text-gray-600">
+            {isCourseCompleted ? "Kursus telah selesai! Anda dapat mengakses semua materi untuk review" : "Ikuti setiap tahap untuk menyelesaikan kursus"}
+          </p>
           <div className="text-right">
-            <div className="text-2xl font-bold text-blue-600">{calculateProgress()}%</div>
+            <div className={`text-2xl font-bold ${isCourseCompleted ? 'text-green-600' : 'text-blue-600'}`}>{calculateProgress()}%</div>
             <div className="text-sm text-gray-500">Selesai</div>
           </div>
         </div>
@@ -147,7 +166,9 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick }) => {
                       {getStepIcon(step, status)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-900 text-sm">{step.title}</h4>
+                      <div className="flex items-center space-x-2">
+                        <h4 className="font-semibold text-gray-900 text-sm">{step.title}</h4>
+                      </div>
                       <p className="text-xs text-gray-600">{step.description}</p>
                     </div>
                   </div>
@@ -185,7 +206,9 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick }) => {
                       {getStepIcon(step, status)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-900 text-sm">{step.title}</h4>
+                      <div className="flex items-center space-x-2">
+                        <h4 className="font-semibold text-gray-900 text-sm">{step.title}</h4>
+                      </div>
                       <p className="text-xs text-gray-600">{step.description}</p>
                     </div>
                   </div>
@@ -223,7 +246,9 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick }) => {
                     {getStepIcon(step, status)}
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{step.title}</h4>
+                    <div className="flex items-center space-x-2">
+                      <h4 className="font-semibold text-gray-900">{step.title}</h4>
+                    </div>
                     <p className="text-sm text-gray-600">{step.description}</p>
                   </div>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
@@ -252,7 +277,7 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick }) => {
 
       {/* Legend */}
       <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="flex flex-wrap gap-4 text-xs">
+        <div className="flex flex-wrap gap-4 text-xs mb-3">
           <div className="flex items-center space-x-2">
             <CheckCircle className="text-green-500" size={16} />
             <span className="text-gray-600">Selesai</span>
@@ -269,6 +294,10 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick }) => {
             <Lock className="text-gray-400" size={16} />
             <span className="text-gray-600">Terkunci</span>
           </div>
+
+        </div>
+        <div className="text-xs text-gray-500">
+          <p>💡 <strong>Catatan:</strong> Setiap langkah memiliki bobot yang sama dalam menentukan progres pembelajaran Anda.</p>
         </div>
       </div>
     </div>

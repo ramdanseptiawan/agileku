@@ -24,6 +24,7 @@ type CourseProgress struct {
 	ID              int       `json:"id"`
 	UserID          int       `json:"userId"`
 	CourseID        int       `json:"courseId"`
+	CurrentStep     string    `json:"currentStep"`
 	OverallProgress int       `json:"overallProgress"` // 0-100
 	LessonsCompleted int      `json:"lessonsCompleted"`
 	TotalLessons    int       `json:"totalLessons"`
@@ -63,6 +64,7 @@ func CreateCourseProgressTable(db *sql.DB) error {
 		id SERIAL PRIMARY KEY,
 		user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
 		course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+		current_step VARCHAR(50) DEFAULT 'intro',
 		overall_progress INTEGER DEFAULT 0 CHECK (overall_progress >= 0 AND overall_progress <= 100),
 		lessons_completed INTEGER DEFAULT 0,
 		total_lessons INTEGER DEFAULT 0,
@@ -128,7 +130,7 @@ func GetLessonProgress(db *sql.DB, userID, courseID, lessonID int) (*LessonProgr
 // GetCourseProgress gets overall course progress for a user
 func GetCourseProgress(db *sql.DB, userID, courseID int) (*CourseProgress, error) {
 	query := `
-	SELECT id, user_id, course_id, overall_progress, lessons_completed, total_lessons, 
+	SELECT id, user_id, course_id, current_step, overall_progress, lessons_completed, total_lessons, 
 	       quizzes_completed, total_quizzes, time_spent, started_at, updated_at, completed_at
 	FROM course_progress
 	WHERE user_id = $1 AND course_id = $2
@@ -137,7 +139,7 @@ func GetCourseProgress(db *sql.DB, userID, courseID int) (*CourseProgress, error
 
 	var cp CourseProgress
 	var completedAt sql.NullTime
-	err := row.Scan(&cp.ID, &cp.UserID, &cp.CourseID, &cp.OverallProgress, &cp.LessonsCompleted, &cp.TotalLessons, &cp.QuizzesCompleted, &cp.TotalQuizzes, &cp.TimeSpent, &cp.StartedAt, &cp.UpdatedAt, &completedAt)
+	err := row.Scan(&cp.ID, &cp.UserID, &cp.CourseID, &cp.CurrentStep, &cp.OverallProgress, &cp.LessonsCompleted, &cp.TotalLessons, &cp.QuizzesCompleted, &cp.TotalQuizzes, &cp.TimeSpent, &cp.StartedAt, &cp.UpdatedAt, &completedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -161,9 +163,9 @@ func UpdateCourseProgress(db *sql.DB, userID, courseID int) error {
 		FROM lesson_progress
 		WHERE user_id = $1 AND course_id = $2
 	)
-	INSERT INTO course_progress (user_id, course_id, overall_progress, lessons_completed, total_lessons, time_spent, updated_at)
+	INSERT INTO course_progress (user_id, course_id, current_step, overall_progress, lessons_completed, total_lessons, time_spent, updated_at)
 	SELECT 
-		$1, $2,
+		$1, $2, 'intro',
 		CASE WHEN total_lessons > 0 THEN (completed_lessons * 100 / total_lessons) ELSE 0 END,
 		completed_lessons,
 		total_lessons,
@@ -212,8 +214,8 @@ func UpdateCourseOverallProgress(db *sql.DB, userID, courseID, overallProgress, 
 	}
 
 	query := `
-	INSERT INTO course_progress (user_id, course_id, overall_progress, time_spent, completed_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+	INSERT INTO course_progress (user_id, course_id, current_step, overall_progress, time_spent, completed_at, updated_at)
+	VALUES ($1, $2, 'intro', $3, $4, $5, CURRENT_TIMESTAMP)
 	ON CONFLICT (user_id, course_id)
 	DO UPDATE SET
 		overall_progress = GREATEST(course_progress.overall_progress, EXCLUDED.overall_progress),
@@ -229,10 +231,24 @@ func UpdateCourseOverallProgress(db *sql.DB, userID, courseID, overallProgress, 
 	return err
 }
 
+// UpdateCurrentStep updates the current step for a course
+func UpdateCurrentStep(db *sql.DB, userID, courseID int, currentStep string) error {
+	query := `
+	INSERT INTO course_progress (user_id, course_id, current_step, updated_at)
+	VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+	ON CONFLICT (user_id, course_id)
+	DO UPDATE SET
+		current_step = EXCLUDED.current_step,
+		updated_at = CURRENT_TIMESTAMP
+	`
+	_, err := db.Exec(query, userID, courseID, currentStep)
+	return err
+}
+
 // GetUserCourseProgressList gets all course progress for a user
 func GetUserCourseProgressList(db *sql.DB, userID int) ([]CourseProgress, error) {
 	query := `
-	SELECT cp.id, cp.user_id, cp.course_id, cp.overall_progress, cp.lessons_completed, 
+	SELECT cp.id, cp.user_id, cp.course_id, cp.current_step, cp.overall_progress, cp.lessons_completed, 
 	       cp.total_lessons, cp.quizzes_completed, cp.total_quizzes, cp.time_spent, 
 	       cp.started_at, cp.updated_at, cp.completed_at
 	FROM course_progress cp
@@ -249,7 +265,7 @@ func GetUserCourseProgressList(db *sql.DB, userID int) ([]CourseProgress, error)
 	for rows.Next() {
 		var cp CourseProgress
 		var completedAt sql.NullTime
-		err := rows.Scan(&cp.ID, &cp.UserID, &cp.CourseID, &cp.OverallProgress, &cp.LessonsCompleted, &cp.TotalLessons, &cp.QuizzesCompleted, &cp.TotalQuizzes, &cp.TimeSpent, &cp.StartedAt, &cp.UpdatedAt, &completedAt)
+		err := rows.Scan(&cp.ID, &cp.UserID, &cp.CourseID, &cp.CurrentStep, &cp.OverallProgress, &cp.LessonsCompleted, &cp.TotalLessons, &cp.QuizzesCompleted, &cp.TotalQuizzes, &cp.TimeSpent, &cp.StartedAt, &cp.UpdatedAt, &completedAt)
 		if err != nil {
 			return nil, err
 		}

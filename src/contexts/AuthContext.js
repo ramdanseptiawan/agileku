@@ -24,51 +24,51 @@ export const AuthProvider = ({ children }) => {
   const [courses, setCourses] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
 
+  // Course management functions - defined before useEffect
+  const refreshCourses = useCallback(async () => {
+    try {
+      const coursesData = await courseAPI.getAllCourses();
+      console.log('Courses data received:', coursesData);
+      setCourses(coursesData.data || coursesData.courses || []);
+      // Remove localStorage caching
+    } catch (error) {
+      console.error('Failed to refresh courses:', error);
+    }
+  }, []);
+
+  const getCourseById = useCallback(async (courseId) => {
+    try {
+      // Always fetch fresh data from backend, no memory cache
+      const response = await courseAPI.getCourseById(courseId);
+      // Handle different response formats from backend
+      if (response && response.success && response.data) {
+        return response.data;
+      } else if (response && response.course) {
+        return response.course;
+      } else if (response && (response.id || response.title)) {
+        return response;
+      }
+      console.warn('Unexpected course response format:', response);
+      return null;
+    } catch (error) {
+      console.error('Failed to get course by ID:', error);
+      return null;
+    }
+  }, []);
+
+  // Load user data and courses on mount
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // First, try to restore user from localStorage
-        const storedUser = localStorage.getItem('currentUser');
-        if (storedUser && apiUtils.isAuthenticated()) {
-          try {
-            const userData = JSON.parse(storedUser);
-            setCurrentUser(userData);
-          } catch (error) {
-            console.error('Failed to parse stored user data:', error);
-            localStorage.removeItem('currentUser');
-          }
-        }
-
-        // Load courses from API
-        try {
-          const response = await courseAPI.getAllCourses();
-          
-          // Handle different response formats
-          let coursesData;
-          if (response && response.success && Array.isArray(response.data)) {
-            coursesData = response.data;
-          } else if (response && Array.isArray(response.courses)) {
-            coursesData = response.courses;
-          } else if (Array.isArray(response)) {
-            coursesData = response;
-          } else {
-            console.warn('Unexpected courses data format:', response);
-            coursesData = [];
-          }
-          
-          setCourses(coursesData);
-        } catch (error) {
-          console.error('Failed to fetch courses:', error);
-          setCourses([]);
-        }
-
         // Check if user is authenticated and verify with API
         if (apiUtils.isAuthenticated()) {
           try {
             const userProfile = await authAPI.getProfile();
             const userData = userProfile.data || userProfile.user || userProfile;
             setCurrentUser(userData);
-            localStorage.setItem('currentUser', JSON.stringify(userData));
+            
+            // Always fetch fresh data from backend, no cache
+            await refreshCourses();
             
             // Load user enrollments using the updated API
             const userEnrollments = await getUserEnrollments();
@@ -92,8 +92,10 @@ export const AuthProvider = ({ children }) => {
           // No valid token, clear any stored user data
           setCurrentUser(null);
           setEnrollments([]);
-          localStorage.removeItem('currentUser');
         }
+        
+        // Always load courses from API
+        await refreshCourses();
       } catch (error) {
         console.error('Failed to initialize app:', error);
       } finally {
@@ -102,7 +104,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     initializeApp();
-  }, []);
+  }, [refreshCourses]);
 
   const login = async (username, password) => {
     try {
@@ -146,26 +148,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('currentUser');
   };
 
-  // Course management functions
-  const refreshCourses = async () => {
-    try {
-      const coursesData = await courseAPI.getAllCourses();
-      setCourses(coursesData.courses || []);
-    } catch (error) {
-      console.error('Failed to refresh courses:', error);
-    }
-  };
-
-  const getCourseById = async (courseId) => {
-    try {
-      const response = await courseAPI.getCourseById(courseId);
-      return response.course;
-    } catch (error) {
-      console.error('Failed to get course:', error);
-      // Fallback to local data
-      return courses.find(course => course.id === parseInt(courseId));
-    }
-  };
+  // Functions moved above useEffect to fix initialization order
 
   const enrollInCourse = async (courseId) => {
     if (!currentUser) {
@@ -220,7 +203,7 @@ export const AuthProvider = ({ children }) => {
   const searchCourses = async (query) => {
     try {
       const response = await courseAPI.searchCourses(query);
-      return response.courses || [];
+      return response.data || response.courses || [];
     } catch (error) {
       console.error('Failed to search courses:', error);
       // Fallback to local search

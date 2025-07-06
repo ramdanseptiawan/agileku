@@ -65,23 +65,32 @@ const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
     }
   }, [courseId, quizType]);
 
-  // Timer effect
+  // Timer effect - disabled for pretest and posttest
   useEffect(() => {
-    if (currentAttempt && timeLeft > 0 && !showResult) {
+    if (currentAttempt && !showResult && quizType !== 'pretest' && quizType !== 'posttest') {
+      if (timeLeft > 0) {
+        const timer = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev <= 1) {
+              handleSubmit(); // Auto-submit when time runs out
+              return 0;
+            }
+            return prev - 1;
+          });
+          setTimeSpent(prev => prev + 1);
+        }, 1000);
+
+        return () => clearInterval(timer);
+      }
+    } else if (currentAttempt && !showResult) {
+      // For pretest and posttest, just track time spent without countdown
       const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            handleSubmit(); // Auto-submit when time runs out
-            return 0;
-          }
-          return prev - 1;
-        });
         setTimeSpent(prev => prev + 1);
       }, 1000);
 
       return () => clearInterval(timer);
     }
-  }, [currentAttempt, timeLeft, showResult]);
+  }, [currentAttempt, timeLeft, showResult, quizType]);
 
   // Start new quiz attempt
   const startQuiz = async () => {
@@ -239,13 +248,20 @@ const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-800 mb-4">{quiz.title} - Results</h2>
-            <div className={`inline-flex items-center px-6 py-3 rounded-full text-lg font-semibold ${
-              result.passed 
-                ? 'bg-green-100 text-green-800 border-2 border-green-200' 
-                : 'bg-red-100 text-red-800 border-2 border-red-200'
-            }`}>
-              {result.passed ? '✅ Passed' : '❌ Failed'}
-            </div>
+            {quizType !== 'pretest' && quizType !== 'posttest' && (
+              <div className={`inline-flex items-center px-6 py-3 rounded-full text-lg font-semibold ${
+                result.passed 
+                  ? 'bg-green-100 text-green-800 border-2 border-green-200' 
+                  : 'bg-red-100 text-red-800 border-2 border-red-200'
+              }`}>
+                {result.passed ? '✅ Passed' : '❌ Failed'}
+              </div>
+            )}
+            {(quizType === 'pretest' || quizType === 'posttest') && (
+              <div className="inline-flex items-center px-6 py-3 rounded-full text-lg font-semibold bg-blue-100 text-blue-800 border-2 border-blue-200">
+                ✅ Completed
+              </div>
+            )}
           </div>
           
           <div className="grid grid-cols-2 gap-6 mb-8">
@@ -268,7 +284,7 @@ const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            {result.canRetake && (
+            {result.canRetake && quizType !== 'pretest' && quizType !== 'posttest' && (
               <button 
                 onClick={retryQuiz} 
                 className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-8 rounded-lg transition duration-200 transform hover:scale-105 flex items-center justify-center"
@@ -279,19 +295,29 @@ const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
             <button 
               onClick={() => {
                 if (onComplete) {
-                  onComplete({
-                    type: quizType,
-                    result: result,
-                    passed: result.passed,
-                    shouldProceed: true
-                  });
+                  // For pretest/posttest, when user clicks continue, set shouldProceed to true
+                  if (quizType === 'pretest' || quizType === 'posttest') {
+                    onComplete({
+                      type: quizType,
+                      result: result,
+                      passed: true,
+                      shouldProceed: true // Now proceed to next step
+                    });
+                  } else {
+                    onComplete({
+                      type: quizType,
+                      result: result,
+                      passed: result.passed,
+                      shouldProceed: result.passed
+                    });
+                  }
                 } else {
                   onBack();
                 }
               }} 
               className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white font-bold py-4 px-8 rounded-xl transition duration-200 transform hover:scale-105 flex items-center justify-center shadow-lg"
             >
-              {result.passed ? '🚀 Lanjut ke Materi Selanjutnya' : '📚 Kembali ke Course'}
+              {(quizType === 'pretest' || quizType === 'posttest') || result.passed ? '🚀 Lanjut ke Materi Selanjutnya' : '📚 Kembali ke Course'}
             </button>
             <button 
               onClick={onBack} 
@@ -316,19 +342,23 @@ const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
             <p className="text-gray-600 text-lg leading-relaxed">{quiz.description}</p>
           </div>
           
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className={`grid ${quizType === 'pretest' || quizType === 'posttest' ? 'grid-cols-2' : 'grid-cols-2'} gap-4 mb-8`}>
             <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-xl text-center">
               <div className="text-2xl font-bold text-blue-600 mb-2">{quiz.questions ? quiz.questions.length : 0}</div>
               <div className="text-gray-600 font-medium">Questions</div>
             </div>
-            <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-xl text-center">
-              <div className="text-2xl font-bold text-green-600 mb-2">{quiz.timeLimit}</div>
-              <div className="text-gray-600 font-medium">Minutes</div>
-            </div>
-            <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-6 rounded-xl text-center">
-              <div className="text-2xl font-bold text-purple-600 mb-2">{quiz.passingScore}%</div>
-              <div className="text-gray-600 font-medium">Passing Score</div>
-            </div>
+            {quizType !== 'pretest' && quizType !== 'posttest' && (
+              <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-xl text-center">
+                <div className="text-2xl font-bold text-green-600 mb-2">{quiz.timeLimit}</div>
+                <div className="text-gray-600 font-medium">Minutes</div>
+              </div>
+            )}
+            {quizType !== 'pretest' && quizType !== 'posttest' && (
+              <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-6 rounded-xl text-center">
+                <div className="text-2xl font-bold text-purple-600 mb-2">{quiz.passingScore}%</div>
+                <div className="text-gray-600 font-medium">Passing Score</div>
+              </div>
+            )}
             <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-6 rounded-xl text-center">
               <div className="text-2xl font-bold text-orange-600 mb-2">{quiz.maxAttempts}</div>
               <div className="text-gray-600 font-medium">Max Attempts</div>
@@ -393,15 +423,17 @@ const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
                   Question {currentQuestionIndex + 1} of {quiz.questions ? quiz.questions.length : 0}
                 </span>
               </div>
-              <div className="flex items-center">
-                <span className={`inline-flex items-center px-4 py-2 rounded-full font-semibold ${
-                  timeLeft < 300 
-                    ? 'bg-red-100 text-red-800 animate-pulse' 
-                    : 'bg-white bg-opacity-20 text-white'
-                }`}>
-                  ⏱️ {formatTime(timeLeft)}
-                </span>
-              </div>
+              {quizType !== 'pretest' && quizType !== 'posttest' && (
+                <div className="flex items-center">
+                  <span className={`inline-flex items-center px-4 py-2 rounded-full font-semibold ${
+                    timeLeft < 300 
+                      ? 'bg-red-100 text-red-800 animate-pulse' 
+                      : 'bg-opacity-20 text-white'
+                  }`}>
+                    ⏱️ {formatTime(timeLeft)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
