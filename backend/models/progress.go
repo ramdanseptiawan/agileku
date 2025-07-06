@@ -180,6 +180,52 @@ func UpdateCourseProgress(db *sql.DB, userID, courseID int) error {
 		completed_at = CASE WHEN EXCLUDED.overall_progress = 100 THEN CURRENT_TIMESTAMP ELSE course_progress.completed_at END
 	`
 	_, err := db.Exec(query, userID, courseID)
+	if err != nil {
+		return err
+	}
+
+	// Check if course is now completed and trigger certificate generation
+	courseProgress, err := GetCourseProgress(db, userID, courseID)
+	if err == nil && courseProgress.OverallProgress == 100 {
+		// Check if certificate already exists
+		existingCert, _ := GetCertificateForCourse(db, userID, courseID)
+		if existingCert == nil {
+			// Auto-generate certificate
+			err = AutoGenerateCertificate(db, userID, courseID)
+			if err != nil {
+				// Log error but don't fail the progress update
+				// In production, you might want to use a proper logger
+			}
+		}
+	}
+
+	return nil
+}
+
+// UpdateCourseOverallProgress updates course progress with step-based calculation
+func UpdateCourseOverallProgress(db *sql.DB, userID, courseID, overallProgress, totalTimeSpent int, completedAt *string) error {
+	var completedTime *time.Time
+	if completedAt != nil && *completedAt != "" {
+		if t, err := time.Parse(time.RFC3339, *completedAt); err == nil {
+			completedTime = &t
+		}
+	}
+
+	query := `
+	INSERT INTO course_progress (user_id, course_id, overall_progress, time_spent, completed_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+	ON CONFLICT (user_id, course_id)
+	DO UPDATE SET
+		overall_progress = GREATEST(course_progress.overall_progress, EXCLUDED.overall_progress),
+		time_spent = GREATEST(course_progress.time_spent, EXCLUDED.time_spent),
+		completed_at = CASE 
+			WHEN EXCLUDED.overall_progress = 100 AND EXCLUDED.completed_at IS NOT NULL THEN EXCLUDED.completed_at
+			WHEN EXCLUDED.overall_progress = 100 AND course_progress.completed_at IS NULL THEN CURRENT_TIMESTAMP
+			ELSE course_progress.completed_at
+		END,
+		updated_at = CURRENT_TIMESTAMP
+	`
+	_, err := db.Exec(query, userID, courseID, overallProgress, totalTimeSpent, completedTime)
 	return err
 }
 

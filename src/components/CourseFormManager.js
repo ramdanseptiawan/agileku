@@ -4,6 +4,7 @@ import SimpleCourseForm from './SimpleCourseForm';
 import { saveCourse, saveCourseWithFiles, getCourseById, getCourseWithFiles, getAllCourses } from '../utils/localStorage';
 import { coursesData } from '../data/coursesData';
 import { initIndexedDB } from '../utils/indexedDB';
+import { courseAPI } from '../services/api';
 
 const CourseFormManager = ({ courseId = null, onSave, onCancel }) => {
   const [courseData, setCourseData] = useState({
@@ -40,20 +41,78 @@ const CourseFormManager = ({ courseId = null, onSave, onCancel }) => {
         
         // Load course data if editing
         if (courseId) {
-          const existingCourse = await getCourseWithFiles(parseInt(courseId));
-          if (existingCourse) {
-            setCourseData({
-              ...existingCourse,
-              introMaterial: {
-                title: existingCourse.introMaterial?.title || '',
-                content: Array.isArray(existingCourse.introMaterial?.content) 
-                  ? existingCourse.introMaterial.content 
-                  : []
-              },
-          lessons: existingCourse.lessons || []
-             });
-           }
-         }
+          try {
+            // Try to get course from backend API first
+            const backendCourse = await courseAPI.getCourseById(courseId);
+            if (backendCourse && backendCourse.success && backendCourse.data) {
+              const course = backendCourse.data;
+              
+              // Parse JSON fields if they are strings
+              let introMaterial = course.introMaterial;
+              let lessons = course.lessons;
+              
+              if (typeof introMaterial === 'string') {
+                try {
+                  introMaterial = JSON.parse(introMaterial);
+                } catch (e) {
+                  console.warn('Failed to parse introMaterial:', e);
+                  introMaterial = { title: '', content: [] };
+                }
+              }
+              
+              if (typeof lessons === 'string') {
+                try {
+                  lessons = JSON.parse(lessons);
+                } catch (e) {
+                  console.warn('Failed to parse lessons:', e);
+                  lessons = [];
+                }
+              }
+              
+              setCourseData({
+                ...course,
+                introMaterial: {
+                  title: introMaterial?.title || '',
+                  content: Array.isArray(introMaterial?.content) 
+                    ? introMaterial.content 
+                    : []
+                },
+                lessons: Array.isArray(lessons) ? lessons : []
+              });
+            } else {
+              // Fallback to localStorage if backend doesn't have the course
+              const existingCourse = await getCourseWithFiles(parseInt(courseId));
+              if (existingCourse) {
+                setCourseData({
+                  ...existingCourse,
+                  introMaterial: {
+                    title: existingCourse.introMaterial?.title || '',
+                    content: Array.isArray(existingCourse.introMaterial?.content) 
+                      ? existingCourse.introMaterial.content 
+                      : []
+                  },
+                  lessons: existingCourse.lessons || []
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Error loading course from backend, trying localStorage:', error);
+            // Fallback to localStorage
+            const existingCourse = await getCourseWithFiles(parseInt(courseId));
+            if (existingCourse) {
+              setCourseData({
+                ...existingCourse,
+                introMaterial: {
+                  title: existingCourse.introMaterial?.title || '',
+                  content: Array.isArray(existingCourse.introMaterial?.content) 
+                    ? existingCourse.introMaterial.content 
+                    : []
+                },
+                lessons: existingCourse.lessons || []
+              });
+            }
+          }
+        }
        } catch (error) {
          console.error('Error initializing data:', error);
        }

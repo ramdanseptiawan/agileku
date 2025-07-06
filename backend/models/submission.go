@@ -88,9 +88,9 @@ type SubmissionWithGrade struct {
 
 // CreatePostWorkSubmissionTable creates the postwork_submissions table
 func CreatePostWorkSubmissionTable(db *sql.DB) error {
-	// First, try to alter the existing table to allow NULL lesson_id
-	alterQuery := `ALTER TABLE postwork_submissions ALTER COLUMN lesson_id DROP NOT NULL;`
-	db.Exec(alterQuery) // Ignore error if table doesn't exist or column is already nullable
+	// First, check if table exists and add lesson_id column if missing
+	alterQuery := `ALTER TABLE postwork_submissions ADD COLUMN IF NOT EXISTS lesson_id INTEGER;`
+	db.Exec(alterQuery) // Add lesson_id column if it doesn't exist
 
 	query := `
 	CREATE TABLE IF NOT EXISTS postwork_submissions (
@@ -109,8 +109,7 @@ func CreatePostWorkSubmissionTable(db *sql.DB) error {
 		reviewed_by INTEGER REFERENCES users(id),
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
-	`
+	);`
 	_, err := db.Exec(query)
 	return err
 }

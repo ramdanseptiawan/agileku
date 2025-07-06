@@ -52,7 +52,7 @@ func createNewTables(db *sql.DB) {
 		log.Println("Created quizzes table")
 	}
 
-	// Create quiz attempt table
+	// Create quiz attempt tableg
 	if err := models.CreateQuizAttemptTable(db); err != nil {
 		log.Printf("Error creating quiz_attempts table: %v", err)
 	} else {
@@ -78,6 +78,20 @@ func createNewTables(db *sql.DB) {
 		log.Printf("Error creating file_uploads table: %v", err)
 	} else {
 		log.Println("Created file_uploads table")
+	}
+
+	// Create certificates table
+	if err := createCertificatesTable(db); err != nil {
+		log.Printf("Error creating certificates table: %v", err)
+	} else {
+		log.Println("Created certificates table")
+	}
+
+	// Create grades table
+	if err := createGradesTable(db); err != nil {
+		log.Printf("Error creating grades table: %v", err)
+	} else {
+		log.Println("Created grades table")
 	}
 
 	log.Println("New tables creation completed")
@@ -123,6 +137,50 @@ func seedUsers(db *sql.DB) {
 			log.Printf("Created user: %s", user.Username)
 		}
 	}
+}
+
+
+// createCertificatesTable creates the certificates table
+func createCertificatesTable(db *sql.DB) error {
+	query := `
+	CREATE TABLE IF NOT EXISTS certificates (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+		cert_number VARCHAR(255) UNIQUE NOT NULL,
+		user_name VARCHAR(255) NOT NULL,
+		course_name VARCHAR(255) NOT NULL,
+		instructor VARCHAR(255) NOT NULL,
+		completion_date TIMESTAMP NOT NULL,
+		issued_at TIMESTAMP NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user_id, course_id)
+	);
+	`
+	_, err := db.Exec(query)
+	return err
+}
+
+// createGradesTable creates the grades table
+func createGradesTable(db *sql.DB) error {
+	query := `
+	CREATE TABLE IF NOT EXISTS grades (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+		submission_id INTEGER NOT NULL,
+		grade DECIMAL(5,2) NOT NULL CHECK (grade >= 0 AND grade <= 100),
+		feedback TEXT,
+		graded_by INTEGER NOT NULL REFERENCES users(id),
+		graded_at TIMESTAMP NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(submission_id, course_id)
+	);
+	`
+	_, err := db.Exec(query)
+	return err
 }
 
 func seedCourses(db *sql.DB) {
@@ -398,6 +456,161 @@ func seedCourses(db *sql.DB) {
 						"id":       1,
 						"question": "Express.js digunakan untuk?",
 						"options":  []string{"Web framework untuk Node.js", "Database", "Frontend", "Testing"},
+						"correct":  0,
+					},
+				},
+			},
+		},
+		{
+			"title":       "Agile Project Management Fundamentals",
+			"description": "Master the principles and practices of Agile project management methodology including Scrum, Kanban, and Lean practices",
+			"category":    "Project Management",
+			"level":       "Intermediate",
+			"duration":    "8 weeks",
+			"instructor":  "Michael Chen",
+			"rating":      4.9,
+			"students":    3247,
+			"image":       "https://images.unsplash.com/photo-1552664730-d307ca884978?w=300&h=200&fit=crop&crop=center",
+			"introMaterial": map[string]interface{}{
+				"title": "Welcome to Agile Project Management",
+				"content": []map[string]interface{}{
+					{
+						"type":    "text",
+						"content": "Welcome to Agile Project Management Fundamentals! This comprehensive course covers Agile methodologies, Scrum, Kanban, and modern project management practices.",
+					},
+					{
+						"type":     "pdf",
+						"title":    "Agile Manifesto and Principles Guide",
+						"filename": "agile-manifesto-guide.pdf",
+						"size":     "1.2 MB",
+					},
+					{
+						"type":        "video",
+						"title":       "Introduction to Agile Project Management",
+						"url":         "https://www.youtube.com/watch?v=Z9QbYZh1YXY",
+						"duration":    "15:30",
+						"description": "Overview of Agile principles and why they matter in modern project management",
+					},
+					{
+						"type":        "external_link",
+						"title":       "Agile Alliance Official Website",
+						"url":         "https://www.agilealliance.org/",
+						"description": "Comprehensive resource for Agile practices, events, and community",
+					},
+				},
+			},
+			"lessons": []map[string]interface{}{
+				{
+					"id":    1,
+					"title": "Agile Fundamentals and History",
+					"type":  "mixed",
+					"content": []map[string]interface{}{
+						{
+							"type":    "text",
+							"content": "Agile methodology emerged as a response to traditional waterfall project management limitations. It emphasizes iterative development, collaboration, and adaptability.",
+						},
+						{
+							"type":     "pdf",
+							"title":    "History of Agile Development",
+							"filename": "agile-history.pdf",
+							"size":     "2.1 MB",
+						},
+						{
+							"type":        "video",
+							"title":       "Agile vs Waterfall Comparison",
+							"url":         "https://www.youtube.com/watch?v=GE6lbPLEAzc",
+							"duration":    "12:45",
+							"description": "Detailed comparison between Agile and traditional project management approaches",
+						},
+						{
+							"type":        "external_link",
+							"title":       "Agile Manifesto Original Document",
+							"url":         "https://agilemanifesto.org/",
+							"description": "Read the original Agile Manifesto and its 12 principles",
+						},
+					},
+				},
+				{
+					"id":    2,
+					"title": "Scrum Framework Deep Dive",
+					"type":  "mixed",
+					"content": []map[string]interface{}{
+						{
+							"type":    "text",
+							"content": "Scrum is the most popular Agile framework, providing structure through roles, events, and artifacts while maintaining flexibility.",
+						},
+						{
+							"type":     "pdf",
+							"title":    "Scrum Guide 2020",
+							"filename": "scrum-guide-2020.pdf",
+							"size":     "1.8 MB",
+						},
+						{
+							"type":        "video",
+							"title":       "Scrum Roles and Responsibilities",
+							"url":         "https://www.youtube.com/watch?v=gy1c4_YixCo",
+							"duration":    "18:20",
+							"description": "Understanding Product Owner, Scrum Master, and Development Team roles",
+						},
+						{
+							"type":        "external_link",
+							"title":       "Scrum.org Official Resources",
+							"url":         "https://www.scrum.org/resources",
+							"description": "Official Scrum resources, assessments, and certification information",
+						},
+					},
+				},
+				{
+					"id":    3,
+					"title": "Kanban and Visual Management",
+					"type":  "mixed",
+					"content": []map[string]interface{}{
+						{
+							"type":    "text",
+							"content": "Kanban focuses on visualizing work, limiting work in progress, and optimizing flow to improve team efficiency and delivery.",
+						},
+						{
+							"type":     "pdf",
+							"title":    "Kanban Implementation Guide",
+							"filename": "kanban-implementation.pdf",
+							"size":     "1.5 MB",
+						},
+						{
+							"type":        "video",
+							"title":       "Building Effective Kanban Boards",
+							"url":         "https://www.youtube.com/watch?v=iVaFVa7HYj4",
+							"duration":    "14:15",
+							"description": "Step-by-step guide to creating and managing Kanban boards",
+						},
+						{
+							"type":        "external_link",
+							"title":       "Kanban University Resources",
+							"url":         "https://kanban.university/",
+							"description": "Comprehensive Kanban learning resources and certification programs",
+						},
+					},
+				},
+			},
+			"preTest": map[string]interface{}{
+				"id":    "pre5",
+				"title": "Pre-Test: Agile Project Management",
+				"questions": []map[string]interface{}{
+					{
+						"id":       1,
+						"question": "What are the four core values of the Agile Manifesto?",
+						"options":  []string{"Individuals and Interactions Over Processes and Tools", "Speed over quality", "Processes over individuals", "Quality over speed"},
+						"correct":  0,
+					},
+				},
+			},
+			"postTest": map[string]interface{}{
+				"id":    "post5",
+				"title": "Post-Test: Agile Project Management",
+				"questions": []map[string]interface{}{
+					{
+						"id":       1,
+						"question": "Which estimation technique uses relative sizing?",
+						"options":  []string{"Planning Poker", "T-shirt sizing", "Ideal hours", "Function points"},
 						"correct":  0,
 					},
 				},

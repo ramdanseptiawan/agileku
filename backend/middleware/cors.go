@@ -15,7 +15,7 @@ func SetupCORS(handler http.Handler) http.Handler {
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 	if allowedOrigins == "" {
 		// Default to localhost for development
-		allowedOrigins = "http://localhost:3000,http://127.0.0.1:3000"
+		allowedOrigins = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
 	}
 
 	// Split origins by comma

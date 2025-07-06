@@ -8,23 +8,24 @@ const MyCourses = ({ onStartLearning }) => {
   
   // Filter enrolled courses
   const enrolledCourses = useMemo(() => {
-    const coursesArray = Array.isArray(courses) ? courses : [];
     const enrollmentsArray = Array.isArray(enrollments) ? enrollments : [];
     
-    return coursesArray.filter(course => 
-      enrollmentsArray.some(enrollment => enrollment.course_id === course.id)
-    );
-  }, [courses, enrollments]);
+    // Backend returns full course data with enrollment info, not just enrollment IDs
+    // So we can use enrollments directly as they contain complete course information
+    return enrollmentsArray.map(enrollment => ({
+      ...enrollment,
+      id: enrollment.id || enrollment.course_id, // Ensure we have an id field
+      isEnrolled: true
+    }));
+  }, [enrollments]);
   
   // Calculate progress statistics
   const progressStats = useMemo(() => {
-    const enrollmentsArray = Array.isArray(enrollments) ? enrollments : [];
-    
     const totalCourses = enrolledCourses.length;
-    const completedCourses = enrollmentsArray.filter(e => e.progress === 100).length;
-    const inProgressCourses = enrollmentsArray.filter(e => e.progress > 0 && e.progress < 100).length;
+    const completedCourses = enrolledCourses.filter(course => course.progress === 100).length;
+    const inProgressCourses = enrolledCourses.filter(course => course.progress > 0 && course.progress < 100).length;
     const averageProgress = totalCourses > 0 
-      ? Math.round(enrollmentsArray.reduce((sum, e) => sum + (e.progress || 0), 0) / totalCourses)
+      ? Math.round(enrolledCourses.reduce((sum, course) => sum + (course.progress || 0), 0) / totalCourses)
       : 0;
     
     return {
@@ -33,7 +34,7 @@ const MyCourses = ({ onStartLearning }) => {
       inProgress: inProgressCourses,
       average: averageProgress
     };
-  }, [enrolledCourses, enrollments]);
+  }, [enrolledCourses]);
 
   if (!currentUser) {
     return (

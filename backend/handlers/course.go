@@ -242,13 +242,19 @@ func (h *CourseHandler) GetUserEnrollments(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Get enrolled courses with enrollment info
+	// Get enrolled courses with enrollment info and actual progress from course_progress table
 	query := `
 		SELECT c.id, c.title, c.description, c.category, c.level, c.duration,
 		       c.instructor, c.rating, c.students, c.image,
-		       ce.enrolled_at, ce.progress, ce.completed_at
+		       ce.enrolled_at, ce.completed_at,
+		       COALESCE(cp.overall_progress, 0) as progress,
+		       COALESCE(cp.lessons_completed, 0) as lessons_completed,
+		       COALESCE(cp.total_lessons, 0) as total_lessons,
+		       COALESCE(cp.time_spent, 0) as time_spent,
+		       cp.completed_at as course_completed_at
 		FROM courses c
 		INNER JOIN course_enrollments ce ON c.id = ce.course_id
+		LEFT JOIN course_progress cp ON c.id = cp.course_id AND ce.user_id = cp.user_id
 		WHERE ce.user_id = $1
 		ORDER BY ce.enrolled_at DESC
 	`
@@ -267,15 +273,16 @@ func (h *CourseHandler) GetUserEnrollments(w http.ResponseWriter, r *http.Reques
 	var enrollments []map[string]interface{}
 	for rows.Next() {
 		var enrollment map[string]interface{} = make(map[string]interface{})
-		var id, students, progress int
+		var id, students, progress, lessonsCompleted, totalLessons, timeSpent int
 		var title, description, category, level, duration, instructor, image string
 		var rating float64
-		var enrolledAt, completedAt sql.NullTime
+		var enrolledAt, completedAt, courseCompletedAt sql.NullTime
 
 		err := rows.Scan(
 			&id, &title, &description, &category, &level, &duration,
 			&instructor, &rating, &students, &image,
-			&enrolledAt, &progress, &completedAt,
+			&enrolledAt, &completedAt, &progress, &lessonsCompleted, 
+			&totalLessons, &timeSpent, &courseCompletedAt,
 		)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -298,8 +305,15 @@ func (h *CourseHandler) GetUserEnrollments(w http.ResponseWriter, r *http.Reques
 		enrollment["image"] = image
 		enrollment["isEnrolled"] = true
 		enrollment["progress"] = progress
+		enrollment["lessonsCompleted"] = lessonsCompleted
+		enrollment["totalLessons"] = totalLessons
+		enrollment["timeSpent"] = timeSpent
 		enrollment["enrolledAt"] = enrolledAt.Time
-		if completedAt.Valid {
+		
+		// Use course completion date from course_progress if available, otherwise from enrollment
+		if courseCompletedAt.Valid {
+			enrollment["completedAt"] = courseCompletedAt.Time
+		} else if completedAt.Valid {
 			enrollment["completedAt"] = completedAt.Time
 		}
 

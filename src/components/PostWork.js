@@ -74,7 +74,7 @@ const styles = `
 `;
 
 const PostWork = ({ courseId, onSubmit }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, isEnrolledInCourse, enrollInCourse } = useAuth();
   const [workStatus, setWorkStatus] = useState('not_submitted'); // not_submitted, submitted, reviewed
   const [selectedFile, setSelectedFile] = useState(null);
   const [workDescription, setWorkDescription] = useState('');
@@ -150,6 +150,19 @@ const PostWork = ({ courseId, onSubmit }) => {
     // Try to load existing submissions from backend
      setIsLoadingSubmissions(true);
      try {
+       // Check if user is enrolled in the course first
+       const isEnrolled = await isEnrolledInCourse(parseInt(courseId));
+       
+       if (!isEnrolled) {
+         // Try to auto-enroll the user
+         try {
+           await enrollInCourse(parseInt(courseId));
+         } catch (enrollError) {
+           console.error('Failed to auto-enroll user:', enrollError);
+           throw new Error('User not enrolled in course');
+         }
+       }
+       
        const response = await submissionAPI.getPostWorkSubmissions(parseInt(courseId));
        if (response.success && response.data && response.data.length > 0) {
          setExistingSubmissions(response.data);

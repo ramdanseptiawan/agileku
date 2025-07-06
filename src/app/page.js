@@ -83,7 +83,13 @@ const LMS = () => {
       console.log('Starting quiz submission process for quiz:', quizId);
       
       // Import quizAPI dynamically to avoid circular imports
-      const { quizAPI } = await import('../services/api');
+      const { quizAPI, apiUtils } = await import('../services/api');
+      
+      // Test backend connectivity first
+      const isConnected = await apiUtils.testConnection();
+      if (!isConnected) {
+        throw new Error('Cannot connect to backend server. Please check if the server is running.');
+      }
       
       // First, start a quiz attempt
       const attemptResult = await quizAPI.startQuizAttempt(quizId);
@@ -95,18 +101,36 @@ const LMS = () => {
       
       console.log('Quiz attempt started:', attemptResult.data);
       
+      // Convert answers to the format expected by backend
+      const formattedAnswers = {};
+      Object.keys(quizAnswers).forEach(questionId => {
+        formattedAnswers[questionId.toString()] = quizAnswers[questionId];
+      });
+      
       // Then submit the quiz with the attempt ID
       const submissionData = {
         attemptId: attemptResult.data.id,
-        answers: quizAnswers,
+        answers: formattedAnswers,
         timeSpent: 300 // Default 5 minutes, you can track actual time
       };
       
       console.log('Submitting quiz to backend:', submissionData);
+      console.log('Formatted answers:', JSON.stringify(formattedAnswers, null, 2));
       
       const result = await quizAPI.submitQuiz(submissionData);
       
       console.log('Quiz submission result:', result);
+      
+      // Handle different response formats
+      if (result.success === false || (result.error && !result.success)) {
+        console.error('Quiz submission failed:', result.error || result.message);
+        throw new Error(result.error || result.message || 'Quiz submission failed');
+      }
+      
+      // Check if result contains the expected data
+      if (!result.data && !result.score && result.success !== true) {
+        console.warn('Unexpected response format:', result);
+      }
       
       // Update appropriate state based on quiz type
       if (isPreTest) {
@@ -238,7 +262,6 @@ const LMS = () => {
             <CourseView 
               currentLesson={currentLesson}
               onBack={handleBackToDashboard}
-              onQuizSubmit={handleQuizSubmit}
               preTestState={preTestState}
               postTestState={postTestState}
               onRetakeQuiz={handleRetakeQuiz}

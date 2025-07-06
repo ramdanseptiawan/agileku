@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -92,6 +93,7 @@ func (h *Handler) GetQuizzesByCourseHandler(w http.ResponseWriter, r *http.Reque
 func (h *Handler) StartQuizAttemptHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.GetUserIDFromContext(r)
 	if err != nil {
+		log.Printf("[ERROR] StartQuizAttempt - User not found in context: %v", err)
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
@@ -99,33 +101,46 @@ func (h *Handler) StartQuizAttemptHandler(w http.ResponseWriter, r *http.Request
 
 	quizID, err := strconv.Atoi(vars["quizId"])
 	if err != nil {
+		log.Printf("[ERROR] StartQuizAttempt - Invalid quiz ID: %v", err)
 		http.Error(w, "Invalid quiz ID", http.StatusBadRequest)
 		return
 	}
 
+	log.Printf("[DEBUG] StartQuizAttempt - UserID: %d, QuizID: %d", userID, quizID)
+
 	// Get quiz to validate course enrollment
 	quiz, err := models.GetQuizByID(h.DB, quizID)
 	if err != nil {
+		log.Printf("[ERROR] StartQuizAttempt - Quiz not found: %v", err)
 		http.Error(w, "Quiz not found", http.StatusNotFound)
 		return
 	}
 
+	log.Printf("[DEBUG] StartQuizAttempt - Found quiz: %+v", quiz)
+
 	// Validate that user is enrolled in the course
 	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, quiz.CourseID)
 	if err != nil {
+		log.Printf("[ERROR] StartQuizAttempt - Database error checking enrollment: %v", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 	if !enrolled {
+		log.Printf("[ERROR] StartQuizAttempt - User %d not enrolled in course %d", userID, quiz.CourseID)
 		http.Error(w, "User not enrolled in course", http.StatusForbidden)
 		return
 	}
 
+	log.Printf("[DEBUG] StartQuizAttempt - User enrolled, starting attempt...")
+
 	attempt, err := models.StartQuizAttempt(h.DB, userID, quizID)
 	if err != nil {
+		log.Printf("[ERROR] StartQuizAttempt - Failed to start quiz attempt: %v", err)
 		http.Error(w, "Failed to start quiz attempt", http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("[DEBUG] StartQuizAttempt - Successfully created attempt: %+v", attempt)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

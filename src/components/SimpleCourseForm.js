@@ -1068,7 +1068,7 @@ const SimpleCourseForm = ({ initialData, onSave, onCancel, isLoading, isEditing 
                   
                   <div className="space-y-2">
                     {(formData.introMaterial.content || []).map((item, index) => 
-                      <div key={item.id || index}>
+                      <div key={item.id || `intro-${index}`}>
                         {renderIntroContentForm(item, index)}
                       </div>
                     )}

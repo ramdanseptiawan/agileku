@@ -129,8 +129,9 @@ func AuthMiddleware(db *sql.DB) func(http.Handler) http.Handler {
 				return
 			}
 
-			// Add user to request context
+			// Add user and user role to request context
 			ctx := context.WithValue(r.Context(), UserContextKey, user)
+			ctx = context.WithValue(ctx, "userRole", user.Role)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

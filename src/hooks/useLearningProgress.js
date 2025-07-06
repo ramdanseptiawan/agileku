@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { syncProgress, updateLessonProgress as apiUpdateLessonProgress } from '../services/api';
 
 /**
  * Custom hook untuk mengelola progress pembelajaran
@@ -69,8 +70,8 @@ export const useLearningProgress = (courseId) => {
     }
   }, [getStorageKey, courseId]);
 
-  // Save progress ke localStorage
-  const saveProgress = useCallback((newProgress) => {
+  // Save progress ke localStorage dan sync ke backend
+  const saveProgress = useCallback(async (newProgress) => {
     const storageKey = getStorageKey();
     if (!storageKey) return;
 
@@ -81,7 +82,28 @@ export const useLearningProgress = (courseId) => {
         lastAccessed: new Date().toISOString()
       };
       
+      // Save to localStorage
       localStorage.setItem(storageKey, JSON.stringify(progressToSave));
+      
+      // Sync to backend if courseId is available
+      if (courseId && currentUser) {
+        try {
+          await syncProgress({
+            courseId: parseInt(courseId),
+            currentStep: newProgress.currentStep,
+            completedSteps: newProgress.completedSteps,
+            lessonProgress: newProgress.lessonProgress,
+            quizScores: newProgress.quizScores,
+            submissions: newProgress.submissions,
+            totalTimeSpent: newProgress.totalTimeSpent,
+            completedAt: newProgress.completedAt
+          });
+        } catch (syncError) {
+          console.warn('Failed to sync progress to backend:', syncError);
+          // Continue with local save even if backend sync fails
+        }
+      }
+      
       setAutoSaveStatus('saved');
       
       // Reset status setelah 2 detik
@@ -90,7 +112,7 @@ export const useLearningProgress = (courseId) => {
       console.error('Error saving progress:', error);
       setAutoSaveStatus('error');
     }
-  }, [getStorageKey]);
+  }, [getStorageKey, courseId, currentUser]);
 
   // Update progress dengan auto-save
   const updateProgress = useCallback((updates) => {
@@ -119,7 +141,7 @@ export const useLearningProgress = (courseId) => {
   }, [updateProgress]);
 
   // Update lesson progress
-  const updateLessonProgress = useCallback((lessonId, progressData) => {
+  const updateLessonProgress = useCallback(async (lessonId, progressData) => {
     setProgress(prev => {
       const newProgress = {
         ...prev,
@@ -135,7 +157,22 @@ export const useLearningProgress = (courseId) => {
       saveProgress(newProgress);
       return newProgress;
     });
-   }, [saveProgress]);
+    
+    // Also update lesson progress in backend
+    if (courseId && currentUser && progressData.progress !== undefined) {
+      try {
+        await apiUpdateLessonProgress({
+          courseId: parseInt(courseId),
+          lessonId: parseInt(lessonId),
+          progress: progressData.progress || 0,
+          completed: progressData.completed || false,
+          timeSpent: progressData.timeSpent || 0
+        });
+      } catch (error) {
+        console.warn('Failed to update lesson progress in backend:', error);
+      }
+    }
+   }, [saveProgress, courseId, currentUser]);
 
   // Save quiz score
   const saveQuizScore = useCallback((quizId, score, isPreTest = false) => {
@@ -221,21 +258,23 @@ export const useLearningProgress = (courseId) => {
   // Load progress saat component mount
   useEffect(() => {
     loadProgress();
-  }, [loadProgress]);
+  }, [courseId, currentUser]); // Only depend on courseId and currentUser to prevent infinite loop
 
-  // Auto-save setiap 30 detik jika ada perubahan
+  // Auto-save setiap 30 detik jika ada perubahan dan status bukan 'saved'
   useEffect(() => {
     const interval = setInterval(() => {
-      setProgress(currentProgress => {
-        if (currentProgress.lastAccessed) {
-          saveProgress(currentProgress);
-        }
-        return currentProgress;
-      });
+      if (autoSaveStatus === 'pending') {
+        setProgress(currentProgress => {
+          if (currentProgress.lastAccessed) {
+            saveProgress(currentProgress);
+          }
+          return currentProgress;
+        });
+      }
     }, 30000); // 30 seconds
 
     return () => clearInterval(interval);
-  }, [saveProgress]);
+  }, [saveProgress, autoSaveStatus]);
 
   return {
     progress,

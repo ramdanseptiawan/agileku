@@ -64,7 +64,6 @@ func CreateQuizTable(db *sql.DB) error {
 	CREATE TABLE IF NOT EXISTS quizzes (
 		id SERIAL PRIMARY KEY,
 		course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
-		lesson_id INTEGER,
 		title VARCHAR(255) NOT NULL,
 		description TEXT,
 		questions JSONB NOT NULL,
@@ -106,7 +105,7 @@ func CreateQuizAttemptTable(db *sql.DB) error {
 // GetQuizByID gets a quiz by ID
 func GetQuizByID(db *sql.DB, quizID int) (*Quiz, error) {
 	query := `
-	SELECT id, course_id, lesson_id, title, description, questions, time_limit, 
+	SELECT id, course_id, title, description, questions, time_limit, 
 	       max_attempts, passing_score, quiz_type, is_active, created_at, updated_at
 	FROM quizzes
 	WHERE id = $1 AND is_active = TRUE
@@ -114,16 +113,13 @@ func GetQuizByID(db *sql.DB, quizID int) (*Quiz, error) {
 	row := db.QueryRow(query, quizID)
 
 	var quiz Quiz
-	var lessonID sql.NullInt64
-	err := row.Scan(&quiz.ID, &quiz.CourseID, &lessonID, &quiz.Title, &quiz.Description, &quiz.Questions, &quiz.TimeLimit, &quiz.MaxAttempts, &quiz.PassingScore, &quiz.QuizType, &quiz.IsActive, &quiz.CreatedAt, &quiz.UpdatedAt)
+	err := row.Scan(&quiz.ID, &quiz.CourseID, &quiz.Title, &quiz.Description, &quiz.Questions, &quiz.TimeLimit, &quiz.MaxAttempts, &quiz.PassingScore, &quiz.QuizType, &quiz.IsActive, &quiz.CreatedAt, &quiz.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 
-	if lessonID.Valid {
-		lessonIDInt := int(lessonID.Int64)
-		quiz.LessonID = &lessonIDInt
-	}
+	// LessonID is not used in current database schema
+	quiz.LessonID = nil
 
 	return &quiz, nil
 }
@@ -131,7 +127,7 @@ func GetQuizByID(db *sql.DB, quizID int) (*Quiz, error) {
 // GetQuizzesByCourse gets all quizzes for a course
 func GetQuizzesByCourse(db *sql.DB, courseID int) ([]Quiz, error) {
 	query := `
-	SELECT id, course_id, lesson_id, title, description, questions, time_limit, 
+	SELECT id, course_id, title, description, questions, time_limit, 
 	       max_attempts, passing_score, quiz_type, is_active, created_at, updated_at
 	FROM quizzes
 	WHERE course_id = $1 AND is_active = TRUE
@@ -146,16 +142,13 @@ func GetQuizzesByCourse(db *sql.DB, courseID int) ([]Quiz, error) {
 	var quizzes []Quiz
 	for rows.Next() {
 		var quiz Quiz
-		var lessonID sql.NullInt64
-		err := rows.Scan(&quiz.ID, &quiz.CourseID, &lessonID, &quiz.Title, &quiz.Description, &quiz.Questions, &quiz.TimeLimit, &quiz.MaxAttempts, &quiz.PassingScore, &quiz.QuizType, &quiz.IsActive, &quiz.CreatedAt, &quiz.UpdatedAt)
+		err := rows.Scan(&quiz.ID, &quiz.CourseID, &quiz.Title, &quiz.Description, &quiz.Questions, &quiz.TimeLimit, &quiz.MaxAttempts, &quiz.PassingScore, &quiz.QuizType, &quiz.IsActive, &quiz.CreatedAt, &quiz.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
 
-		if lessonID.Valid {
-			lessonIDInt := int(lessonID.Int64)
-			quiz.LessonID = &lessonIDInt
-		}
+		// LessonID is not used in current database schema
+		quiz.LessonID = nil
 
 		quizzes = append(quizzes, quiz)
 	}
@@ -166,7 +159,7 @@ func GetQuizzesByCourse(db *sql.DB, courseID int) ([]Quiz, error) {
 // GetQuizByTypeAndCourse gets a quiz by type and course
 func GetQuizByTypeAndCourse(db *sql.DB, courseID int, quizType string) (*Quiz, error) {
 	query := `
-	SELECT id, course_id, lesson_id, title, description, questions, time_limit, 
+	SELECT id, course_id, title, description, questions, time_limit, 
 	       max_attempts, passing_score, quiz_type, is_active, created_at, updated_at
 	FROM quizzes
 	WHERE course_id = $1 AND quiz_type = $2 AND is_active = TRUE
@@ -175,16 +168,13 @@ func GetQuizByTypeAndCourse(db *sql.DB, courseID int, quizType string) (*Quiz, e
 	row := db.QueryRow(query, courseID, quizType)
 
 	var quiz Quiz
-	var lessonID sql.NullInt64
-	err := row.Scan(&quiz.ID, &quiz.CourseID, &lessonID, &quiz.Title, &quiz.Description, &quiz.Questions, &quiz.TimeLimit, &quiz.MaxAttempts, &quiz.PassingScore, &quiz.QuizType, &quiz.IsActive, &quiz.CreatedAt, &quiz.UpdatedAt)
+	err := row.Scan(&quiz.ID, &quiz.CourseID, &quiz.Title, &quiz.Description, &quiz.Questions, &quiz.TimeLimit, &quiz.MaxAttempts, &quiz.PassingScore, &quiz.QuizType, &quiz.IsActive, &quiz.CreatedAt, &quiz.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 
-	if lessonID.Valid {
-		lessonIDInt := int(lessonID.Int64)
-		quiz.LessonID = &lessonIDInt
-	}
+	// LessonID is not used for course-level quizzes (pretest/posttest)
+	quiz.LessonID = nil
 
 	return &quiz, nil
 }
@@ -219,9 +209,17 @@ func StartQuizAttempt(db *sql.DB, userID, quizID int) (*QuizAttempt, error) {
 
 	var attempt QuizAttempt
 	var submittedAt sql.NullTime
-	err = row.Scan(&attempt.ID, &attempt.QuizID, &attempt.UserID, &attempt.Answers, &attempt.Score, &attempt.TimeSpent, &attempt.Completed, &attempt.Passed, &attempt.AttemptNumber, &attempt.StartedAt, &submittedAt, &attempt.CreatedAt)
+	var answers sql.NullString // Handle NULL answers
+	err = row.Scan(&attempt.ID, &attempt.QuizID, &attempt.UserID, &answers, &attempt.Score, &attempt.TimeSpent, &attempt.Completed, &attempt.Passed, &attempt.AttemptNumber, &attempt.StartedAt, &submittedAt, &attempt.CreatedAt)
 	if err != nil {
 		return nil, err
+	}
+
+	// Handle NULL answers
+	if answers.Valid {
+		attempt.Answers = json.RawMessage(answers.String)
+	} else {
+		attempt.Answers = json.RawMessage("{}")
 	}
 
 	if submittedAt.Valid {
@@ -304,9 +302,17 @@ func GetQuizAttempts(db *sql.DB, userID, quizID int) ([]QuizAttempt, error) {
 	for rows.Next() {
 		var attempt QuizAttempt
 		var submittedAt sql.NullTime
-		err := rows.Scan(&attempt.ID, &attempt.QuizID, &attempt.UserID, &attempt.Answers, &attempt.Score, &attempt.TimeSpent, &attempt.Completed, &attempt.Passed, &attempt.AttemptNumber, &attempt.StartedAt, &submittedAt, &attempt.CreatedAt)
+		var answers sql.NullString // Handle NULL answers
+		err := rows.Scan(&attempt.ID, &attempt.QuizID, &attempt.UserID, &answers, &attempt.Score, &attempt.TimeSpent, &attempt.Completed, &attempt.Passed, &attempt.AttemptNumber, &attempt.StartedAt, &submittedAt, &attempt.CreatedAt)
 		if err != nil {
 			return nil, err
+		}
+
+		// Handle NULL answers
+		if answers.Valid {
+			attempt.Answers = json.RawMessage(answers.String)
+		} else {
+			attempt.Answers = json.RawMessage("{}")
 		}
 
 		if submittedAt.Valid {
@@ -353,11 +359,11 @@ func calculateQuizScore(questions, answers json.RawMessage) (score, correctAnswe
 // CreateQuiz creates a new quiz
 func CreateQuiz(db *sql.DB, quiz *Quiz) error {
 	query := `
-	INSERT INTO quizzes (course_id, lesson_id, title, description, questions, time_limit, max_attempts, passing_score, quiz_type, is_active, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	INSERT INTO quizzes (course_id, title, description, questions, time_limit, max_attempts, passing_score, quiz_type, is_active, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	RETURNING id, created_at, updated_at
 	`
-	row := db.QueryRow(query, quiz.CourseID, quiz.LessonID, quiz.Title, quiz.Description, quiz.Questions, quiz.TimeLimit, quiz.MaxAttempts, quiz.PassingScore, quiz.QuizType, quiz.IsActive)
+	row := db.QueryRow(query, quiz.CourseID, quiz.Title, quiz.Description, quiz.Questions, quiz.TimeLimit, quiz.MaxAttempts, quiz.PassingScore, quiz.QuizType, quiz.IsActive)
 	return row.Scan(&quiz.ID, &quiz.CreatedAt, &quiz.UpdatedAt)
 }
 

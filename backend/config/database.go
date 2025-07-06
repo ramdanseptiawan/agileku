@@ -123,7 +123,146 @@ func createTables(db *sql.DB) error {
 		UNIQUE(user_id, course_id, lesson_id)
 	);`
 
-	tables := []string{usersTable, coursesTable, enrollmentsTable, progressTable}
+	// Announcements table
+	announcementsTable := `
+	CREATE TABLE IF NOT EXISTS announcements (
+		id SERIAL PRIMARY KEY,
+		title VARCHAR(255) NOT NULL,
+		content TEXT NOT NULL,
+		priority VARCHAR(20) DEFAULT 'normal' CHECK (priority IN ('normal', 'medium', 'high')),
+		target_audience VARCHAR(20) DEFAULT 'all' CHECK (target_audience IN ('all', 'students', 'instructors')),
+		author VARCHAR(100) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	// Certificates table
+	certificatesTable := `
+	CREATE TABLE IF NOT EXISTS certificates (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+		cert_number VARCHAR(255) UNIQUE NOT NULL,
+		user_name VARCHAR(255) NOT NULL,
+		course_name VARCHAR(255) NOT NULL,
+		instructor VARCHAR(255) NOT NULL,
+		completion_date TIMESTAMP NOT NULL,
+		issued_at TIMESTAMP NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user_id, course_id)
+	);`
+
+	// Quizzes table
+	quizzesTable := `
+	CREATE TABLE IF NOT EXISTS quizzes (
+		id SERIAL PRIMARY KEY,
+		course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+		title VARCHAR(255) NOT NULL,
+		description TEXT,
+		questions JSONB NOT NULL,
+		time_limit INTEGER DEFAULT 0,
+		max_attempts INTEGER DEFAULT 1,
+		passing_score INTEGER DEFAULT 70,
+		quiz_type VARCHAR(20) DEFAULT 'quiz' CHECK (quiz_type IN ('pretest', 'posttest', 'quiz')),
+		is_active BOOLEAN DEFAULT TRUE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	// Quiz attempts table
+	quizAttemptsTable := `
+	CREATE TABLE IF NOT EXISTS quiz_attempts (
+		id SERIAL PRIMARY KEY,
+		quiz_id INTEGER NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		answers JSONB,
+		score INTEGER DEFAULT 0,
+		time_spent INTEGER DEFAULT 0,
+		completed BOOLEAN DEFAULT FALSE,
+		passed BOOLEAN DEFAULT FALSE,
+		attempt_number INTEGER DEFAULT 1,
+		started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		submitted_at TIMESTAMP,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	// Submissions tables
+	postworkSubmissionsTable := `
+	CREATE TABLE IF NOT EXISTS postwork_submissions (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+		title VARCHAR(255) NOT NULL,
+		description TEXT,
+		content TEXT,
+		attachments JSONB,
+		status VARCHAR(20) DEFAULT 'submitted' CHECK (status IN ('submitted', 'reviewed', 'approved', 'rejected')),
+		score INTEGER,
+		feedback TEXT,
+		submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		reviewed_at TIMESTAMP,
+		reviewed_by INTEGER REFERENCES users(id),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	finalProjectSubmissionsTable := `
+	CREATE TABLE IF NOT EXISTS final_project_submissions (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+		title VARCHAR(255) NOT NULL,
+		description TEXT,
+		content TEXT,
+		attachments JSONB,
+		github_url VARCHAR(500),
+		live_url VARCHAR(500),
+		status VARCHAR(20) DEFAULT 'submitted' CHECK (status IN ('submitted', 'reviewed', 'approved', 'rejected')),
+		score INTEGER,
+		feedback TEXT,
+		submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		reviewed_at TIMESTAMP,
+		reviewed_by INTEGER REFERENCES users(id),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user_id, course_id)
+	);`
+
+	// Grades table
+	gradesTable := `
+	CREATE TABLE IF NOT EXISTS grades (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+		submission_id INTEGER,
+		grade INTEGER NOT NULL CHECK (grade >= 0 AND grade <= 100),
+		feedback TEXT,
+		graded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	// Survey feedback table
+	surveyFeedbackTable := `
+	CREATE TABLE IF NOT EXISTS survey_feedback (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+		rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+		difficulty INTEGER DEFAULT 0 CHECK (difficulty >= 0 AND difficulty <= 5),
+		clarity INTEGER DEFAULT 0 CHECK (clarity >= 0 AND clarity <= 5),
+		usefulness INTEGER DEFAULT 0 CHECK (usefulness >= 0 AND usefulness <= 5),
+		feedback TEXT,
+		post_test_score INTEGER DEFAULT 0,
+		post_test_passed BOOLEAN DEFAULT FALSE,
+		submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user_id, course_id)
+	);`
+
+	tables := []string{usersTable, coursesTable, enrollmentsTable, progressTable, announcementsTable, certificatesTable, quizzesTable, quizAttemptsTable, postworkSubmissionsTable, finalProjectSubmissionsTable, gradesTable, surveyFeedbackTable}
 
 	for _, table := range tables {
 		_, err := db.Exec(table)

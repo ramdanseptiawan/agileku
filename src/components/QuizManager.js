@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  getQuizQuestions,
-  saveQuizQuestions,
-  addQuizQuestion,
-  updateQuizQuestion,
-  deleteQuizQuestion
-} from '../utils/quizData';
+import { adminAPI } from '../services/api';
 
 const QuizManager = () => {
-  const { courses, updateCourse } = useAuth();
+  const { courses, user } = useAuth();
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [quizType, setQuizType] = useState('pretest'); // pretest or posttest
   const [editingQuiz, setEditingQuiz] = useState(null);
@@ -18,21 +12,51 @@ const QuizManager = () => {
   
   // Load questions when course or quiz type changes
   useEffect(() => {
-    if (selectedCourse) {
-      const course = courses.find(c => c.id === selectedCourse);
-      if (course) {
-        if (quizType === 'pretest' && course.preTest) {
-          setQuestions(course.preTest.questions || []);
-        } else if (quizType === 'posttest' && course.postTest) {
-          setQuestions(course.postTest.questions || []);
-        } else {
-          setQuestions([]);
+    const loadExistingQuiz = async () => {
+      // Get user from context or localStorage as fallback
+      let currentUser = user;
+      if (!currentUser) {
+        try {
+          const storedUser = localStorage.getItem('currentUser');
+          if (storedUser) {
+            currentUser = JSON.parse(storedUser);
+          }
+        } catch (error) {
+          console.error('Error parsing stored user:', error);
         }
       }
-    } else {
-      setQuestions([]);
-    }
-  }, [selectedCourse, quizType, courses]);
+      
+      if (selectedCourse && quizType && currentUser && currentUser.role === 'admin') {
+        try {
+          let existingQuiz = null;
+          if (quizType === 'pretest') {
+            existingQuiz = await adminAPI.getCoursePreTestAdmin(selectedCourse);
+          } else {
+            existingQuiz = await adminAPI.getCoursePostTestAdmin(selectedCourse);
+          }
+          
+          if (existingQuiz && existingQuiz.success && existingQuiz.data && existingQuiz.data.questions) {
+            // Parse questions from JSON string
+            const parsedQuestions = typeof existingQuiz.data.questions === 'string' 
+              ? JSON.parse(existingQuiz.data.questions) 
+              : existingQuiz.data.questions;
+            setQuestions(parsedQuestions);
+          } else {
+            // No quiz found or quiz has no questions
+            setQuestions([]);
+          }
+        } catch (error) {
+          console.error('Error loading quiz:', error);
+          setQuestions([]);
+        }
+      } else if (selectedCourse && quizType) {
+        // User is not admin, clear questions
+        setQuestions([]);
+      }
+    };
+    
+    loadExistingQuiz();
+  }, [selectedCourse, quizType, user]);
 
   const handleCourseChange = (e) => {
     setSelectedCourse(Number(e.target.value));
@@ -75,28 +99,83 @@ const QuizManager = () => {
 
   // handleOptionChange function removed - now handled inline in the component
 
-  const handleSaveQuiz = () => {
-    if (!selectedCourse) return;
-    
-    const courseToUpdate = courses.find(c => c.id === selectedCourse);
-    if (!courseToUpdate) return;
-    
-    const updatedCourse = { ...courseToUpdate };
-    
-    if (quizType === 'pretest') {
-      updatedCourse.preTest = {
-        ...updatedCourse.preTest,
-        questions: questions
-      };
-    } else if (quizType === 'posttest') {
-      updatedCourse.postTest = {
-        ...updatedCourse.postTest,
-        questions: questions
-      };
+  const handleSaveQuiz = async () => {
+    if (!selectedCourse || questions.length === 0) {
+      alert('Please select a course and add at least one question.');
+      return;
     }
-    
-    updateCourse(selectedCourse, updatedCourse);
-    alert(`${quizType === 'pretest' ? 'Pre-test' : 'Post-test'} berhasil disimpan!`);
+
+    // Get user from context or localStorage as fallback
+    let currentUser = user;
+    if (!currentUser) {
+      try {
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+          currentUser = JSON.parse(storedUser);
+        }
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+      }
+    }
+
+    if (!currentUser || currentUser.role !== 'admin') {
+      alert('Only administrators can save quizzes.');
+      return;
+    }
+
+    const course = courses.find(c => c.id === selectedCourse);
+    if (!course) {
+      alert('Course not found.');
+      return;
+    }
+
+    const quizData = {
+      title: `${course.title} ${quizType === 'pretest' ? 'Pre-Test' : 'Post-Test'}`,
+      description: `${quizType === 'pretest' ? 'Pre-test' : 'Post-test'} for ${course.title}`,
+      courseId: selectedCourse,
+      quizType: quizType,
+      questions: JSON.stringify(questions),
+      timeLimit: 30, // Default 30 minutes
+      maxAttempts: 3, // Default 3 attempts
+      passingScore: 70, // Default 70%
+      isActive: true
+    };
+
+    try {
+      // Check if quiz already exists for this course and type
+       let existingQuiz = null;
+       try {
+         if (quizType === 'pretest') {
+           existingQuiz = await adminAPI.getCoursePreTestAdmin(selectedCourse);
+         } else {
+           existingQuiz = await adminAPI.getCoursePostTestAdmin(selectedCourse);
+         }
+       } catch (error) {
+         // Quiz doesn't exist, we'll create a new one
+         console.log('No existing quiz found, creating new one');
+       }
+
+       // Handle backend response format
+        let quizId = null;
+        if (existingQuiz && existingQuiz.success && existingQuiz.data && existingQuiz.data.id) {
+          quizId = existingQuiz.data.id;
+        }
+
+        if (quizId) {
+          // Update existing quiz
+          await adminAPI.updateQuiz(quizId, quizData);
+          alert('Quiz updated successfully!');
+        } else {
+          // Create new quiz
+          await adminAPI.createQuiz(quizData);
+          alert('Quiz created successfully!');
+        }
+      
+      setQuestions([]);
+    } catch (error) {
+      console.error('Error saving quiz:', error);
+      alert('Failed to save quiz. Please try again.');
+    }
   };
 
   const moveQuestion = (questionId, direction) => {
@@ -112,6 +191,38 @@ const QuizManager = () => {
     
     setQuestions(newQuestions);
   };
+
+  // Get current user for UI display
+  let currentUser = user;
+  if (!currentUser) {
+    try {
+      const storedUser = localStorage.getItem('currentUser');
+      if (storedUser) {
+        currentUser = JSON.parse(storedUser);
+      }
+    } catch (error) {
+      console.error('Error parsing stored user:', error);
+    }
+  }
+
+  // Show access denied message if user is not admin
+  if (!currentUser || currentUser.role !== 'admin') {
+    return (
+      <div className="space-y-6 text-gray-900">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <h2 className="text-xl font-bold text-red-800 mb-2">Access Denied</h2>
+          <p className="text-red-600">
+            {!currentUser 
+              ? 'Please login to access Quiz Manager.' 
+              : 'Only administrators can access Quiz Manager.'}
+          </p>
+          <p className="text-sm text-red-500 mt-2">
+            Current user role: {currentUser?.role || 'Not logged in'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 text-gray-900">

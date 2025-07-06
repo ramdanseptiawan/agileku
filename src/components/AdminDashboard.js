@@ -21,29 +21,55 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalCourses: 0,
+    totalLessons: 0,
+    totalStudents: 0,
+    completionRate: 0,
+    activeStudents: 0,
+    totalEnrollments: 0
+  });
 
-  // Load courses on component mount
+  // Load courses and dashboard stats on component mount
   useEffect(() => {
-    const loadCourses = async () => {
+    const loadData = async () => {
       try {
-        const response = await courseAPI.getAllCourses();
-        // Ensure courses is always an array
-        if (Array.isArray(response)) {
-          setCourses(response);
-        } else if (response && Array.isArray(response.courses)) {
-          setCourses(response.courses);
+        // Load courses
+        const coursesResponse = await courseAPI.getAllCourses();
+        console.log('Courses API Response:', coursesResponse); // Debug log
+        
+        // Handle backend response format: {success: true, data: courses}
+        if (coursesResponse && coursesResponse.success && Array.isArray(coursesResponse.data)) {
+          setCourses(coursesResponse.data);
+        } else if (Array.isArray(coursesResponse)) {
+          // Fallback for direct array response
+          setCourses(coursesResponse);
+        } else if (coursesResponse && Array.isArray(coursesResponse.courses)) {
+          // Fallback for {courses: []} format
+          setCourses(coursesResponse.courses);
         } else {
+          console.warn('Unexpected courses response format:', coursesResponse);
           setCourses([]);
         }
+
+        // Load dashboard statistics
+        const statsResponse = await adminAPI.getDashboardStats();
+        console.log('Dashboard Stats API Response:', statsResponse); // Debug log
+        
+        if (statsResponse && statsResponse.success && statsResponse.stats) {
+          setDashboardStats(statsResponse.stats);
+        } else {
+          console.warn('Unexpected stats response format:', statsResponse);
+        }
       } catch (error) {
-        console.error('Error loading courses:', error);
+        console.error('Error loading data:', error);
         setCourses([]); // Ensure courses is set to empty array on error
       } finally {
         setLoading(false);
       }
     };
     
-    loadCourses();
+    loadData();
   }, []);
 
   const handleCreateCourse = () => {
@@ -157,7 +183,7 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Courses</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalCourses}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalCourses}</p>
             </div>
           </div>
         </div>
@@ -169,7 +195,7 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Lessons</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalLessons}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalLessons}</p>
             </div>
           </div>
         </div>
@@ -181,7 +207,7 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Students</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalStudents}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalStudents}</p>
             </div>
           </div>
         </div>
@@ -193,7 +219,7 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Completion Rate</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.completionRate}%</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardStats.completionRate}%</p>
             </div>
           </div>
         </div>

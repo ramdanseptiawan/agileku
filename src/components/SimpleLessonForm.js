@@ -333,7 +333,7 @@ const SimpleLessonForm = ({ lesson, onSave, onCancel }) => {
 
             <div className="space-y-4">
               {formData.content.map((item, index) => (
-                <div key={item.id}>
+                <div key={item.id || `content-${index}`}>
                   {renderContentForm(item, index)}
                 </div>
               ))}

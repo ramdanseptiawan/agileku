@@ -1,26 +1,34 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, Calendar, User, X, AlertCircle, Info, CheckCircle, Megaphone, Clock, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 
 const AnnouncementList = ({ isModal = false, onClose }) => {
   const [announcements, setAnnouncements] = useState([]);
   const [readAnnouncements, setReadAnnouncements] = useState(new Set());
   const { currentUser } = useAuth();
 
-  const loadAnnouncements = useCallback(() => {
-    const saved = localStorage.getItem('announcements');
-    if (saved) {
-      const allAnnouncements = JSON.parse(saved);
-      // Filter announcements based on target audience
-      const filteredAnnouncements = allAnnouncements.filter(announcement => {
-        if (announcement.targetAudience === 'all') return true;
-        if (announcement.targetAudience === 'students' && currentUser?.role === 'user') return true;
-        if (announcement.targetAudience === 'instructors' && currentUser?.role === 'admin') return true;
-        return false;
-      });
-      setAnnouncements(filteredAnnouncements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+  const loadAnnouncements = useCallback(async () => {
+    try {
+      const response = await api.announcement.getUserAnnouncements();
+      if (response.success) {
+        const announcementsData = response.data || [];
+        // Sort by creation date (newest first)
+        const sortedAnnouncements = announcementsData.sort((a, b) => {
+          const dateA = new Date(a.created_at || a.createdAt);
+          const dateB = new Date(b.created_at || b.createdAt);
+          return dateB - dateA;
+        });
+        setAnnouncements(sortedAnnouncements);
+      } else {
+        console.error('Failed to load announcements:', response.message);
+        setAnnouncements([]);
+      }
+    } catch (error) {
+      console.error('Error loading announcements:', error);
+      setAnnouncements([]);
     }
-  }, [currentUser?.role]);
+  }, []);
 
   const loadReadStatus = useCallback(() => {
     const userId = currentUser?.id || 'guest';
@@ -88,6 +96,7 @@ const AnnouncementList = ({ isModal = false, onClose }) => {
     switch (audience) {
       case 'students': return 'Siswa';
       case 'instructors': return 'Instruktur';
+      case 'all': return 'Semua';
       default: return 'Semua';
     }
   };
@@ -272,7 +281,7 @@ const AnnouncementContent = ({
                     {getPriorityText(announcement.priority)}
                   </span>
                   <span className="px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                    {getAudienceText(announcement.targetAudience)}
+                    {getAudienceText(announcement.target_audience || announcement.targetAudience)}
                   </span>
                 </div>
               </div>
@@ -289,16 +298,16 @@ const AnnouncementContent = ({
                 <div className="flex items-center gap-6 text-sm text-gray-500">
                   <div className="flex items-center gap-2">
                     <User size={16} className="text-blue-500" />
-                    <span className="font-medium">{announcement.author}</span>
+                    <span className="font-medium">{announcement.author || 'Admin'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock size={16} className="text-green-500" />
-                    <span>{formatDate(announcement.createdAt)}</span>
+                    <span>{formatDate(announcement.created_at || announcement.createdAt)}</span>
                   </div>
                 </div>
-                {announcement.updatedAt !== announcement.createdAt && (
+                {(announcement.updated_at || announcement.updatedAt) !== (announcement.created_at || announcement.createdAt) && (
                   <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
-                    Diperbarui: {formatDate(announcement.updatedAt)}
+                    Diperbarui: {formatDate(announcement.updated_at || announcement.updatedAt)}
                   </span>
                 )}
               </div>

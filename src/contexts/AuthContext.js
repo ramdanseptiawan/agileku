@@ -1,6 +1,6 @@
 'use client';
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI, courseAPI, apiUtils } from '../services/api';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authAPI, courseAPI, apiUtils, getUserEnrollments, getCourseProgress } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -70,21 +70,15 @@ export const AuthProvider = ({ children }) => {
             setCurrentUser(userData);
             localStorage.setItem('currentUser', JSON.stringify(userData));
             
-            // Load user enrollments
-            const userEnrollments = await courseAPI.getUserEnrollments();
+            // Load user enrollments using the updated API
+            const userEnrollments = await getUserEnrollments();
             
-            // Ensure enrollments is always an array and add course_id field
+            // Process the response from the updated backend
             let enrollmentsData = [];
-            if (userEnrollments && userEnrollments.success && Array.isArray(userEnrollments.data)) {
-              enrollmentsData = userEnrollments.data.map(enrollment => ({
-                ...enrollment,
-                course_id: enrollment.id // Map course id to course_id for consistency
-              }));
-            } else if (Array.isArray(userEnrollments)) {
-              enrollmentsData = userEnrollments.map(enrollment => ({
-                ...enrollment,
-                course_id: enrollment.id
-              }));
+            if (userEnrollments && userEnrollments.data && Array.isArray(userEnrollments.data)) {
+              enrollmentsData = userEnrollments.data;
+            } else if (userEnrollments && Array.isArray(userEnrollments)) {
+              enrollmentsData = userEnrollments;
             }
             setEnrollments(enrollmentsData);
           } catch (error) {
@@ -119,22 +113,16 @@ export const AuthProvider = ({ children }) => {
         setCurrentUser(response.data.user);
         localStorage.setItem('currentUser', JSON.stringify(response.data.user));
         
-        // Load user enrollments after login
+        // Load user enrollments after login using the updated API
         try {
-          const userEnrollments = await courseAPI.getUserEnrollments();
+          const userEnrollments = await getUserEnrollments();
           
-          // Ensure enrollments is always an array and add course_id field
+          // Process the response from the updated backend
           let enrollmentsData = [];
-          if (userEnrollments && userEnrollments.success && Array.isArray(userEnrollments.data)) {
-            enrollmentsData = userEnrollments.data.map(enrollment => ({
-              ...enrollment,
-              course_id: enrollment.id // Map course id to course_id for consistency
-            }));
-          } else if (Array.isArray(userEnrollments)) {
-            enrollmentsData = userEnrollments.map(enrollment => ({
-              ...enrollment,
-              course_id: enrollment.id
-            }));
+          if (userEnrollments && userEnrollments.data && Array.isArray(userEnrollments.data)) {
+            enrollmentsData = userEnrollments.data;
+          } else if (userEnrollments && Array.isArray(userEnrollments)) {
+            enrollmentsData = userEnrollments;
           }
           setEnrollments(enrollmentsData);
         } catch (error) {
@@ -192,21 +180,15 @@ export const AuthProvider = ({ children }) => {
     try {
       const result = await courseAPI.enrollInCourse(courseId);
       
-      // Refresh enrollments after successful enrollment
-      const userEnrollments = await courseAPI.getUserEnrollments();
+      // Refresh enrollments after successful enrollment using the updated API
+      const userEnrollments = await getUserEnrollments();
       
-      // Ensure enrollments is always an array and add course_id field
+      // Process the response from the updated backend
       let enrollmentsData = [];
-      if (userEnrollments && userEnrollments.success && Array.isArray(userEnrollments.data)) {
-        enrollmentsData = userEnrollments.data.map(enrollment => ({
-          ...enrollment,
-          course_id: enrollment.id // Map course id to course_id for consistency
-        }));
-      } else if (Array.isArray(userEnrollments)) {
-        enrollmentsData = userEnrollments.map(enrollment => ({
-          ...enrollment,
-          course_id: enrollment.id
-        }));
+      if (userEnrollments && userEnrollments.data && Array.isArray(userEnrollments.data)) {
+        enrollmentsData = userEnrollments.data;
+      } else if (userEnrollments && Array.isArray(userEnrollments)) {
+        enrollmentsData = userEnrollments;
       }
       setEnrollments(enrollmentsData);
       
@@ -216,21 +198,15 @@ export const AuthProvider = ({ children }) => {
       
       // Handle "Already enrolled" error gracefully
       if (error.message && error.message.includes('Already enrolled')) {
-        // Refresh enrollments to sync state
-        const userEnrollments = await courseAPI.getUserEnrollments();
+        // Refresh enrollments to sync state using the updated API
+        const userEnrollments = await getUserEnrollments();
         
-        // Ensure enrollments is always an array and add course_id field
+        // Process the response from the updated backend
         let enrollmentsData = [];
-        if (userEnrollments && userEnrollments.success && Array.isArray(userEnrollments.data)) {
-          enrollmentsData = userEnrollments.data.map(enrollment => ({
-            ...enrollment,
-            course_id: enrollment.id // Map course id to course_id for consistency
-          }));
-        } else if (Array.isArray(userEnrollments)) {
-          enrollmentsData = userEnrollments.map(enrollment => ({
-            ...enrollment,
-            course_id: enrollment.id
-          }));
+        if (userEnrollments && userEnrollments.data && Array.isArray(userEnrollments.data)) {
+          enrollmentsData = userEnrollments.data;
+        } else if (userEnrollments && Array.isArray(userEnrollments)) {
+          enrollmentsData = userEnrollments;
         }
         setEnrollments(enrollmentsData);
         
@@ -257,22 +233,95 @@ export const AuthProvider = ({ children }) => {
 
   const isEnrolledInCourse = (courseId) => {
     if (!Array.isArray(enrollments)) return false;
-    return enrollments.some(enrollment => enrollment.course_id === parseInt(courseId));
+    return enrollments.some(enrollment => 
+      enrollment.id === parseInt(courseId) || enrollment.course_id === parseInt(courseId)
+    );
   };
 
-  const getUserProgress = (courseId) => {
+  const getUserProgress = async (courseId) => {
     if (!Array.isArray(enrollments)) return 0;
-    const enrollment = enrollments.find(e => e.course_id === parseInt(courseId));
-    return enrollment ? enrollment.progress : 0;
+    
+    // First check if user is enrolled
+    const enrollment = enrollments.find(e => 
+      e.id === parseInt(courseId) || e.course_id === parseInt(courseId)
+    );
+    
+    if (!enrollment) return 0;
+    
+    // Try to get real-time progress from backend
+    try {
+      const progressData = await getCourseProgress(courseId);
+      if (progressData && progressData.data) {
+        return progressData.data.overallProgress || 0;
+      }
+    } catch (error) {
+      console.warn('Failed to get real-time progress, using cached:', error);
+    }
+    
+    // Fallback to cached progress from enrollment
+    return enrollment.progress || 0;
   };
+  
+  // Synchronous version for immediate UI updates
+  const getUserProgressSync = (courseId) => {
+    if (!Array.isArray(enrollments)) return 0;
+    const enrollment = enrollments.find(e => 
+      e.id === parseInt(courseId) || e.course_id === parseInt(courseId)
+    );
+    return enrollment ? (enrollment.progress || 0) : 0;
+  };
+  
+  // Refresh user enrollments and progress
+  const refreshUserProgress = useCallback(async () => {
+    if (!currentUser) return;
+    
+    try {
+      const userEnrollments = await getUserEnrollments();
+      
+      let enrollmentsData = [];
+      if (userEnrollments && userEnrollments.data && Array.isArray(userEnrollments.data)) {
+        enrollmentsData = userEnrollments.data;
+      } else if (userEnrollments && Array.isArray(userEnrollments)) {
+        enrollmentsData = userEnrollments;
+      }
+      
+      // Just set enrollments without fetching individual progress to prevent infinite loops
+      // Individual progress will be fetched on-demand when needed
+      setEnrollments(enrollmentsData);
+    } catch (error) {
+      console.error('Failed to refresh user progress:', error);
+    }
+  }, [currentUser]); // Only depend on currentUser to prevent infinite loops
 
   // Get pre-test for a course
   const getCoursePreTest = async (courseId) => {
     try {
-      const response = await courseAPI.getCoursePreTest(courseId);
-      return response.quiz || response;
+      // Use admin endpoint if user is admin
+      if (currentUser && currentUser.role === 'admin') {
+        const { adminAPI } = await import('../services/api');
+        const response = await adminAPI.getCoursePreTestAdmin(courseId);
+        return response.data || response;
+      } else {
+        // Check if user is enrolled, if not, try to enroll first
+        if (!isEnrolledInCourse(courseId)) {
+          console.log('User not enrolled in course, attempting auto-enrollment...');
+          await enrollInCourse(courseId);
+        }
+        const response = await courseAPI.getCoursePreTest(courseId);
+        return response.quiz || response;
+      }
     } catch (error) {
       console.error('Failed to get pre-test:', error);
+      // If still failing and user is not admin, try admin endpoint as fallback
+      if (currentUser && currentUser.role !== 'admin') {
+        try {
+          const { adminAPI } = await import('../services/api');
+          const response = await adminAPI.getCoursePreTestAdmin(courseId);
+          return response.data || response;
+        } catch (adminError) {
+          console.error('Admin fallback also failed:', adminError);
+        }
+      }
       return null;
     }
   };
@@ -280,11 +329,58 @@ export const AuthProvider = ({ children }) => {
   // Get post-test for a course
   const getCoursePostTest = async (courseId) => {
     try {
-      const response = await courseAPI.getCoursePostTest(courseId);
-      return response.quiz || response;
+      // Use admin endpoint if user is admin
+      if (currentUser && currentUser.role === 'admin') {
+        const { adminAPI } = await import('../services/api');
+        const response = await adminAPI.getCoursePostTestAdmin(courseId);
+        return response.data || response;
+      } else {
+        // Check if user is enrolled, if not, try to enroll first
+        if (!isEnrolledInCourse(courseId)) {
+          console.log('User not enrolled in course, attempting auto-enrollment...');
+          await enrollInCourse(courseId);
+        }
+        const response = await courseAPI.getCoursePostTest(courseId);
+        return response.quiz || response;
+      }
     } catch (error) {
       console.error('Failed to get post-test:', error);
+      // If still failing and user is not admin, try admin endpoint as fallback
+      if (currentUser && currentUser.role !== 'admin') {
+        try {
+          const { adminAPI } = await import('../services/api');
+          const response = await adminAPI.getCoursePostTestAdmin(courseId);
+          return response.data || response;
+        } catch (adminError) {
+          console.error('Admin fallback also failed:', adminError);
+        }
+      }
       return null;
+    }
+  };
+
+  // Update course function for admin operations
+  const updateCourse = async (courseId, updatedCourse) => {
+    try {
+      // Update local state immediately for better UX
+      setCourses(prevCourses => 
+        prevCourses.map(course => 
+          course.id === courseId ? { ...course, ...updatedCourse } : course
+        )
+      );
+      
+      // If user is admin, try to update via API
+      if (currentUser && currentUser.role === 'admin') {
+        const { adminAPI } = await import('../services/api');
+        await adminAPI.updateCourse(courseId, updatedCourse);
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to update course:', error);
+      // Revert local state on error
+      await refreshCourses();
+      return { success: false, error: error.message };
     }
   };
 
@@ -301,8 +397,11 @@ export const AuthProvider = ({ children }) => {
     searchCourses,
     isEnrolledInCourse,
     getUserProgress,
+    getUserProgressSync,
+    refreshUserProgress,
     getCoursePreTest,
-    getCoursePostTest
+    getCoursePostTest,
+    updateCourse
   };
 
   return (

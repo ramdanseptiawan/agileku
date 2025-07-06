@@ -22,6 +22,11 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	submissionHandler := handlers.NewSubmissionHandler(db)
 	certificateHandler := handlers.NewCertificateHandler(db)
 	adminHandler := handlers.NewAdminHandler(db)
+	announcementHandler := handlers.NewAnnouncementHandler(db)
+	surveyHandler := handlers.NewSurveyHandler(db)
+
+	// Set database for enhanced handlers
+	handlers.SetEnhancedHandlerDB(db)
 
 	// Apply JSON middleware to all routes
 	router.Use(middleware.JSONMiddleware)
@@ -63,8 +68,9 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	protected.HandleFunc("/courses/{courseId:[0-9]+}/lessons/{lessonId:[0-9]+}/progress", progressHandler.GetLessonProgressHandler).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/courses/{courseId:[0-9]+}/progress", progressHandler.GetCourseProgressHandler).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/progress", progressHandler.GetUserProgressListHandler).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/progress/sync", progressHandler.SyncProgressHandler).Methods("POST", "OPTIONS")
 
-	// Quiz routes
+	// Quiz routes (legacy)
 	protected.HandleFunc("/quizzes/{id:[0-9]+}", quizHandler.GetQuizHandler).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/courses/{courseId:[0-9]+}/quizzes", quizHandler.GetQuizzesByCourseHandler).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/quizzes/{quizId:[0-9]+}/attempts", quizHandler.GetQuizAttemptsHandler).Methods("GET", "OPTIONS")
@@ -72,6 +78,13 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	protected.HandleFunc("/quizzes/submit", quizHandler.SubmitQuizHandler).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/courses/{courseId:[0-9]+}/pretest", quizHandler.GetPreTestHandler).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/courses/{courseId:[0-9]+}/posttest", quizHandler.GetPostTestHandler).Methods("GET", "OPTIONS")
+
+	// Enhanced Quiz routes (new improved system)
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/quiz/{type}", handlers.GetQuizEnhancedHandler).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/quiz/{type}/start", handlers.StartQuizAttemptEnhancedHandler).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/quiz/attempts/{attemptId:[0-9]+}/submit", handlers.SubmitQuizEnhancedHandler).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/quiz/{type}/attempts", handlers.GetQuizAttemptsEnhancedHandler).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/quiz/attempts/{attemptId:[0-9]+}/result", handlers.GetQuizResultEnhancedHandler).Methods("GET", "OPTIONS")
 
 	// Submission routes
 	protected.HandleFunc("/submissions/postwork", submissionHandler.CreatePostWorkSubmissionHandler).Methods("POST", "OPTIONS")
@@ -87,6 +100,13 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	protected.HandleFunc("/courses/{courseId:[0-9]+}/certificate", certificateHandler.GenerateCertificate).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/user/certificates", certificateHandler.GetUserCertificates).Methods("GET", "OPTIONS")
 
+	// Announcement routes for users
+	protected.HandleFunc("/announcements", announcementHandler.GetUserAnnouncements).Methods("GET", "OPTIONS")
+
+	// Survey feedback routes
+	protected.HandleFunc("/surveys/feedback", surveyHandler.SubmitSurveyFeedbackHandler).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/surveys/feedback/{courseId:[0-9]+}", surveyHandler.GetSurveyFeedbackHandler).Methods("GET", "OPTIONS")
+
 	// Admin routes (admin role required)
 	admin := protected.PathPrefix("/admin").Subrouter()
 	admin.Use(middleware.AdminMiddleware)
@@ -96,6 +116,10 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	admin.HandleFunc("/quizzes", quizHandler.CreateQuizHandler).Methods("POST", "OPTIONS")
 	admin.HandleFunc("/quizzes/{id:[0-9]+}", quizHandler.UpdateQuizHandler).Methods("PUT", "OPTIONS")
 	admin.HandleFunc("/quizzes/{id:[0-9]+}", quizHandler.DeleteQuizHandler).Methods("DELETE", "OPTIONS")
+
+	// Admin quiz access routes (no enrollment check)
+	admin.HandleFunc("/courses/{courseId:[0-9]+}/pretest", adminHandler.GetCoursePreTestAdmin).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/courses/{courseId:[0-9]+}/posttest", adminHandler.GetCoursePostTestAdmin).Methods("GET", "OPTIONS")
 
 	// Admin course management routes
 	admin.HandleFunc("/courses", adminHandler.CreateCourse).Methods("POST", "OPTIONS")
@@ -117,6 +141,19 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	admin.HandleFunc("/users", adminHandler.CreateUser).Methods("POST", "OPTIONS")
 	admin.HandleFunc("/users/{id:[0-9]+}", adminHandler.UpdateUser).Methods("PUT", "OPTIONS")
 	admin.HandleFunc("/users/{id:[0-9]+}", adminHandler.DeleteUser).Methods("DELETE", "OPTIONS")
+
+	// Admin announcement management routes
+	admin.HandleFunc("/announcements", adminHandler.CreateAnnouncement).Methods("POST", "OPTIONS")
+	admin.HandleFunc("/announcements", adminHandler.GetAllAnnouncements).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/announcements/{id:[0-9]+}", adminHandler.GetAnnouncementByID).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/announcements/{id:[0-9]+}", adminHandler.UpdateAnnouncement).Methods("PUT", "OPTIONS")
+	admin.HandleFunc("/announcements/{id:[0-9]+}", adminHandler.DeleteAnnouncement).Methods("DELETE", "OPTIONS")
+
+	// Admin dashboard statistics route
+	admin.HandleFunc("/dashboard/stats", adminHandler.GetDashboardStats).Methods("GET", "OPTIONS")
+
+	// Admin survey feedback routes
+	admin.HandleFunc("/surveys/feedback/{courseId:[0-9]+}", surveyHandler.GetAllSurveyFeedbackHandler).Methods("GET", "OPTIONS")
 
 	// Health check endpoint
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

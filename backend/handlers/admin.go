@@ -199,6 +199,68 @@ func (h *AdminHandler) GetGrades(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetCoursePreTestAdmin gets the pre-test for a course (admin only, no enrollment check)
+func (h *AdminHandler) GetCoursePreTestAdmin(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	courseID, err := strconv.Atoi(vars["courseId"])
+	if err != nil {
+		http.Error(w, "Invalid course ID", http.StatusBadRequest)
+		return
+	}
+
+	preTest, err := models.GetQuizByTypeAndCourse(h.db, courseID, "pretest")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"data":    nil,
+				"message": "No pre-test found for this course",
+			})
+			return
+		}
+		http.Error(w, "Failed to get pre-test", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    preTest,
+	})
+}
+
+// GetCoursePostTestAdmin gets the post-test for a course (admin only, no enrollment check)
+func (h *AdminHandler) GetCoursePostTestAdmin(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	courseID, err := strconv.Atoi(vars["courseId"])
+	if err != nil {
+		http.Error(w, "Invalid course ID", http.StatusBadRequest)
+		return
+	}
+
+	postTest, err := models.GetQuizByTypeAndCourse(h.db, courseID, "posttest")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"data":    nil,
+				"message": "No post-test found for this course",
+			})
+			return
+		}
+		http.Error(w, "Failed to get post-test", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    postTest,
+	})
+}
+
 // GetCourseSubmissions gets all submissions for a course (admin only)
 func (h *AdminHandler) GetCourseSubmissions(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -276,36 +338,27 @@ func (h *AdminHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 // CreateUser creates a new user (admin only)
 func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[CREATE USER] Starting user creation process")
-	
 	var req UserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("[CREATE USER ERROR] Failed to decode request body: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("[CREATE USER] Request data - Username: %s, Email: %s, FullName: %s, Role: %s", req.Username, req.Email, req.FullName, req.Role)
-
 	// Validate required fields
 	if req.Username == "" || req.Email == "" || req.Password == "" {
-		log.Printf("[CREATE USER ERROR] Missing required fields - Username: %s, Email: %s, Password: %s", req.Username, req.Email, req.Password)
 		http.Error(w, "Username, email, and password are required", http.StatusBadRequest)
 		return
 	}
 
 	// Validate role if provided
 	if req.Role != "" && req.Role != "user" && req.Role != "admin" {
-		log.Printf("[CREATE USER ERROR] Invalid role provided: %s", req.Role)
 		http.Error(w, "Role must be either 'user' or 'admin'", http.StatusBadRequest)
 		return
 	}
 
 	// Hash password
-	log.Printf("[CREATE USER] Hashing password...")
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("[CREATE USER ERROR] Failed to hash password: %v", err)
 		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
 		return
 	}
@@ -313,7 +366,6 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Set default role if not provided
 	if req.Role == "" {
 		req.Role = "user"
-		log.Printf("[CREATE USER] Set default role to: %s", req.Role)
 	}
 
 	query := `
@@ -322,11 +374,9 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		RETURNING id, created_at, updated_at
 	`
 
-	log.Printf("[CREATE USER] Executing database query with role: %s", req.Role)
 	var user UserResponse
 	err = h.db.QueryRow(query, req.Username, req.FullName, req.Email, string(hashedPassword), req.Role).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
-		log.Printf("[CREATE USER ERROR] Database error: %v", err)
 		if strings.Contains(err.Error(), "duplicate key") {
 			http.Error(w, "Username or email already exists", http.StatusConflict)
 			return
@@ -343,8 +393,6 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	user.FullName = req.FullName
 	user.Email = req.Email
 	user.Role = req.Role
-
-	log.Printf("[CREATE USER SUCCESS] User created with ID: %d", user.ID)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -475,5 +523,259 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "User deleted successfully",
+	})
+}
+
+// Announcement Management
+
+// CreateAnnouncement creates a new announcement (admin only)
+func (h *AdminHandler) CreateAnnouncement(w http.ResponseWriter, r *http.Request) {
+	var req models.CreateAnnouncementRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if req.Title == "" || req.Content == "" {
+		http.Error(w, "Title and content are required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate priority
+	if req.Priority != "normal" && req.Priority != "medium" && req.Priority != "high" {
+		req.Priority = "normal" // default
+	}
+
+	// Validate target audience
+	if req.TargetAudience != "all" && req.TargetAudience != "students" && req.TargetAudience != "instructors" {
+		req.TargetAudience = "all" // default
+	}
+
+	// Get author from context (admin user)
+	userID := r.Context().Value("userID").(int)
+	var author string
+	err := h.db.QueryRow("SELECT full_name FROM users WHERE id = $1", userID).Scan(&author)
+	if err != nil {
+		author = "Admin" // fallback
+	}
+
+	announcement, err := models.CreateAnnouncement(h.db, req, author)
+	if err != nil {
+		log.Printf("Error creating announcement: %v", err)
+		http.Error(w, "Failed to create announcement", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":      true,
+		"message":      "Announcement created successfully",
+		"announcement": announcement,
+	})
+}
+
+// GetAllAnnouncements gets all announcements (admin only)
+func (h *AdminHandler) GetAllAnnouncements(w http.ResponseWriter, r *http.Request) {
+	announcements, err := models.GetAllAnnouncements(h.db)
+	if err != nil {
+		log.Printf("Error getting announcements: %v", err)
+		http.Error(w, "Failed to get announcements", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":       true,
+		"announcements": announcements,
+	})
+}
+
+// GetAnnouncementByID gets a specific announcement (admin only)
+func (h *AdminHandler) GetAnnouncementByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	announcementID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid announcement ID", http.StatusBadRequest)
+		return
+	}
+
+	announcement, err := models.GetAnnouncementByID(h.db, announcementID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Announcement not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Error getting announcement: %v", err)
+		http.Error(w, "Failed to get announcement", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":      true,
+		"announcement": announcement,
+	})
+}
+
+// UpdateAnnouncement updates an existing announcement (admin only)
+func (h *AdminHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	announcementID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid announcement ID", http.StatusBadRequest)
+		return
+	}
+
+	var req models.UpdateAnnouncementRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate required fields
+	if req.Title == "" || req.Content == "" {
+		http.Error(w, "Title and content are required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate priority
+	if req.Priority != "normal" && req.Priority != "medium" && req.Priority != "high" {
+		req.Priority = "normal" // default
+	}
+
+	// Validate target audience
+	if req.TargetAudience != "all" && req.TargetAudience != "students" && req.TargetAudience != "instructors" {
+		req.TargetAudience = "all" // default
+	}
+
+	announcement, err := models.UpdateAnnouncement(h.db, announcementID, req)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Announcement not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Error updating announcement: %v", err)
+		http.Error(w, "Failed to update announcement", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":      true,
+		"message":      "Announcement updated successfully",
+		"announcement": announcement,
+	})
+}
+
+// DeleteAnnouncement deletes an announcement (admin only)
+func (h *AdminHandler) DeleteAnnouncement(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	announcementID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid announcement ID", http.StatusBadRequest)
+		return
+	}
+
+	err = models.DeleteAnnouncement(h.db, announcementID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Announcement not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Error deleting announcement: %v", err)
+		http.Error(w, "Failed to delete announcement", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Announcement deleted successfully",
+	})
+}
+
+// Dashboard Statistics
+
+type DashboardStats struct {
+	TotalCourses     int     `json:"totalCourses"`
+	TotalLessons     int     `json:"totalLessons"`
+	TotalStudents    int     `json:"totalStudents"`
+	CompletionRate   float64 `json:"completionRate"`
+	ActiveStudents   int     `json:"activeStudents"`
+	TotalEnrollments int     `json:"totalEnrollments"`
+}
+
+// GetDashboardStats gets dashboard statistics (admin only)
+func (h *AdminHandler) GetDashboardStats(w http.ResponseWriter, r *http.Request) {
+	var stats DashboardStats
+
+	// Get total courses
+	err := h.db.QueryRow("SELECT COUNT(*) FROM courses").Scan(&stats.TotalCourses)
+	if err != nil {
+		log.Printf("Error getting total courses: %v", err)
+		stats.TotalCourses = 0
+	}
+
+	// Get total lessons (sum of lessons from all courses)
+	err = h.db.QueryRow(`
+		SELECT COALESCE(SUM(CASE 
+			WHEN lessons IS NOT NULL AND lessons != 'null' AND lessons != '[]' 
+			THEN json_array_length(lessons::json) 
+			ELSE 0 
+		END), 0) 
+		FROM courses
+	`).Scan(&stats.TotalLessons)
+	if err != nil {
+		log.Printf("Error getting total lessons: %v", err)
+		stats.TotalLessons = 0
+	}
+
+	// Get total unique students (users with role 'user')
+	err = h.db.QueryRow("SELECT COUNT(*) FROM users WHERE role = 'user'").Scan(&stats.TotalStudents)
+	if err != nil {
+		log.Printf("Error getting total students: %v", err)
+		stats.TotalStudents = 0
+	}
+
+	// Get total enrollments
+	err = h.db.QueryRow("SELECT COUNT(*) FROM course_enrollments").Scan(&stats.TotalEnrollments)
+	if err != nil {
+		log.Printf("Error getting total enrollments: %v", err)
+		stats.TotalEnrollments = 0
+	}
+
+	// Get active students (students with at least one enrollment)
+	err = h.db.QueryRow(`
+		SELECT COUNT(DISTINCT user_id) 
+		FROM course_enrollments
+	`).Scan(&stats.ActiveStudents)
+	if err != nil {
+		log.Printf("Error getting active students: %v", err)
+		stats.ActiveStudents = 0
+	}
+
+	// Calculate completion rate (percentage of enrollments with progress >= 100%)
+	var completedEnrollments int
+	err = h.db.QueryRow(`
+		SELECT COUNT(*) 
+		FROM course_progress 
+		WHERE overall_progress >= 100
+	`).Scan(&completedEnrollments)
+	if err != nil {
+		log.Printf("Error getting completed enrollments: %v", err)
+		completedEnrollments = 0
+	}
+
+	if stats.TotalEnrollments > 0 {
+		stats.CompletionRate = float64(completedEnrollments) / float64(stats.TotalEnrollments) * 100
+	} else {
+		stats.CompletionRate = 0
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"stats":   stats,
 	})
 }

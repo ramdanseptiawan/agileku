@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 )
 
@@ -145,4 +146,43 @@ func VerifyCertificate(db *sql.DB, certNumber string) (*CertificateVerification,
 		IssuedAt:       cert.IssuedAt,
 		IsValid:        true,
 	}, nil
+}
+
+// AutoGenerateCertificate automatically generates a certificate for course completion
+func AutoGenerateCertificate(db *sql.DB, userID, courseID int) error {
+	// Get user information
+	user, err := GetUserByID(db, userID)
+	if err != nil {
+		return err
+	}
+
+	// Get course information
+	course, err := GetCourseByID(db, courseID)
+	if err != nil {
+		return err
+	}
+
+	// Generate certificate number
+	certNumber := generateCertificateNumber(courseID, userID)
+
+	// Create certificate
+	cert := &Certificate{
+		UserID:         userID,
+		CourseID:       courseID,
+		CertNumber:     certNumber,
+		UserName:       user.FullName,
+		CourseName:     course.Title,
+		Instructor:     course.Instructor,
+		CompletionDate: time.Now(),
+		IssuedAt:       time.Now(),
+	}
+
+	return CreateCertificate(db, cert)
+}
+
+// generateCertificateNumber generates a unique certificate number
+func generateCertificateNumber(courseID, userID int) string {
+	// Simple certificate number format: CERT-YYYYMMDD-COURSEID-USERID
+	now := time.Now()
+	return fmt.Sprintf("CERT-%s-%d-%d", now.Format("20060102"), courseID, userID)
 }

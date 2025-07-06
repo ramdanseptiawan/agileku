@@ -1,36 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useCertificate } from '../hooks/useCertificate';
 import { Award, Download, Calendar, User, Trophy, Star, Target, BookOpen, Medal } from 'lucide-react';
 
 const Achievements = () => {
   const { currentUser } = useAuth();
-  const [certificates, setCertificates] = useState([]);
-  
-  // Load certificates from localStorage using the same key pattern as useCertificate hook
-  const getCertificateStorageKey = () => {
-    if (!currentUser) return null;
-    return `certificates_${currentUser.id}`;
-  };
+  const { certificates } = useCertificate();
 
-  const loadCertificates = useCallback(() => {
-    if (!currentUser) return [];
-    
-    const storageKey = `certificates_${currentUser.id}`;
-    const saved = localStorage.getItem(storageKey);
-    
-    if (saved) {
-      return JSON.parse(saved);
-    } else {
-      return [];
-    }
-  }, [currentUser]);
-
-  // Load certificates when component mounts or currentUser changes
-  useEffect(() => {
-    const loadedCertificates = loadCertificates();
-    setCertificates(loadedCertificates);
-    console.log('Achievements: Loaded certificates:', loadedCertificates);
-  }, [loadCertificates]);
+  // Certificates are automatically loaded by the hook
 
   const downloadCertificate = (certificate) => {
     // Create a simple certificate HTML for download
@@ -52,18 +29,18 @@ const Achievements = () => {
       </head>
       <body>
         <div class="certificate">
-          <div class="title">CERTIFICATE OF COMPLETION</div>
-          <div class="subtitle">This is to certify that</div>
-          <div class="name">${certificate.studentName || 'Student'}</div>
-          <div class="subtitle">has successfully completed the course</div>
-          <div class="course">${certificate.courseName || 'Course'}</div>
-          <div class="details">Grade: ${certificate.grade || 0}%</div>
-          <div class="details">Completion Date: ${certificate.completionDate ? new Date(certificate.completionDate).toLocaleDateString() : 'N/A'}</div>
-          <div class="details">Certificate Number: ${certificate.certificateNumber || 'N/A'}</div>
-          <div class="signature">
-            <p>AgileKu Learning Platform</p>
-            <p>Issued on: ${certificate.issueDate ? new Date(certificate.issueDate).toLocaleDateString() : 'N/A'}</p>
-          </div>
+             <div class="title">CERTIFICATE OF COMPLETION</div>
+             <div class="subtitle">This is to certify that</div>
+             <div class="name">${certificate.userName || 'Student'}</div>
+             <div class="subtitle">has successfully completed the course</div>
+             <div class="course">${certificate.courseName || 'Course'}</div>
+             <div class="details">Grade: ${certificate.grade || 100}%</div>
+             <div class="details">Completion Date: ${certificate.completionDate ? new Date(certificate.completionDate).toLocaleDateString() : 'N/A'}</div>
+             <div class="details">Certificate Number: ${certificate.certNumber || 'N/A'}</div>
+             <div class="signature">
+               <p>AgileKu Learning Platform</p>
+               <p>Issued on: ${certificate.issuedAt ? new Date(certificate.issuedAt).toLocaleDateString() : 'N/A'}</p>
+             </div>
         </div>
       </body>
       </html>
@@ -130,7 +107,7 @@ const Achievements = () => {
                 </div>
                 <h3 className="text-xl font-bold mb-2">{certificate.courseName || 'Course'}</h3>
                 <p className="text-blue-100 text-sm">
-                  Certificate #{certificate.certificateNumber || 'N/A'}
+                  Certificate #{certificate.certNumber || 'N/A'}
                 </p>
               </div>
 
@@ -145,12 +122,14 @@ const Achievements = () => {
                   </div>
                   <div className="flex items-center gap-3 text-gray-600">
                     <Trophy className="w-4 h-4" />
-                    <span className="text-sm">Grade: {certificate.grade || 0}%</span>
+                    <span className="text-sm">Grade: {certificate.grade || 100}%</span>
                   </div>
-                  {certificate.timeSpent && (
-                    <div className="flex items-center gap-3 text-gray-600">
-                    </div>
-                  )}
+                   {certificate.timeSpent && (
+                      <div className="flex items-center gap-3 text-gray-600">
+                        <BookOpen className="w-4 h-4" />
+                        <span className="text-sm">Time Spent: {certificate.timeSpent}</span>
+                      </div>
+                    )}
                 </div>
 
                 {/* Skills */}
@@ -199,10 +178,10 @@ const Achievements = () => {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-green-600 mb-2">
-                {certificates.length > 0 ? Math.round(
-                  certificates.reduce((sum, cert) => sum + (cert.grade || 0), 0) /
-                    certificates.length
-                ) : 0}%
+                {(() => {
+                  const totalGrade = certificates.reduce((sum, cert) => sum + (cert.grade || 100), 0);
+                  return certificates.length > 0 ? Math.round(totalGrade / certificates.length) : 0;
+                })()}%
               </div>
               <div className="text-gray-600">Average Grade</div>
             </div>

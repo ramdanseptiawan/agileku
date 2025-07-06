@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Edit, Trash2, Calendar, Send, Save, X, AlertCircle, Info, CheckCircle, Users, User, Shield } from 'lucide-react';
+import api from '../services/api';
 
 const AnnouncementManager = () => {
   const [announcements, setAnnouncements] = useState([]);
@@ -13,10 +14,18 @@ const AnnouncementManager = () => {
     targetAudience: 'all'
   });
 
-  const loadAnnouncements = useCallback(() => {
-    const saved = localStorage.getItem('announcements');
-    if (saved) {
-      setAnnouncements(JSON.parse(saved));
+  const loadAnnouncements = useCallback(async () => {
+    try {
+      const response = await api.admin.getAllAnnouncements();
+      if (response.success) {
+        setAnnouncements(response.data || []);
+      } else {
+        console.error('Failed to load announcements:', response.message);
+        setAnnouncements([]);
+      }
+    } catch (error) {
+      console.error('Error loading announcements:', error);
+      setAnnouncements([]);
     }
   }, []);
 
@@ -24,12 +33,9 @@ const AnnouncementManager = () => {
     loadAnnouncements();
   }, [loadAnnouncements]);
 
-  const saveAnnouncements = (newAnnouncements) => {
-    localStorage.setItem('announcements', JSON.stringify(newAnnouncements));
-    setAnnouncements(newAnnouncements);
-  };
 
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.title.trim() || !formData.content.trim()) {
@@ -37,26 +43,32 @@ const AnnouncementManager = () => {
       return;
     }
 
-    const newAnnouncement = {
-      id: editingId || Date.now(),
-      ...formData,
-      createdAt: editingId ? announcements.find(a => a.id === editingId)?.createdAt : new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      author: 'Admin',
-      isRead: false
+    const announcementData = {
+      title: formData.title,
+      content: formData.content,
+      priority: formData.priority,
+      target_audience: formData.targetAudience
     };
 
-    let updatedAnnouncements;
-    if (editingId) {
-      updatedAnnouncements = announcements.map(announcement => 
-        announcement.id === editingId ? newAnnouncement : announcement
-      );
-    } else {
-      updatedAnnouncements = [newAnnouncement, ...announcements];
-    }
+    try {
+      let response;
+      if (editingId) {
+        response = await api.admin.updateAnnouncement(editingId, announcementData);
+      } else {
+        response = await api.admin.createAnnouncement(announcementData);
+      }
 
-    saveAnnouncements(updatedAnnouncements);
-    resetForm();
+      if (response.success) {
+        await loadAnnouncements(); // Reload announcements
+        resetForm();
+        alert(editingId ? 'Pengumuman berhasil diperbarui!' : 'Pengumuman berhasil dibuat!');
+      } else {
+        alert('Gagal menyimpan pengumuman: ' + (response.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error saving announcement:', error);
+      alert('Terjadi kesalahan saat menyimpan pengumuman');
+    }
   };
 
   const handleEdit = (announcement) => {
@@ -64,16 +76,26 @@ const AnnouncementManager = () => {
       title: announcement.title,
       content: announcement.content,
       priority: announcement.priority,
-      targetAudience: announcement.targetAudience
+      targetAudience: announcement.target_audience || announcement.targetAudience
     });
     setEditingId(announcement.id);
     setIsCreating(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')) {
-      const updatedAnnouncements = announcements.filter(announcement => announcement.id !== id);
-      saveAnnouncements(updatedAnnouncements);
+      try {
+        const response = await api.admin.deleteAnnouncement(id);
+        if (response.success) {
+          await loadAnnouncements(); // Reload announcements
+          alert('Pengumuman berhasil dihapus!');
+        } else {
+          alert('Gagal menghapus pengumuman: ' + (response.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error deleting announcement:', error);
+        alert('Terjadi kesalahan saat menghapus pengumuman');
+      }
     }
   };
 
@@ -118,6 +140,7 @@ const AnnouncementManager = () => {
     switch (audience) {
       case 'students': return 'Siswa';
       case 'instructors': return 'Instruktur';
+      case 'all': return 'Semua';
       default: return 'Semua';
     }
   };
@@ -239,27 +262,27 @@ const AnnouncementManager = () => {
                       {getPriorityText(announcement.priority)}
                     </span>
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                      {getAudienceText(announcement.targetAudience)}
+                      {getAudienceText(announcement.target_audience || announcement.targetAudience)}
                     </span>
                   </div>
                   <p className="text-gray-600 mb-3 whitespace-pre-wrap">
                     {announcement.content}
                   </p>
                   <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <User size={14} />
-                      <span>{announcement.author}</span>
+                      <div className="flex items-center gap-1">
+                        <User size={14} />
+                        <span>{announcement.author || 'Admin'}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar size={14} />
+                        <span>{formatDate(announcement.created_at || announcement.createdAt)}</span>
+                      </div>
+                      {(announcement.updated_at || announcement.updatedAt) !== (announcement.created_at || announcement.createdAt) && (
+                        <span className="text-xs text-gray-400">
+                          (Diperbarui: {formatDate(announcement.updated_at || announcement.updatedAt)})
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar size={14} />
-                      <span>{formatDate(announcement.createdAt)}</span>
-                    </div>
-                    {announcement.updatedAt !== announcement.createdAt && (
-                      <span className="text-xs text-gray-400">
-                        (Diperbarui: {formatDate(announcement.updatedAt)})
-                      </span>
-                    )}
-                  </div>
                 </div>
                 <div className="flex gap-2 ml-4">
                   <button

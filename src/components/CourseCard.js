@@ -1,14 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, ArrowRight, CheckCircle, Users } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '../contexts/AuthContext';
 
 const CourseCard = ({ course, onStartLearning }) => {
-  const { currentUser, isEnrolledInCourse, enrollInCourse, getUserProgress } = useAuth();
+  const { 
+    currentUser, 
+    enrollInCourse, 
+    isEnrolledInCourse, 
+    getUserProgressSync,
+    refreshUserProgress 
+  } = useAuth();
   const [isEnrolling, setIsEnrolling] = useState(false);
   
   const isEnrolled = currentUser ? isEnrolledInCourse(course.id) : false;
-  const progress = currentUser ? getUserProgress(course.id) : 0;
+  const progress = currentUser ? getUserProgressSync(course.id) : 0;
+  
+  // Refresh progress when component mounts
+  useEffect(() => {
+    if (isEnrolled && currentUser) {
+      refreshUserProgress();
+    }
+  }, [isEnrolled, currentUser]); // Removed refreshUserProgress from dependencies to prevent infinite loop
   
   const handleEnrollOrStart = async () => {
     if (!currentUser) {

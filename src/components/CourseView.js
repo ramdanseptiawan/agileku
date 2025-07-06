@@ -5,9 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLearningProgress } from '../hooks/useLearningProgress';
 import { useCertificate } from '../hooks/useCertificate';
 import IntroductoryMaterial from './IntroductoryMaterial';
-import PreTest from './PreTest';
+import PreTestEnhanced from './PreTestEnhanced';
 import LessonContent from './LessonContent';
-import PostTest from './PostTest';
+import PostTestWithSurvey from './PostTestWithSurvey';
 import PostWork from './PostWork';
 import FinalProject from './FinalProject';
 import Certificate from './Certificate';
@@ -17,21 +17,16 @@ import DebugPanel from './DebugPanel';
 const CourseView = ({ 
   currentLesson, 
   onBack, 
-  onQuizSubmit, 
   preTestState,
   postTestState,
   onRetakeQuiz,
   onMarkComplete 
 }) => {
-  const { getCourseById, getCoursePreTest, getCoursePostTest } = useAuth();
-  const [surveyData, setSurveyData] = useState(null);
+  const { getCourseById, currentUser, getUserProgress, refreshUserProgress } = useAuth();
   const [showCertificate, setShowCertificate] = useState(false);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [course, setCourse] = useState(currentLesson);
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
-  const [preTest, setPreTest] = useState(null);
-  const [postTest, setPostTest] = useState(null);
-  const [isLoadingTests, setIsLoadingTests] = useState(false);
   
   // Load course data from API
   useEffect(() => {
@@ -53,37 +48,7 @@ const CourseView = ({
     loadCourse();
   }, [currentLesson?.id, getCourseById]);
   
-  // Load pre-test and post-test from API
-  useEffect(() => {
-    const loadTests = async () => {
-      const courseId = course?.id || currentLesson?.id;
-      if (courseId && !isLoadingCourse) {
-        setIsLoadingTests(true);
-        try {
-          const [preTestData, postTestData] = await Promise.all([
-            getCoursePreTest(courseId),
-            getCoursePostTest(courseId)
-          ]);
-          
-          // Debug: Log received test data
-          if (preTestData) console.log('Pre-test loaded successfully');
-          if (postTestData) console.log('Post-test loaded successfully');
-          
-          setPreTest(preTestData?.data || preTestData);
-          setPostTest(postTestData?.data || postTestData);
-        } catch (error) {
-          console.error('Failed to load tests:', error);
-          // Fallback to course data if available
-          setPreTest(course?.preTest || null);
-          setPostTest(course?.postTest || null);
-        } finally {
-          setIsLoadingTests(false);
-        }
-      }
-    };
-    
-    loadTests();
-  }, [course?.id, currentLesson?.id, isLoadingCourse, getCoursePreTest, getCoursePostTest, course?.preTest, course?.postTest]);
+
   
   // Use custom hooks for progress and certificate management
   
@@ -97,13 +62,16 @@ const CourseView = ({
     markCourseCompleted
   } = useLearningProgress(course?.id);
   
+  // Get user progress from backend (AuthContext)
+  const userProgress = getUserProgress(course?.id);
+  
   const {
     certificates,
     isEligible,
     isGenerating,
     generateCertificate,
     getCertificateForCourse
-  } = useCertificate(course?.id, progress);
+  } = useCertificate(course?.id, userProgress);
   
   // Auto-resume to last saved progress
   useEffect(() => {
@@ -153,8 +121,15 @@ const CourseView = ({
   }
 
   // Handle step completion
-  const handleStepComplete = (stepId) => {
+  const handleStepComplete = async (stepId) => {
     markStepCompleted(stepId);
+    
+    // Refresh user progress in AuthContext to sync with backend
+    try {
+      await refreshUserProgress();
+    } catch (error) {
+      console.warn('Failed to refresh user progress:', error);
+    }
     
     // Auto-navigate to next step
     const steps = ['intro', 'pretest', 'lessons', 'posttest', 'postwork', 'finalproject'];
@@ -176,13 +151,7 @@ const CourseView = ({
     }
   };
 
-  // Handle survey submission
-  const handleSurveySubmit = (data) => {
-    setSurveyData(data);
-    console.log('Survey submit - Course ID:', course?.id, 'Score:', data.score);
-    saveQuizScore(course?.id, data.score || 0, false);
-    handleStepComplete('posttest');
-  };
+
 
   // Handle post work submission
   const handlePostWorkSubmit = (data) => {
@@ -201,43 +170,7 @@ const CourseView = ({
     markCourseCompleted();
   };
 
-  // Enhanced quiz submit handler
-  const handleQuizSubmit = (quizId, isPreTest, answers) => {
-    // First call the parent handler to calculate score, including courseId
-    onQuizSubmit(quizId, isPreTest, answers, course?.id);
-    
-    // Calculate score locally to save to progress
-    // Use the loaded test data instead of course.preTest/postTest
-    const quiz = isPreTest ? (preTest || course?.preTest) : (postTest || course?.postTest);
-    if (quiz && quiz.questions && Array.isArray(quiz.questions)) {
-      let score = 0;
-      quiz.questions.forEach(q => {
-        if (answers[q.id] === q.correct) score++;
-      });
-      const percentage = Math.round((score / quiz.questions.length) * 100);
-      
-      console.log('Quiz submitted:', {
-        quizId,
-        isPreTest,
-        courseId: course?.id,
-        score: percentage,
-        answers
-      });
-      
-      // Update quiz score in progress
-      if (course?.id) {
-        saveQuizScore(course.id, percentage, isPreTest);
-      }
-    } else {
-      console.warn('Quiz data not available:', { quiz, isPreTest, course: course?.id });
-    }
-    
-    // For pretest, don't auto-complete step - wait for user to continue
-    // For posttest, mark as complete when quiz is submitted
-    if (!isPreTest) {
-      // This is posttest, but completion is handled in PostTestSurvey component
-    }
-  };
+
 
   // Handle continue to lessons after pretest
   const handleContinueToLessons = () => {
@@ -245,7 +178,7 @@ const CourseView = ({
   };
 
   // Enhanced lesson complete handler
-  const handleLessonComplete = (lessonId) => {
+  const handleLessonComplete = async (lessonId) => {
     console.log('handleLessonComplete called with:', { lessonId, currentLessonIndex, courseId: course.id });
     
     // Mark current lesson as completed
@@ -259,18 +192,20 @@ const CourseView = ({
     });
     
     // Update lesson progress with completion
-    updateLessonProgress(course.id, {
+    await updateLessonProgress(course.id, {
       currentLessonIndex,
       completedLessons,
       timeSpent: (progress.lessonProgress?.timeSpent || 0) + 1,
       lastCompletedLesson: currentLessonIndex,
-      lastCompletedAt: new Date().toISOString()
+      lastCompletedAt: new Date().toISOString(),
+      progress: 100,
+      completed: true
     });
     
     // Mark current lesson as completed and navigate to post test
     console.log('Lesson completed! Marking lessons step as complete and navigating to post test.');
     markStepCompleted('lessons');
-    handleStepComplete('lessons');
+    await handleStepComplete('lessons');
     
     // Call parent onMarkComplete if provided
     if (onMarkComplete) {
@@ -326,21 +261,16 @@ const CourseView = ({
           )}
           
           {progress.currentStep === 'pretest' && (
-            isLoadingTests ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading pre-test...</p>
-              </div>
-            ) : (
-              <PreTest 
-                quiz={preTest || course?.preTest} 
-                onQuizSubmit={handleQuizSubmit}
-                showQuizResult={preTestState.showResult}
-                currentQuizScore={preTestState.score}
-                onRetakeQuiz={() => onRetakeQuiz(true)}
-                onContinueToLessons={handleContinueToLessons}
-              />
-            )
+            <PreTestEnhanced 
+              courseId={course?.id}
+              onComplete={(result) => {
+                console.log('Pre-test completed:', result);
+                if (result.passed) {
+                  handleContinueToLessons();
+                }
+              }}
+              onBack={onBack}
+            />
           )}
           
           {progress.currentStep === 'lessons' && (
@@ -354,21 +284,15 @@ const CourseView = ({
           )}
           
           {progress.currentStep === 'posttest' && (
-            isLoadingTests ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading post-test...</p>
-              </div>
-            ) : (
-              <PostTest 
-                 quiz={postTest || course?.postTest} 
-                 onQuizSubmit={handleQuizSubmit}
-                 showQuizResult={postTestState.showResult}
-                 currentQuizScore={postTestState.score}
-                 onRetakeQuiz={() => onRetakeQuiz(false)}
-                 onCompleteCourse={() => handleStepComplete('posttest')}
-               />
-            )
+            <PostTestWithSurvey 
+              courseId={course?.id}
+              onComplete={(result) => {
+                console.log('Post-test with survey completed:', result);
+                // Complete the post-test step
+                handleStepComplete('posttest');
+              }}
+              onBack={onBack}
+            />
           )}
           
           {progress.currentStep === 'postwork' && (

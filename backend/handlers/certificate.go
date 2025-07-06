@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"lms-backend/middleware"
 	"lms-backend/models"
 	"net/http"
 	"strconv"
@@ -32,7 +33,11 @@ func (h *CertificateHandler) GenerateCertificate(w http.ResponseWriter, r *http.
 	}
 
 	// Get user ID from context (set by auth middleware)
-	userID := r.Context().Value("userID").(int)
+	userID, err := middleware.GetUserIDFromContext(r)
+	if err != nil {
+		http.Error(w, "Failed to get user ID", http.StatusInternalServerError)
+		return
+	}
 
 	// Check if user is enrolled in the course
 	enrolled, err := models.IsUserEnrolledInCourse(h.db, userID, courseID)
@@ -42,6 +47,31 @@ func (h *CertificateHandler) GenerateCertificate(w http.ResponseWriter, r *http.
 	}
 	if !enrolled {
 		http.Error(w, "User not enrolled in this course", http.StatusForbidden)
+		return
+	}
+
+	// Check course completion status from course_progress table
+	courseProgress, err := models.GetCourseProgress(h.db, userID, courseID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Course progress not found. Please complete the course first.",
+			"error": "COURSE_NOT_STARTED",
+		})
+		return
+	}
+
+	// Validate course completion (100% progress required)
+	if courseProgress.OverallProgress < 100 {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Course not completed. Current progress: %d%%. Please complete all course requirements.", courseProgress.OverallProgress),
+			"error": "COURSE_NOT_COMPLETED",
+			"currentProgress": courseProgress.OverallProgress,
+			"requiredProgress": 100,
+		})
 		return
 	}
 
@@ -122,7 +152,11 @@ func (h *CertificateHandler) VerifyCertificate(w http.ResponseWriter, r *http.Re
 // GetUserCertificates gets all certificates for the authenticated user
 func (h *CertificateHandler) GetUserCertificates(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context (set by auth middleware)
-	userID := r.Context().Value("userID").(int)
+	userID, err := middleware.GetUserIDFromContext(r)
+	if err != nil {
+		http.Error(w, "Failed to get user ID", http.StatusInternalServerError)
+		return
+	}
 
 	certificates, err := models.GetUserCertificates(h.db, userID)
 	if err != nil {

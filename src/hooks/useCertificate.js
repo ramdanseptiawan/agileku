@@ -1,270 +1,218 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { getUserCertificates, generateCertificate } from '../services/api';
+import { getCourseProgress } from '../services/api';
 
 /**
- * Custom hook untuk mengelola sertifikat
- * Mengecek kelayakan dan generate sertifikat otomatis
+ * Hook untuk mengelola sertifikat kursus
  */
-export const useCertificate = (courseId, progress) => {
+export const useCertificate = (courseId, userProgress) => {
   const { currentUser, getCourseById } = useAuth();
+  const [backendProgress, setBackendProgress] = useState(null);
   const [certificates, setCertificates] = useState([]);
   const [isEligible, setIsEligible] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-
-  // Get storage key untuk certificates
-  const getCertificateStorageKey = useCallback(() => {
-    if (!currentUser) return null;
-    return `certificates_${currentUser.id}`;
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Use refs to prevent unnecessary re-renders
+  const currentUserRef = useRef(currentUser);
+  const courseIdRef = useRef(courseId);
+  const userProgressRef = useRef(userProgress);
+  
+  // Update refs when values change
+  useEffect(() => {
+    currentUserRef.current = currentUser;
   }, [currentUser]);
+  
+  useEffect(() => {
+    courseIdRef.current = courseId;
+  }, [courseId]);
+  
+  useEffect(() => {
+    userProgressRef.current = userProgress;
+  }, [userProgress]);
 
-  // Load certificates dari localStorage
-  const loadCertificates = useCallback(() => {
-    const storageKey = getCertificateStorageKey();
-    if (!storageKey) return;
+  // Load certificates dari backend - stable function
+  const loadCertificates = useCallback(async () => {
+    if (!currentUserRef.current) return;
 
-    try {
-      const savedCertificates = localStorage.getItem(storageKey);
-      if (savedCertificates) {
-        setCertificates(JSON.parse(savedCertificates));
-      }
-    } catch (error) {
-      console.error('Error loading certificates:', error);
-    }
-  }, [getCertificateStorageKey]);
-
-  // Save certificates ke localStorage
-  const saveCertificates = useCallback((newCertificates) => {
-    const storageKey = getCertificateStorageKey();
-    if (!storageKey) return;
-
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(newCertificates));
-      setCertificates(newCertificates);
-    } catch (error) {
-      console.error('Error saving certificates:', error);
-    }
-  }, [getCertificateStorageKey]);
-
-  // Check eligibility untuk sertifikat
-  const checkEligibility = useCallback(() => {
-    if (!progress || !courseId) {
-      setIsEligible(false);
+    // Prevent concurrent calls
+    if (isLoading) {
+      console.log('Already loading certificates, skipping...');
       return;
     }
 
-    const requiredSteps = ['intro', 'pretest', 'lessons', 'posttest', 'postwork', 'finalproject'];
-    const allStepsCompleted = requiredSteps.every(step => 
-      progress.completedSteps.includes(step)
-    );
+    setIsLoading(true);
+    try {
+      console.log('Loading certificates from backend...');
+      const response = await getUserCertificates();
+      
+      if (response.success && response.certificates) {
+        console.log('Certificates loaded:', response.certificates);
+        setCertificates(response.certificates);
+      } else {
+        console.log('No certificates found or invalid response:', response);
+        setCertificates([]);
+      }
+    } catch (error) {
+      console.error('Error loading certificates from backend:', error);
+      setCertificates([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []); // Empty dependency - use refs and state checks for stability
 
-    // Check minimum quiz scores
-    const preTestScore = progress.quizScores[`pretest_${courseId}`]?.score || 0;
-    const postTestScore = progress.quizScores[`posttest_${courseId}`]?.score || 0;
-    const minScore = 1; // Minimum 70%
+  // Load backend progress data - stable function
+  const loadBackendProgress = useCallback(async () => {
+    if (!courseIdRef.current || !currentUserRef.current) return;
+    
+    // Only try to load progress if user has some progress (enrolled)
+    if (!userProgressRef.current && userProgressRef.current !== 0) {
+      console.log('User not enrolled or no progress data available, skipping backend progress load');
+      return;
+    }
+    
+    try {
+      const progressData = await getCourseProgress(courseIdRef.current);
+      if (progressData && progressData.data) {
+        setBackendProgress(progressData.data);
+      } else {
+        setBackendProgress(progressData);
+      }
+    } catch (error) {
+      console.log('Backend progress not available (user may not be enrolled):', error.message);
+      setBackendProgress(null);
+    }
+  }, []); // Keep empty - uses refs for stability
 
-    // Check if submissions exist
-    const hasPostWork = progress.submissions?.postwork;
-    const hasFinalProject = progress.submissions?.finalproject;
+  // Check eligibility untuk sertifikat
+  const checkEligibility = useCallback(() => {
+    const currentProgress = userProgressRef.current;
+    
+    if (!currentProgress && currentProgress !== 0) {
+      setIsEligible(false);
+      return false;
+    }
 
+    const eligible = currentProgress >= 100;
+    
     console.log('Certificate eligibility check:', {
-      allStepsCompleted,
-      postTestScore,
-      minScore,
-      hasPostWork: !!hasPostWork,
-      hasFinalProject: !!hasFinalProject,
-      completedSteps: progress.completedSteps,
-      submissions: progress.submissions
-    });
-
-    // More flexible eligibility - only require core steps
-    const coreStepsCompleted = ['intro', 'pretest', 'lessons', 'posttest'].every(step => 
-      progress.completedSteps.includes(step)
-    );
-    
-    const eligible = coreStepsCompleted && postTestScore >= minScore;
-    
-    console.log('Certificate eligibility details:', {
-      coreStepsCompleted,
-      allStepsCompleted,
-      postTestScore,
-      minScore,
-      hasPostWork: !!hasPostWork,
-      hasFinalProject: !!hasFinalProject,
-      finalEligible: eligible
+      userProgress: currentProgress,
+      eligible,
+      courseId: courseIdRef.current,
+      hasBackendProgress: !!backendProgress
     });
 
     setIsEligible(eligible);
     return eligible;
-  }, [progress, courseId]);
+  }, []); // Remove backendProgress dependency to prevent infinite loop
 
   // Calculate final grade
   const calculateFinalGrade = useCallback(() => {
-    if (!progress) return 0;
-
-    const preTestScore = progress.quizScores[`pretest_${courseId}`]?.score || 0;
-    const postTestScore = progress.quizScores[`posttest_${courseId}`]?.score || 0;
+    if (backendProgress && backendProgress.overall_progress) {
+      return Math.round(backendProgress.overall_progress);
+    }
     
-    // Weighted average: pretest 30%, posttest 70%
-    const finalGrade = Math.round((preTestScore * 0.3) + (postTestScore * 0.7));
-    return finalGrade;
-  }, [progress, courseId]);
+    return userProgressRef.current || 0;
+  }, [backendProgress]);
 
   // Get time spent in readable format
   const getTimeSpent = useCallback(() => {
-    if (!progress?.startedAt) return '0 jam';
-    
-    const start = new Date(progress.startedAt);
-    const end = progress.completedAt ? new Date(progress.completedAt) : new Date();
-    const hours = Math.round((end - start) / (1000 * 60 * 60));
-    
-    if (hours < 1) return '< 1 jam';
-    return `${hours} jam`;
-  }, [progress]);
+    if (backendProgress && backendProgress.time_spent) {
+      const hours = Math.round(backendProgress.time_spent / 60);
+      if (hours < 1) return '< 1 jam';
+      return `${hours} jam`;
+    }
+    return '0 jam';
+  }, [backendProgress]);
 
-  // Generate certificate
-  const generateCertificate = useCallback(async () => {
-    console.log('generateCertificate called with:', {
-      isEligible,
-      currentUser: !!currentUser,
-      courseId,
-      certificatesCount: certificates.length
+  // Generate certificate menggunakan backend API
+  const generateCertificateForCourse = useCallback(async (targetCourseId) => {
+    console.log('generateCertificateForCourse called with:', {
+      targetCourseId,
+      currentUser: !!currentUserRef.current
     });
     
-    if (!isEligible || !currentUser || !courseId) {
-      console.log('Cannot generate certificate: not eligible or missing data', {
-        isEligible,
-        hasCurrentUser: !!currentUser,
-        courseId
-      });
+    if (!currentUserRef.current || !targetCourseId) {
+      console.log('Cannot generate certificate: missing data');
       return;
     }
 
     setIsGenerating(true);
 
     try {
-      const course = getCourseById(courseId);
-      if (!course) {
-        console.log('Cannot generate certificate: course not found for ID:', courseId);
-        return;
-      }
+      console.log('Generating certificate via backend API for course:', targetCourseId);
 
-      // Check if certificate already exists
-      const existingCertificate = certificates.find(cert => cert.courseId === courseId);
-      if (existingCertificate) {
-        console.log('Certificate already exists for this course:', existingCertificate.id);
+      const response = await generateCertificate(targetCourseId);
+      
+      if (response.success && response.certificate) {
+        console.log('Certificate generated successfully:', response.certificate);
+        await loadCertificates();
         setIsGenerating(false);
-        return existingCertificate;
+        return response.certificate;
+      } else {
+        console.error('Failed to generate certificate:', response);
+        setIsGenerating(false);
+        return null;
       }
-      
-      console.log('Proceeding with certificate generation for course:', course.title);
-
-      // Generate new certificate
-      const certificate = {
-        id: `cert_${Date.now()}`,
-        courseId: courseId,
-        courseName: course.title,
-        studentName: currentUser.fullName || currentUser.username,
-        studentEmail: currentUser.email,
-        completionDate: new Date().toISOString(),
-        issueDate: new Date().toISOString(),
-        certificateNumber: `AGK-${Date.now()}-${courseId}`,
-        grade: calculateFinalGrade(),
-        timeSpent: getTimeSpent(),
-        skills: course.skills || [],
-        instructor: course.instructor || 'AgileKu Team',
-        validationUrl: `https://agileku.com/verify/${Date.now()}`,
-        status: 'active'
-      };
-
-      // Save certificate
-      const updatedCertificates = [...certificates, certificate];
-      console.log('Saving certificate to localStorage...', {
-        newCertificateId: certificate.id,
-        totalCertificates: updatedCertificates.length,
-        storageKey: getCertificateStorageKey()
-      });
-      
-      saveCertificates(updatedCertificates);
-      
-      console.log('Certificate generated and saved successfully:', certificate.id);
-      console.log('Total certificates after save:', updatedCertificates.length);
-
-      setIsGenerating(false);
-      return certificate;
     } catch (error) {
+      console.error('Error generating certificate:', error);
       setIsGenerating(false);
       throw error;
     }
-  }, [isEligible, currentUser, courseId, certificates, getCourseById, saveCertificates, calculateFinalGrade, getTimeSpent]);
+  }, [loadCertificates]); // Keep loadCertificates but ensure it's stable
 
   // Get certificate untuk course tertentu
   const getCertificateForCourse = useCallback((targetCourseId) => {
-    return certificates.find(cert => cert.courseId === targetCourseId);
+    return certificates.find(cert => cert.courseId === parseInt(targetCourseId));
   }, [certificates]);
 
-  // Download certificate sebagai PDF (simulasi)
-  const downloadCertificate = useCallback((certificateId) => {
-    const certificate = certificates.find(cert => cert.id === certificateId);
-    if (!certificate) return;
+  // Load certificates saat component mount - only once
+  useEffect(() => {
+    if (currentUser?.id) {
+      loadCertificates();
+    }
+  }, [currentUser?.id, loadCertificates]);
 
-    // Simulasi download - dalam implementasi nyata, ini akan generate PDF
-    const certificateData = {
-      ...certificate,
-      downloadedAt: new Date().toISOString()
-    };
-
-    const dataStr = JSON.stringify(certificateData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `certificate_${certificate.courseName.replace(/\s+/g, '_')}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, [certificates]);
+  // Load backend progress data - only when necessary
+  useEffect(() => {
+    if (courseId && currentUser?.id && userProgress !== undefined) {
+      loadBackendProgress();
+    }
+  }, [courseId, currentUser?.id, userProgress, loadBackendProgress]);
 
   // Auto-check eligibility ketika progress berubah
   useEffect(() => {
-    checkEligibility();
-  }, [checkEligibility]);
-
-  // Load certificates saat component mount
-  useEffect(() => {
-    loadCertificates();
-  }, [loadCertificates]);
-
-  // Auto-generate certificate jika eligible dan belum ada
-  useEffect(() => {
-    console.log('Certificate auto-generation check:', {
-      isEligible,
-      courseId,
-      existingCertificate: getCertificateForCourse(courseId),
-      shouldGenerate: isEligible && courseId && !getCertificateForCourse(courseId)
-    });
-    
-    if (isEligible && courseId && !getCertificateForCourse(courseId)) {
-      console.log('Auto-generating certificate in 2 seconds...');
-      // Auto-generate setelah delay untuk memberikan feedback yang baik
-      const timer = setTimeout(() => {
-        generateCertificate().catch(console.error);
-      }, 2000);
-
-      return () => clearTimeout(timer);
+    if (userProgress !== undefined) {
+      checkEligibility();
     }
-  }, [isEligible, courseId, getCertificateForCourse, generateCertificate]);
+  }, [userProgress, checkEligibility]); // Remove backendProgress to prevent loop
+
+  // Auto-generate certificate jika eligible dan belum ada - with debounce
+  useEffect(() => {
+    if (!isEligible || !courseId || isGenerating || !currentUser?.id) return;
+    
+    const existingCert = certificates.find(cert => cert.courseId === parseInt(courseId));
+    if (existingCert) return;
+    
+    console.log('Auto-generating certificate in 5 seconds...');
+    const timer = setTimeout(() => {
+      generateCertificateForCourse(courseId).catch(console.error);
+    }, 5000); // Increased delay to prevent rapid calls
+
+    return () => clearTimeout(timer);
+  }, [isEligible, courseId, isGenerating, currentUser?.id]); // Remove generateCertificateForCourse dependency to prevent loop
 
   return {
     certificates,
     isEligible,
     isGenerating,
-    generateCertificate,
+    isLoading,
+    generateCertificate: generateCertificateForCourse,
     getCertificateForCourse,
-    downloadCertificate,
     calculateFinalGrade,
-    checkEligibility
+    checkEligibility,
+    loadCertificates
   };
 };
 
