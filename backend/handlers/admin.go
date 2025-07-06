@@ -57,7 +57,7 @@ func (h *AdminHandler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// UpdateCourse updates an existing course (admin only)
+// UpdateCouse updates an existing course (admin only)
 func (h *AdminHandler) UpdateCourse(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	courseIDStr := vars["id"]
