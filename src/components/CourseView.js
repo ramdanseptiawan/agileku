@@ -220,12 +220,13 @@ const CourseView = ({
       lastCompletedAt: new Date().toISOString()
     });
     
-    // Check if all lessons are completed
+    // Check if all lessons are completed OR if this is the last lesson
     const allLessonsCompleted = completedLessons.length >= course.lessons.length;
+    const isLastLesson = currentLessonIndex === course.lessons.length - 1;
     
-    if (allLessonsCompleted) {
-      // Mark lessons step as completed and navigate to post test only when ALL lessons are done
-      console.log('All lessons completed! Marking lessons step as complete and navigating to post test.');
+    if (allLessonsCompleted || isLastLesson) {
+      // Mark lessons step as completed and navigate to post test when all lessons are done OR when completing the last lesson
+      console.log('Lessons completed! Marking lessons step as complete and navigating to post test.');
       await handleStepComplete('lessons');
     } else {
       console.log(`Lesson ${currentLessonIndex + 1} completed. ${completedLessons.length}/${course.lessons.length} lessons done.`);
