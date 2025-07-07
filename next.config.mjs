@@ -24,11 +24,15 @@ const nextConfig = {
         headers: [
           {
             key: 'X-Frame-Options',
-            value: 'SAMEORIGIN',
+            value: 'ALLOWALL',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
           },
           {
             key: 'Content-Security-Policy',
-            value: "frame-src 'self' *; img-src 'self' data: blob: *; media-src 'self' *;",
+            value: "frame-src 'self' * repo.darmajaya.ac.id; object-src 'self' * repo.darmajaya.ac.id; img-src 'self' data: blob: *; media-src 'self' *;",
           },
           {
             key: 'Access-Control-Allow-Origin',
