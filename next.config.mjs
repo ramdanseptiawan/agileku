@@ -4,6 +4,19 @@ const nextConfig = {
   experimental: {
     esmExternals: false,
   },
+  webpack: (config, { isServer }) => {
+    // Fix for pdfjs-dist canvas issue
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        canvas: false,
+        fs: false,
+        path: false,
+        os: false
+      };
+    }
+    return config;
+  },
   images: {
     // Allow all domains for images
     remotePatterns: [
