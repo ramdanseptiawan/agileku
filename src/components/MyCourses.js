@@ -118,7 +118,7 @@ const MyCourses = ({ onStartLearning }) => {
             <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Enrolled Courses</h3>
             <p className="text-gray-600 mb-4">
-              You haven't enrolled in any courses yet. Browse available courses to start learning!
+              You haven&apos;t enrolled in any courses yet. Browse available courses to start learning!
             </p>
             <button
               onClick={() => window.location.reload()} // Simple way to go back to dashboard
