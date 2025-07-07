@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"lms-backend/middleware"
 	"lms-backend/models"
 	"log"
 	"net/http"
@@ -553,9 +554,15 @@ func (h *AdminHandler) CreateAnnouncement(w http.ResponseWriter, r *http.Request
 	}
 
 	// Get author from context (admin user)
-	userID := r.Context().Value("userID").(int)
+	userID, err := middleware.GetUserIDFromContext(r)
+	if err != nil {
+		log.Printf("Error getting user ID from context: %v", err)
+		http.Error(w, "Unauthorized: user context not found", http.StatusUnauthorized)
+		return
+	}
+	
 	var author string
-	err := h.db.QueryRow("SELECT full_name FROM users WHERE id = $1", userID).Scan(&author)
+	err = h.db.QueryRow("SELECT full_name FROM users WHERE id = $1", userID).Scan(&author)
 	if err != nil {
 		author = "Admin" // fallback
 	}

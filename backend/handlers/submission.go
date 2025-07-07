@@ -335,7 +335,11 @@ func (h *Handler) UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetFileHandler gets a file by ID
 func (h *Handler) GetFileHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(int)
+	userID, err := middleware.GetUserIDFromContext(r)
+	if err != nil {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 
 	fileID, err := strconv.Atoi(vars["id"])
