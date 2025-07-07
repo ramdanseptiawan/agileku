@@ -5,53 +5,64 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/rs/cors"
 )
 
-// SetupCORS configures CORS middleware
+// SetupCORS configures CORS middleware with manual implementation
 func SetupCORS(handler http.Handler) http.Handler {
-	// Get allowed origins from environment variable
-	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
-	var origins []string
-	
-	if allowedOrigins == "" {
-		// Default to allow all origins for development
-		origins = []string{"*"}
-	} else {
-		// Split origins by comma
-		origins = strings.Split(allowedOrigins, ",")
-		for i, origin := range origins {
-			origins[i] = strings.TrimSpace(origin)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Get origin from request
+		origin := r.Header.Get("Origin")
+		
+		// Get allowed origins from environment variable
+		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+		
+		// Check if origin is allowed
+		isAllowed := false
+		if allowedOrigins == "" {
+			// Allow all origins if not specified
+			isAllowed = true
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		} else {
+			// Check specific origins
+			origins := strings.Split(allowedOrigins, ",")
+			for _, allowedOrigin := range origins {
+				allowedOrigin = strings.TrimSpace(allowedOrigin)
+				if origin == allowedOrigin || allowedOrigin == "*" {
+					isAllowed = true
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					break
+				}
+			}
+			
+			// Special handling for Vercel deployments
+			if !isAllowed && strings.Contains(origin, "vercel.app") {
+				isAllowed = true
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			}
+			
+			// Special handling for cloud workstations
+			if !isAllowed && strings.Contains(origin, "cloudworkstations.dev") {
+				isAllowed = true
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			}
 		}
-	}
-
-	// Configure CORS
-	c := cors.New(cors.Options{
-		AllowedOrigins: origins,
-		AllowedMethods: []string{
-			http.MethodGet,
-			http.MethodPost,
-			http.MethodPut,
-			http.MethodPatch,
-			http.MethodDelete,
-			http.MethodOptions,
-		},
-		AllowedHeaders: []string{
-			"Accept",
-			"Authorization",
-			"Content-Type",
-			"X-CSRF-Token",
-			"X-Requested-With",
-		},
-		ExposedHeaders: []string{
-			"Link",
-		},
-		AllowCredentials: true,
-		MaxAge:           300, // Maximum value not ignored by any of major browsers
+		
+		// Set other CORS headers
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token, X-Requested-With")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "300")
+		w.Header().Set("Access-Control-Expose-Headers", "Link")
+		
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		// Continue with the request
+		handler.ServeHTTP(w, r)
 	})
-
-	return c.Handler(handler)
 }
 
 // JSONMiddleware sets JSON content type for responses

@@ -1,44 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    // Allow all domains for images
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'nodejs.org',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'github.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'web.dev',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'www.w3.org',
-        port: '',
-        pathname: '/**',
+        hostname: '**',
       },
       {
         protocol: 'http',
-        hostname: 'repo.darmajaya.ac.id',
-        port: '',
-        pathname: '/**',
+        hostname: '**',
       }
     ],
+    // Alternative: use domains array for broader compatibility
+    domains: [],
+    // Disable image optimization restrictions
+    unoptimized: false,
   },
   async headers() {
     return [
@@ -51,7 +28,19 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "frame-src 'self' https://nodejs.org https://www.youtube.com https://www.youtube.com/embed https://youtube.com https://docs.google.com https://www.w3.org http://repo.darmajaya.ac.id;",
+            value: "frame-src 'self' *; img-src 'self' data: blob: *; media-src 'self' *;",
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization',
           },
         ],
       },

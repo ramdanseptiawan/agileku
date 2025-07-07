@@ -1,5 +1,5 @@
 // API service untuk berkomunikasi dengan backend
-const API_BASE_URL = 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev/api';
 
 // Helper function untuk membuat request dengan error handling
 const apiRequest = async (url, options = {}) => {
@@ -7,6 +7,8 @@ const apiRequest = async (url, options = {}) => {
     const token = localStorage.getItem('authToken');
     
     const config = {
+      mode: 'cors',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -105,6 +107,8 @@ export const submissionAPI = {
     
     const response = await fetch(`${API_BASE_URL}/protected/uploads/file`, {
       method: 'POST',
+      mode: 'cors',
+      credentials: 'include',
       headers: {
         'Authorization': `Bearer ${token}`,
       },
