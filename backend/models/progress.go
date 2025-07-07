@@ -25,6 +25,7 @@ type CourseProgress struct {
 	UserID          int       `json:"userId"`
 	CourseID        int       `json:"courseId"`
 	CurrentStep     string    `json:"currentStep"`
+	CompletedSteps  string    `json:"completedSteps"` // JSON array as string
 	OverallProgress int       `json:"overallProgress"` // 0-100
 	LessonsCompleted int      `json:"lessonsCompleted"`
 	TotalLessons    int       `json:"totalLessons"`
@@ -65,6 +66,7 @@ func CreateCourseProgressTable(db *sql.DB) error {
 		user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
 		course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
 		current_step VARCHAR(50) DEFAULT 'intro',
+		completed_steps TEXT DEFAULT '[]',
 		overall_progress INTEGER DEFAULT 0 CHECK (overall_progress >= 0 AND overall_progress <= 100),
 		lessons_completed INTEGER DEFAULT 0,
 		total_lessons INTEGER DEFAULT 0,
@@ -130,7 +132,7 @@ func GetLessonProgress(db *sql.DB, userID, courseID, lessonID int) (*LessonProgr
 // GetCourseProgress gets overall course progress for a user
 func GetCourseProgress(db *sql.DB, userID, courseID int) (*CourseProgress, error) {
 	query := `
-	SELECT id, user_id, course_id, current_step, overall_progress, lessons_completed, total_lessons, 
+	SELECT id, user_id, course_id, current_step, completed_steps, overall_progress, lessons_completed, total_lessons, 
 	       quizzes_completed, total_quizzes, time_spent, started_at, updated_at, completed_at
 	FROM course_progress
 	WHERE user_id = $1 AND course_id = $2
@@ -139,7 +141,7 @@ func GetCourseProgress(db *sql.DB, userID, courseID int) (*CourseProgress, error
 
 	var cp CourseProgress
 	var completedAt sql.NullTime
-	err := row.Scan(&cp.ID, &cp.UserID, &cp.CourseID, &cp.CurrentStep, &cp.OverallProgress, &cp.LessonsCompleted, &cp.TotalLessons, &cp.QuizzesCompleted, &cp.TotalQuizzes, &cp.TimeSpent, &cp.StartedAt, &cp.UpdatedAt, &completedAt)
+	err := row.Scan(&cp.ID, &cp.UserID, &cp.CourseID, &cp.CurrentStep, &cp.CompletedSteps, &cp.OverallProgress, &cp.LessonsCompleted, &cp.TotalLessons, &cp.QuizzesCompleted, &cp.TotalQuizzes, &cp.TimeSpent, &cp.StartedAt, &cp.UpdatedAt, &completedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -245,10 +247,25 @@ func UpdateCurrentStep(db *sql.DB, userID, courseID int, currentStep string) err
 	return err
 }
 
+// UpdateCurrentStepAndCompletedSteps updates both current step and completed steps
+func UpdateCurrentStepAndCompletedSteps(db *sql.DB, userID, courseID int, currentStep, completedSteps string) error {
+	query := `
+	INSERT INTO course_progress (user_id, course_id, current_step, completed_steps, updated_at)
+	VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+	ON CONFLICT (user_id, course_id)
+	DO UPDATE SET
+		current_step = EXCLUDED.current_step,
+		completed_steps = EXCLUDED.completed_steps,
+		updated_at = CURRENT_TIMESTAMP
+	`
+	_, err := db.Exec(query, userID, courseID, currentStep, completedSteps)
+	return err
+}
+
 // GetUserCourseProgressList gets all course progress for a user
 func GetUserCourseProgressList(db *sql.DB, userID int) ([]CourseProgress, error) {
 	query := `
-	SELECT cp.id, cp.user_id, cp.course_id, cp.current_step, cp.overall_progress, cp.lessons_completed, 
+	SELECT cp.id, cp.user_id, cp.course_id, cp.current_step, cp.completed_steps, cp.overall_progress, cp.lessons_completed, 
 	       cp.total_lessons, cp.quizzes_completed, cp.total_quizzes, cp.time_spent, 
 	       cp.started_at, cp.updated_at, cp.completed_at
 	FROM course_progress cp
@@ -265,7 +282,7 @@ func GetUserCourseProgressList(db *sql.DB, userID int) ([]CourseProgress, error)
 	for rows.Next() {
 		var cp CourseProgress
 		var completedAt sql.NullTime
-		err := rows.Scan(&cp.ID, &cp.UserID, &cp.CourseID, &cp.CurrentStep, &cp.OverallProgress, &cp.LessonsCompleted, &cp.TotalLessons, &cp.QuizzesCompleted, &cp.TotalQuizzes, &cp.TimeSpent, &cp.StartedAt, &cp.UpdatedAt, &completedAt)
+		err := rows.Scan(&cp.ID, &cp.UserID, &cp.CourseID, &cp.CurrentStep, &cp.CompletedSteps, &cp.OverallProgress, &cp.LessonsCompleted, &cp.TotalLessons, &cp.QuizzesCompleted, &cp.TotalQuizzes, &cp.TimeSpent, &cp.StartedAt, &cp.UpdatedAt, &completedAt)
 		if err != nil {
 			return nil, err
 		}

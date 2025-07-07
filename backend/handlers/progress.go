@@ -12,6 +12,29 @@ import (
 	"lms-backend/models"
 )
 
+// determineCurrentStep calculates the correct current step based on completed steps
+// This ensures proper resume functionality
+func determineCurrentStep(completedSteps []string) string {
+	// Define the step order
+	stepOrder := []string{"intro", "pretest", "lessons", "posttest", "postwork", "finalproject"}
+	
+	// Create a map for quick lookup of completed steps
+	completedMap := make(map[string]bool)
+	for _, step := range completedSteps {
+		completedMap[step] = true
+	}
+	
+	// Find the next step that hasn't been completed
+	for _, step := range stepOrder {
+		if !completedMap[step] {
+			return step
+		}
+	}
+	
+	// If all steps are completed, return the final step
+	return "finalproject"
+}
+
 // UpdateLessonProgressHandler handles lesson progress updates
 func (h *Handler) UpdateLessonProgressHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := middleware.GetUserIDFromContext(r)
@@ -135,43 +158,58 @@ func (h *Handler) GetCourseProgressHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	progress, err := models.GetCourseProgress(h.DB, userID, courseID)
-	if err != nil {
-		// If no progress record exists, return default progress structure that frontend expects
-		if err == sql.ErrNoRows {
-			defaultProgressData := map[string]interface{}{
-				"currentStep":     "intro",
-				"completedSteps":  []string{},
-				"lessonProgress":  map[string]interface{}{},
-				"quizScores":      map[string]interface{}{},
-				"submissions":     map[string]interface{}{},
-				"totalTimeSpent":  0,
-				"startedAt":       nil,
-				"completedAt":     nil,
-				"overallProgress": 0,
-			}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"data":    defaultProgressData,
-			})
-			return
-		}
-		http.Error(w, "Failed to get course progress", http.StatusInternalServerError)
-		return
-	}
+  if err != nil {
+    // If no progress record exists, return default progress structure that frontend expects
+    if err == sql.ErrNoRows {
+      defaultProgressData := map[string]interface{}{
+        "currentStep":     "intro",
+        "completedSteps":  []string{},
+        "lessonProgress":  map[string]interface{}{},
+        "quizScores":      map[string]interface{}{},
+        "submissions":     map[string]interface{}{},
+        "totalTimeSpent":  0,
+        "startedAt":       nil,
+        "completedAt":     nil,
+        "overallProgress": 0,
+      }
+      w.Header().Set("Content-Type", "application/json")
+      json.NewEncoder(w).Encode(map[string]interface{}{
+        "success": true,
+        "data":    defaultProgressData,
+      })
+      return
+    }
+    http.Error(w, "Failed to get course progress", http.StatusInternalServerError)
+    return
+  }
 
-	// Convert CourseProgress to frontend-expected format
-	progressData := map[string]interface{}{
-		"currentStep":     progress.CurrentStep,
-		"completedSteps":  []string{}, // Default, frontend will manage this
-		"lessonProgress":  map[string]interface{}{}, // Default, frontend will manage this
-		"quizScores":      map[string]interface{}{}, // Default, frontend will manage this
-		"submissions":     map[string]interface{}{}, // Default, frontend will manage this
-		"totalTimeSpent":  progress.TimeSpent,
-		"startedAt":       progress.StartedAt.Format(time.RFC3339),
-		"completedAt":     nil,
-		"overallProgress": progress.OverallProgress,
-	}
+  // Parse completed steps from JSON string
+  var completedSteps []string
+  if progress.CompletedSteps != "" {
+    err = json.Unmarshal([]byte(progress.CompletedSteps), &completedSteps)
+    if err != nil {
+      // If parsing fails, default to empty array
+      completedSteps = []string{}
+    }
+  } else {
+    completedSteps = []string{}
+  }
+  
+  // Determine the correct current step based on completed steps
+  correctCurrentStep := determineCurrentStep(completedSteps)
+  
+  // Convert CourseProgress to frontend-expected format
+  progressData := map[string]interface{}{
+    "currentStep":     correctCurrentStep, // Use calculated correct step
+    "completedSteps":  completedSteps, // Use actual completed steps from database
+    "lessonProgress":  map[string]interface{}{}, // Default, frontend will manage this
+    "quizScores":      map[string]interface{}{}, // Default, frontend will manage this
+    "submissions":     map[string]interface{}{}, // Default, frontend will manage this
+    "totalTimeSpent":  progress.TimeSpent,
+    "startedAt":       progress.StartedAt.Format(time.RFC3339),
+    "completedAt":     nil,
+    "overallProgress": progress.OverallProgress,
+  }
 
 	// Set completedAt if course is completed
 	if progress.CompletedAt != nil {
@@ -298,12 +336,23 @@ func (h *Handler) SyncProgressHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Update current step
-	err = models.UpdateCurrentStep(h.DB, userID, req.CourseID, req.CurrentStep)
-	if err != nil {
-		http.Error(w, "Failed to update current step", http.StatusInternalServerError)
-		return
-	}
+	// Determine the correct current step based on completed steps
+  // This ensures resume functionality works correctly
+  correctCurrentStep := determineCurrentStep(req.CompletedSteps)
+  
+  // Convert completed steps to JSON string for storage
+  completedStepsJSON, err := json.Marshal(req.CompletedSteps)
+  if err != nil {
+    http.Error(w, "Failed to marshal completed steps", http.StatusInternalServerError)
+    return
+  }
+  
+  // Update current step and completed steps
+  err = models.UpdateCurrentStepAndCompletedSteps(h.DB, userID, req.CourseID, correctCurrentStep, string(completedStepsJSON))
+  if err != nil {
+    http.Error(w, "Failed to update current step and completed steps", http.StatusInternalServerError)
+    return
+  }
 
 	// Update course progress with calculated overall progress
 	// First update lesson-based progress
@@ -351,17 +400,17 @@ func (h *Handler) SyncProgressHandler(w http.ResponseWriter, r *http.Request) {
   }
 
 	// Return the complete progress data that frontend expects
-	responseData := map[string]interface{}{
-		"currentStep":     req.CurrentStep,
-		"completedSteps":  req.CompletedSteps,
-		"lessonProgress":  req.LessonProgress,
-		"quizScores":      req.QuizScores,
-		"submissions":     req.Submissions,
-		"totalTimeSpent":  req.TotalTimeSpent,
-		"completedAt":     req.CompletedAt,
-		"overallProgress": overallProgress,
-		"startedAt":       nil, // Will be set by frontend
-	}
+  responseData := map[string]interface{}{
+    "currentStep":     correctCurrentStep, // Use the calculated correct step
+    "completedSteps":  req.CompletedSteps,
+    "lessonProgress":  req.LessonProgress,
+    "quizScores":      req.QuizScores,
+    "submissions":     req.Submissions,
+    "totalTimeSpent":  req.TotalTimeSpent,
+    "completedAt":     req.CompletedAt,
+    "overallProgress": overallProgress,
+    "startedAt":       nil, // Will be set by frontend
+  }
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

@@ -29,7 +29,7 @@ func InitDB() (*sql.DB, error) {
 		user = "postgres"
 	}
 	if dbname == "" {
-		dbname = "lms"
+		dbname = "lms_db"
 	}
 	if sslmode == "" {
 		sslmode = "disable"

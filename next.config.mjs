@@ -25,6 +25,18 @@ const nextConfig = {
         hostname: 'web.dev',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.w3.org',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'repo.darmajaya.ac.id',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
@@ -39,7 +51,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "frame-src 'self' https://nodejs.org https://www.youtube.com https://www.youtube.com/embed https://youtube.com https://docs.google.com;",
+            value: "frame-src 'self' https://nodejs.org https://www.youtube.com https://www.youtube.com/embed https://youtube.com https://docs.google.com https://www.w3.org http://repo.darmajaya.ac.id;",
           },
         ],
       },

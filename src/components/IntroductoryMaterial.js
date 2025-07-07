@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Play, FileText, Download, ExternalLink, List, ListOrdered } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { getFileFromIndexedDB, getBlobUrl } from '../utils/indexedDB';
+import VideoPlayer from './VideoPlayer';
 
 const IntroductoryMaterial = ({ material, onComplete }) => {
   const [fileUrls, setFileUrls] = useState({});
@@ -126,37 +127,7 @@ const IntroductoryMaterial = ({ material, onComplete }) => {
                   
                   {/* Video Content */}
                   <div className="p-6">
-                    {(item.src || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) ? (
-                      <div className="relative pt-[56.25%] rounded-lg overflow-hidden bg-gray-900 shadow-lg">
-                        {item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId] ? (
-                          <video
-                            src={fileUrls[item.fileId]}
-                            className="absolute top-0 left-0 w-full h-full"
-                            controls
-                            title={item.title || 'Video content'}
-                          >
-                            Your browser does not support the video tag.
-                          </video>
-                        ) : (
-                          <iframe 
-                            src={item.src} 
-                            title={item.title || 'Video content'}
-                            className="absolute top-0 left-0 w-full h-full"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          ></iframe>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center p-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                        <div className="text-center">
-                          <Play className="mx-auto text-gray-400 mb-3" size={48} />
-                          <p className="text-gray-500 font-medium">Video tidak tersedia</p>
-                          <p className="text-gray-400 text-sm mt-1">Silakan hubungi administrator</p>
-                        </div>
-                      </div>
-                    )}
+                    <VideoPlayer item={item} fileUrls={fileUrls} />
                   </div>
                 </div>
               </div>
