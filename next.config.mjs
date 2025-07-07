@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   trailingSlash: true,
-  experimental: {
-    esmExternals: false,
-  },
   webpack: (config, { isServer }) => {
     // Fix for pdfjs-dist canvas issue
     if (!isServer) {

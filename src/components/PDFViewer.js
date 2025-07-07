@@ -1,16 +1,42 @@
 "use client";
-import { Viewer, Worker } from "@react-pdf-viewer/core";
-import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
-import "@react-pdf-viewer/default-layout/lib/styles/index.css";
-import "@react-pdf-viewer/core/lib/styles/index.css";
-import { useState } from "react";
+import React, { useState } from 'react';
+
+// Conditional import for react-pdf to avoid build issues
+let Document, Page, pdfjs;
+if (typeof window !== 'undefined') {
+  try {
+    const reactPdf = require('react-pdf');
+    Document = reactPdf.Document;
+    Page = reactPdf.Page;
+    pdfjs = reactPdf.pdfjs;
+    // Set up the worker
+    pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+  } catch (error) {
+    console.warn('react-pdf not available:', error);
+  }
+}
 
 const PDFViewer = ({ item, fileUrls }) => {
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
   const [error, setError] = useState(false);
-  const defaultLayoutPluginInstance = defaultLayoutPlugin();
 
-  const handleDocumentLoadError = () => {
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
+    setError(false);
+  };
+
+  const onDocumentLoadError = (error) => {
+    console.error('Error loading PDF:', error);
     setError(true);
+  };
+
+  const goToPrevPage = () => {
+    setPageNumber(pageNumber - 1 <= 1 ? 1 : pageNumber - 1);
+  };
+
+  const goToNextPage = () => {
+    setPageNumber(pageNumber + 1 >= numPages ? numPages : pageNumber + 1);
   };
 
   // Get the PDF URL based on upload method
@@ -21,7 +47,8 @@ const PDFViewer = ({ item, fileUrls }) => {
   const title = item.title || "PDF Document";
   const filename = item.filename || 'Document.pdf';
 
-  if (error) {
+  // Show fallback if react-pdf is not available or if there's an error
+  if (error || !Document || !Page) {
     return (
       <div style={{
         margin: "20px 0",
@@ -102,15 +129,63 @@ const PDFViewer = ({ item, fileUrls }) => {
         <strong style={{ color: "#333" }}>{title}</strong>
       </div>
       
-      <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.js">
-        <div style={{ height: "600px", border: "1px solid #ddd", borderRadius: "4px" }}>
-          <Viewer
-            fileUrl={pdfUrl}
-            plugins={[defaultLayoutPluginInstance]}
-            onDocumentLoadError={handleDocumentLoadError}
+      <div style={{ height: "600px", border: "1px solid #ddd", borderRadius: "4px", overflow: "auto" }}>
+        <Document
+          file={pdfUrl}
+          onLoadSuccess={onDocumentLoadSuccess}
+          onLoadError={onDocumentLoadError}
+          loading={<div style={{ textAlign: "center", padding: "20px" }}>Loading PDF...</div>}
+        >
+          <Page 
+            pageNumber={pageNumber} 
+            renderTextLayer={false}
+            renderAnnotationLayer={false}
+            width={Math.min(window.innerWidth * 0.8, 800)}
           />
-        </div>
-      </Worker>
+        </Document>
+        {numPages && (
+          <div style={{
+            marginTop: "10px",
+            textAlign: "center",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "10px"
+          }}>
+            <button 
+              onClick={goToPrevPage} 
+              disabled={pageNumber <= 1}
+              style={{
+                padding: "5px 10px",
+                border: "1px solid #3b82f6",
+                borderRadius: "4px",
+                background: pageNumber <= 1 ? "#f5f5f5" : "#fff",
+                color: pageNumber <= 1 ? "#999" : "#3b82f6",
+                cursor: pageNumber <= 1 ? "not-allowed" : "pointer"
+              }}
+            >
+              Previous
+            </button>
+            <span style={{ fontSize: "14px", color: "#666" }}>
+              Page {pageNumber} of {numPages}
+            </span>
+            <button 
+              onClick={goToNextPage} 
+              disabled={pageNumber >= numPages}
+              style={{
+                padding: "5px 10px",
+                border: "1px solid #3b82f6",
+                borderRadius: "4px",
+                background: pageNumber >= numPages ? "#f5f5f5" : "#fff",
+                color: pageNumber >= numPages ? "#999" : "#3b82f6",
+                cursor: pageNumber >= numPages ? "not-allowed" : "pointer"
+              }}
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
       
       <div style={{
         marginTop: "10px",
