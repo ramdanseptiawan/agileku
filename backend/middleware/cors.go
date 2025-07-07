@@ -13,15 +13,17 @@ import (
 func SetupCORS(handler http.Handler) http.Handler {
 	// Get allowed origins from environment variable
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	var origins []string
+	
 	if allowedOrigins == "" {
-		// Default to localhost for development
-		allowedOrigins = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
-	}
-
-	// Split origins by comma
-	origins := strings.Split(allowedOrigins, ",")
-	for i, origin := range origins {
-		origins[i] = strings.TrimSpace(origin)
+		// Default to allow all origins for development
+		origins = []string{"*"}
+	} else {
+		// Split origins by comma
+		origins = strings.Split(allowedOrigins, ",")
+		for i, origin := range origins {
+			origins[i] = strings.TrimSpace(origin)
+		}
 	}
 
 	// Configure CORS

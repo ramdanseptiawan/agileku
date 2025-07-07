@@ -1,6 +1,6 @@
 // Enhanced Quiz API for improved pretest and posttest functionality
 
-const API_BASE_URL = 'http://localhost:8080/api/protected';
+const API_BASE_URL = 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev/api/protected';
 
 // Get authentication token from localStorage
 const getAuthToken = () => {

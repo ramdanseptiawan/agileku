@@ -107,7 +107,7 @@ const login = async (username, password) => {
 cd backend
 go run main.go
 ```
-Server runs on: `http://localhost:8080`
+Server runs on: `https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev`
 
 ### 2. Start Frontend Server
 ```bash

@@ -123,11 +123,11 @@ try {
 ### 1. Backend API Testing
 ```bash
 # Test courses endpoint
-curl -X GET http://localhost:8080/api/public/courses
+curl -X GET https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev/api/public/courses
 # ✅ Returns course data successfully
 
 # Test login endpoint
-curl -X POST http://localhost:8080/api/public/login \
+curl -X POST https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev/api/public/login \
   -H "Content-Type: application/json" \
   -d '{"username":"user","password":"123"}'
 # ✅ Returns {success: true, data: {user, token}}

@@ -1,5 +1,5 @@
 // API service untuk berkomunikasi dengan backend
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev/api';
 
 // Helper function untuk membuat request dengan error handling
 const apiRequest = async (url, options = {}) => {
