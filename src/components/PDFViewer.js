@@ -63,7 +63,6 @@ const PDFViewer = ({ item, fileUrls }) => {
           <strong style={{ color: "#333" }}>{title}</strong>
         </div>
         <p style={{ color: "#666", marginBottom: "20px", fontSize: "14px" }}>
-          PDF tidak dapat ditampilkan. Klik tombol di bawah untuk membuka atau mengunduh PDF
         </p>
         <div style={{
           display: "flex",
