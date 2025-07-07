@@ -23,16 +23,12 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           {
-            key: 'X-Frame-Options',
-            value: 'ALLOWALL',
-          },
-          {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },
           {
             key: 'Content-Security-Policy',
-            value: "frame-src 'self' * repo.darmajaya.ac.id; object-src 'self' * repo.darmajaya.ac.id; img-src 'self' data: blob: *; media-src 'self' *;",
+            value: "frame-src 'self' * repo.darmajaya.ac.id https://repo.darmajaya.ac.id; object-src 'self' * repo.darmajaya.ac.id https://repo.darmajaya.ac.id; embed-src 'self' * repo.darmajaya.ac.id https://repo.darmajaya.ac.id; img-src 'self' data: blob: *; media-src 'self' *;",
           },
           {
             key: 'Access-Control-Allow-Origin',
