@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  trailingSlash: true,
+  experimental: {
+    esmExternals: false,
+  },
   images: {
     // Allow all domains for images
     remotePatterns: [
@@ -28,7 +32,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "frame-src 'self' * repo.darmajaya.ac.id https://repo.darmajaya.ac.id; object-src 'self' * repo.darmajaya.ac.id https://repo.darmajaya.ac.id; embed-src 'self' * repo.darmajaya.ac.id https://repo.darmajaya.ac.id; img-src 'self' data: blob: *; media-src 'self' *;",
+            value: "default-src 'self'; frame-src 'self' * data: blob: repo.darmajaya.ac.id https://repo.darmajaya.ac.id; object-src 'self' * data: blob: repo.darmajaya.ac.id https://repo.darmajaya.ac.id; embed-src 'self' * data: blob: repo.darmajaya.ac.id https://repo.darmajaya.ac.id; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; media-src 'self' *; connect-src 'self' *;",
           },
           {
             key: 'Access-Control-Allow-Origin',
