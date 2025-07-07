@@ -179,17 +179,37 @@ const IntroductoryMaterial = ({ material, onComplete }) => {
                           className="absolute top-0 left-0 w-full h-full"
                           frameBorder="0"
                           title={`${item.title} PDF Viewer`}
+                          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                          loading="lazy"
+                          onError={(e) => {
+                            console.error('PDF iframe failed to load:', e);
+                            e.target.style.display = 'none';
+                            const fallback = e.target.parentElement.nextElementSibling;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
                         ></iframe>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-center p-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                        <div className="text-center">
-                          <FileText className="mx-auto text-gray-400 mb-3" size={48} />
-                          <p className="text-gray-500 font-medium">PDF tidak dapat ditampilkan</p>
-                          <p className="text-gray-400 text-sm mt-1">Silakan unduh untuk melihat dokumen</p>
-                        </div>
+                    ) : null}
+                    
+                    {/* Fallback for failed PDF loading */}
+                    <div className="flex items-center justify-center p-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200" style={{display: (item.embedUrl || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) ? 'none' : 'flex'}}>
+                      <div className="text-center">
+                        <FileText className="mx-auto text-gray-400 mb-3" size={48} />
+                        <p className="text-gray-500 font-medium mb-2">PDF tidak dapat ditampilkan dalam preview</p>
+                        <p className="text-gray-400 text-sm mb-4">Silakan buka di tab baru untuk melihat dokumen</p>
+                        {(item.embedUrl || item.downloadUrl || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) && (
+                          <a 
+                            href={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : (item.embedUrl || item.downloadUrl)} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                          >
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Buka PDF di Tab Baru
+                          </a>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>

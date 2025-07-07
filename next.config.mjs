@@ -32,7 +32,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; frame-src 'self' * data: blob: repo.darmajaya.ac.id https://repo.darmajaya.ac.id; object-src 'self' * data: blob: repo.darmajaya.ac.id https://repo.darmajaya.ac.id; embed-src 'self' * data: blob: repo.darmajaya.ac.id https://repo.darmajaya.ac.id; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; media-src 'self' *; connect-src 'self' *;",
+            value: "default-src 'self'; frame-src 'self' * data: blob: https: http:; object-src 'self' * data: blob: https: http:; embed-src 'self' * data: blob: https: http:; img-src 'self' data: blob: *; media-src 'self' *; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' *; worker-src 'self' blob:; child-src 'self' * data: blob: https: http:",
           },
           {
             key: 'Access-Control-Allow-Origin',

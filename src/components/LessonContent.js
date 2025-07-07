@@ -276,7 +276,33 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
                           className="absolute top-0 left-0 w-full h-full"
                           frameBorder="0"
                           title={`${item.title} PDF Viewer`}
+                          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                          loading="lazy"
+                          onError={(e) => {
+                            console.error('PDF iframe failed to load:', e);
+                            e.target.style.display = 'none';
+                            const fallback = e.target.nextElementSibling;
+                            if (fallback) fallback.style.display = 'block';
+                          }}
                         ></iframe>
+                        <div 
+                          className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-gray-50" 
+                          style={{display: 'none'}}
+                        >
+                          <div className="text-center p-8">
+                            <FileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                            <p className="text-gray-600 mb-4">PDF tidak dapat ditampilkan dalam preview</p>
+                            <a 
+                              href={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : (item.downloadUrl || item.url || item.embedUrl)} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              Buka PDF di Tab Baru
+                            </a>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
