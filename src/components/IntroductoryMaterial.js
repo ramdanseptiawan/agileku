@@ -3,6 +3,7 @@ import { BookOpen, Play, FileText, Download, ExternalLink, List, ListOrdered } f
 import ReactMarkdown from 'react-markdown';
 import { getFileFromIndexedDB, getBlobUrl } from '../utils/indexedDB';
 import VideoPlayer from './VideoPlayer';
+import PDFViewer from './PDFViewer';
 
 const IntroductoryMaterial = ({ material, onComplete }) => {
   const [fileUrls, setFileUrls] = useState({});
@@ -135,83 +136,10 @@ const IntroductoryMaterial = ({ material, onComplete }) => {
           case 'pdf':
             return (
               <div key={index} className="my-8">
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-                  {/* Header */}
-                  <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-white/20 rounded-lg p-2">
-                        <FileText className="text-white" size={24} />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold text-white">{item.title || 'Dokumen PDF'}</h3>
-                        {item.description && (
-                          <p className="text-blue-100 text-sm mt-1">{item.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* PDF Content */}
-                  <div className="p-6">
-                    {/* File Info */}
-                    <div className="flex items-center justify-between mb-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="text-blue-600" size={20} />
-                        <span className="font-medium text-gray-900">{item.filename || 'Document.pdf'}</span>
-                      </div>
-                      {(item.downloadUrl || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) && (
-                        <a 
-                          href={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : item.downloadUrl} 
-                          download
-                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          Unduh
-                        </a>
-                      )}
-                    </div>
-                    
-                    {/* PDF Viewer */}
-                    {(item.embedUrl || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) ? (
-                      <div className="relative pt-[100%] rounded-lg overflow-hidden bg-gray-100 shadow-lg">
-                        <iframe
-                          src={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : item.embedUrl}
-                          className="absolute top-0 left-0 w-full h-full"
-                          frameBorder="0"
-                          title={`${item.title} PDF Viewer`}
-                          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                          loading="lazy"
-                          onError={(e) => {
-                            console.error('PDF iframe failed to load:', e);
-                            e.target.style.display = 'none';
-                            const fallback = e.target.parentElement.nextElementSibling;
-                            if (fallback) fallback.style.display = 'flex';
-                          }}
-                        ></iframe>
-                      </div>
-                    ) : null}
-                    
-                    {/* Fallback for failed PDF loading */}
-                    <div className="flex items-center justify-center p-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200" style={{display: (item.embedUrl || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) ? 'none' : 'flex'}}>
-                      <div className="text-center">
-                        <FileText className="mx-auto text-gray-400 mb-3" size={48} />
-                        <p className="text-gray-500 font-medium mb-2">PDF tidak dapat ditampilkan dalam preview</p>
-                        <p className="text-gray-400 text-sm mb-4">Silakan buka di tab baru untuk melihat dokumen</p>
-                        {(item.embedUrl || item.downloadUrl || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) && (
-                          <a 
-                            href={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : (item.embedUrl || item.downloadUrl)} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-                          >
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Buka PDF di Tab Baru
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <PDFViewer 
+                  item={item}
+                  fileUrls={fileUrls}
+                />
               </div>
             );
           case 'external_link':

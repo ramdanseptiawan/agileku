@@ -62,29 +62,23 @@ const WysiwygEditor = ({ value = '', onChange, placeholder = 'Mulai menulis...',
 
   const handleInsertPDF = () => {
     if (pdfData.url) {
-      const embedCode = pdfData.showPreview ? `
-        <div class="pdf-embed" style="margin: 20px 0; padding: 15px; border: 2px dashed #ccc; border-radius: 8px; text-align: center; position: relative;">
-          <p><strong>📄 ${pdfData.title}</strong></p>
-          <a href="${pdfData.url}" target="_blank" style="color: #3b82f6; text-decoration: underline; margin-bottom: 10px; display: inline-block;">Buka PDF: ${pdfData.title}</a>
-          <br/>
-          <iframe 
-            src="${pdfData.url}" 
-            width="100%" 
-            height="400" 
-            style="margin-top: 10px; border: 1px solid #ddd; border-radius: 4px;" 
-            sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-            loading="lazy"
-            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-          ></iframe>
-          <div style="display: none; padding: 40px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; margin-top: 10px;">
-            <p style="color: #666; margin-bottom: 15px;">PDF tidak dapat ditampilkan dalam preview</p>
-            <a href="${pdfData.url}" target="_blank" style="color: #fff; background: #3b82f6; padding: 8px 16px; border-radius: 4px; text-decoration: none; display: inline-block;">Buka PDF di Tab Baru</a>
+      // Use react-pdf-viewer component format
+      const embedCode = `
+        <div class="pdf-viewer-container" data-pdf-url="${pdfData.url}" data-pdf-title="${pdfData.title}" style="margin: 20px 0; padding: 15px; border: 2px dashed #ccc; border-radius: 8px; background: #fff;">
+          <div style="margin-bottom: 15px; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+            <span style="font-size: 20px; margin-right: 8px;">📄</span>
+            <strong style="color: #333;">${pdfData.title}</strong>
           </div>
-        </div>
-      ` : `
-        <div class="pdf-link" style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
-          <p><strong>📄 ${pdfData.title}</strong></p>
-          <a href="${pdfData.url}" target="_blank" style="color: #3b82f6; text-decoration: underline;">Download/View PDF</a>
+          <div class="pdf-viewer-placeholder" style="height: 600px; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #f9f9f9;">
+            <div style="text-align: center;">
+              <div style="font-size: 48px; margin-bottom: 16px;">📄</div>
+              <p style="color: #666; margin-bottom: 20px;">PDF Viewer akan dimuat di sini</p>
+              <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <a href="${pdfData.url}" target="_blank" style="color: #3b82f6; text-decoration: none; font-size: 14px; padding: 5px 10px; border: 1px solid #3b82f6; border-radius: 4px; display: inline-flex; align-items: center;">🔗 Buka di Tab Baru</a>
+                <a href="${pdfData.url}" download style="color: #10b981; text-decoration: none; font-size: 14px; padding: 5px 10px; border: 1px solid #10b981; border-radius: 4px; display: inline-flex; align-items: center;">⬇️ Download</a>
+              </div>
+            </div>
+          </div>
         </div>
       `;
       execCommand('insertHTML', embedCode);

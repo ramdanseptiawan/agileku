@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Play, CheckCircle, FileText, ExternalLink, Download, Image, Code, List, ListOrdered, Video, BookOpen, Globe } from 'lucide-react';
 import VideoPlayer from './VideoPlayer';
+import PDFViewer from './PDFViewer';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ReactMarkdown from 'react-markdown';
@@ -228,86 +229,10 @@ const LessonContent = ({ lessons, onMarkComplete, courseId, currentLessonIndex =
         case 'pdf':
           return (
             <div key={index} className="my-8">
-              <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-4 border-b border-gray-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-red-100 rounded-lg">
-                      <FileText className="text-red-600" size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-lg font-semibold text-gray-900">{item.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Content */}
-                <div className="p-6">
-                  {/* File Info */}
-                  <div className="flex items-center justify-between mb-6 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-white rounded-lg shadow-sm">
-                        <FileText className="text-gray-600" size={20} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{item.filename || 'Document.pdf'}</p>
-                        <p className="text-sm text-gray-500">PDF Document</p>
-                      </div>
-                    </div>
-                    <a 
-                      href={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : (item.downloadUrl || item.url)} 
-                      download
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 shadow-sm hover:shadow-md"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Unduh PDF
-                    </a>
-                  </div>
-                  
-                  {/* PDF Viewer */}
-                  {(item.embedUrl || (item.uploadMethod === 'upload' && item.fileId && fileUrls[item.fileId])) && (
-                    <div className="mt-6">
-                      <div className="relative bg-gray-100 rounded-lg overflow-hidden shadow-inner" style={{paddingBottom: '75%'}}>
-                        <iframe
-                          src={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : item.embedUrl}
-                          className="absolute top-0 left-0 w-full h-full"
-                          frameBorder="0"
-                          title={`${item.title} PDF Viewer`}
-                          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                          loading="lazy"
-                          onError={(e) => {
-                            console.error('PDF iframe failed to load:', e);
-                            e.target.style.display = 'none';
-                            const fallback = e.target.nextElementSibling;
-                            if (fallback) fallback.style.display = 'block';
-                          }}
-                        ></iframe>
-                        <div 
-                          className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-gray-50" 
-                          style={{display: 'none'}}
-                        >
-                          <div className="text-center p-8">
-                            <FileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-                            <p className="text-gray-600 mb-4">PDF tidak dapat ditampilkan dalam preview</p>
-                            <a 
-                              href={item.uploadMethod === 'upload' && item.fileId ? fileUrls[item.fileId] : (item.downloadUrl || item.url || item.embedUrl)} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-                            >
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              Buka PDF di Tab Baru
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <PDFViewer 
+                item={item}
+                fileUrls={fileUrls}
+              />
             </div>
           );
         case 'video':
