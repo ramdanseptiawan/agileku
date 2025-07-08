@@ -16,7 +16,7 @@ const UserAnnouncements = () => {
       setLoading(true);
       const response = await api.announcement.getUserAnnouncements();
       if (response.success) {
-        setAnnouncements(response.data || []);
+        setAnnouncements(response.announcements || []);
       } else {
         setError('Gagal memuat pengumuman: ' + (response.message || 'Unknown error'));
       }
@@ -64,8 +64,8 @@ const UserAnnouncements = () => {
 
   const getAudienceText = (audience) => {
     switch (audience) {
-      case 'students': return 'Siswa';
-      case 'instructors': return 'Instruktur';
+      case 'users': return 'Pengguna';
+      case 'admins': return 'Admin';
       case 'all': return 'Semua';
       default: return 'Semua';
     }

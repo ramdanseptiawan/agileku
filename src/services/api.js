@@ -1,5 +1,12 @@
 // API service untuk berkomunikasi dengan backend
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev/api';
+
+// API Base URLs for different environments
+const PRODUCTION_API_URL = 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev';
+const DEVELOPMENT_API_URL = 'http://localhost:8080';
+
+// Determine current environment and set API base URL
+const isDevelopment = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : `${isDevelopment ? DEVELOPMENT_API_URL : PRODUCTION_API_URL}/api`;
 
 // Helper function untuk membuat request dengan error handling
 const apiRequest = async (url, options = {}) => {

@@ -130,7 +130,7 @@ func createTables(db *sql.DB) error {
 		title VARCHAR(255) NOT NULL,
 		content TEXT NOT NULL,
 		priority VARCHAR(20) DEFAULT 'normal' CHECK (priority IN ('normal', 'medium', 'high')),
-		target_audience VARCHAR(20) DEFAULT 'all' CHECK (target_audience IN ('all', 'students', 'instructors')),
+		target_audience VARCHAR(20) DEFAULT 'all' CHECK (target_audience IN ('all', 'users', 'admins')),
 		author VARCHAR(100) NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

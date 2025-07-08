@@ -12,7 +12,7 @@ const AnnouncementList = ({ isModal = false, onClose }) => {
     try {
       const response = await api.announcement.getUserAnnouncements();
       if (response.success) {
-        const announcementsData = response.data || [];
+        const announcementsData = response.announcements || [];
         // Sort by creation date (newest first)
         const sortedAnnouncements = announcementsData.sort((a, b) => {
           const dateA = new Date(a.created_at || a.createdAt);
@@ -94,8 +94,8 @@ const AnnouncementList = ({ isModal = false, onClose }) => {
 
   const getAudienceText = (audience) => {
     switch (audience) {
-      case 'students': return 'Siswa';
-      case 'instructors': return 'Instruktur';
+      case 'users': return 'Pengguna';
+      case 'admins': return 'Admin';
       case 'all': return 'Semua';
       default: return 'Semua';
     }

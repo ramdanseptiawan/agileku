@@ -18,7 +18,7 @@ const AnnouncementManager = () => {
     try {
       const response = await api.admin.getAllAnnouncements();
       if (response.success) {
-        setAnnouncements(response.data || []);
+        setAnnouncements(response.announcements || []);
       } else {
         console.error('Failed to load announcements:', response.message);
         setAnnouncements([]);
@@ -49,6 +49,8 @@ const AnnouncementManager = () => {
       priority: formData.priority,
       target_audience: formData.targetAudience
     };
+
+    console.log('Sending announcement data:', announcementData);
 
     try {
       let response;
@@ -138,8 +140,8 @@ const AnnouncementManager = () => {
 
   const getAudienceText = (audience) => {
     switch (audience) {
-      case 'students': return 'Siswa';
-      case 'instructors': return 'Instruktur';
+      case 'users': return 'Pengguna';
+      case 'admins': return 'Admin';
       case 'all': return 'Semua';
       default: return 'Semua';
     }
@@ -204,8 +206,8 @@ const AnnouncementManager = () => {
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">Semua Pengguna</option>
-                <option value="students">Siswa</option>
-                <option value="instructors">Instruktur</option>
+                <option value="users">Pengguna</option>
+                <option value="admins">Admin</option>
               </select>
             </div>
 

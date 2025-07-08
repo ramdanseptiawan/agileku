@@ -10,7 +10,7 @@ type Announcement struct {
 	Title          string    `json:"title"`
 	Content        string    `json:"content"`
 	Priority       string    `json:"priority"`       // normal, medium, high
-	TargetAudience string    `json:"targetAudience"` // all, students, instructors
+	TargetAudience string    `json:"targetAudience"` // all, users, admins
 	Author         string    `json:"author"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
@@ -94,9 +94,9 @@ func GetAnnouncementsByAudience(db *sql.DB, userRole string) ([]Announcement, er
 	`
 
 	// Map user roles to announcement audiences
-	audience := "students" // default
+	audience := "users" // default
 	if userRole == "admin" {
-		audience = "instructors"
+		audience = "admins"
 	}
 
 	rows, err := db.Query(query, audience)

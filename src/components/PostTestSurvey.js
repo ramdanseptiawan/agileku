@@ -129,7 +129,7 @@ const PostTestSurvey = ({ quiz, onQuizSubmit, showQuizResult, currentQuizScore, 
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Saran atau masukan tambahan (opsional)
+              Saran atau masukan tambahan <span className="text-red-500">*</span>
             </label>
             <textarea
               value={surveyData.feedback}
@@ -137,12 +137,13 @@ const PostTestSurvey = ({ quiz, onQuizSubmit, showQuizResult, currentQuizScore, 
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows={4}
               placeholder="Bagikan pengalaman belajar Anda..."
+              required
             />
           </div>
 
           <button
             onClick={handleSurveySubmit}
-            disabled={surveyData.satisfaction === 0 || surveyData.difficulty === 0 || surveyData.usefulness === 0}
+            disabled={surveyData.satisfaction === 0 || surveyData.difficulty === 0 || surveyData.usefulness === 0 || !surveyData.feedback.trim()}
             className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Kirim Survei

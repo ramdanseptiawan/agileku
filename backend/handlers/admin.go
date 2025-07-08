@@ -537,6 +537,8 @@ func (h *AdminHandler) CreateAnnouncement(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	log.Printf("[DEBUG] Received announcement data: Title=%s, Priority=%s, TargetAudience=%s", req.Title, req.Priority, req.TargetAudience)
+
 	// Validate required fields
 	if req.Title == "" || req.Content == "" {
 		http.Error(w, "Title and content are required", http.StatusBadRequest)
@@ -549,7 +551,7 @@ func (h *AdminHandler) CreateAnnouncement(w http.ResponseWriter, r *http.Request
 	}
 
 	// Validate target audience
-	if req.TargetAudience != "all" && req.TargetAudience != "students" && req.TargetAudience != "instructors" {
+	if req.TargetAudience != "all" && req.TargetAudience != "users" && req.TargetAudience != "admins" {
 		req.TargetAudience = "all" // default
 	}
 
@@ -652,7 +654,7 @@ func (h *AdminHandler) UpdateAnnouncement(w http.ResponseWriter, r *http.Request
 	}
 
 	// Validate target audience
-	if req.TargetAudience != "all" && req.TargetAudience != "students" && req.TargetAudience != "instructors" {
+	if req.TargetAudience != "all" && req.TargetAudience != "users" && req.TargetAudience != "admins" {
 		req.TargetAudience = "all" // default
 	}
 
