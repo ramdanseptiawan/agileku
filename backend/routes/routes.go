@@ -24,6 +24,7 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	adminHandler := handlers.NewAdminHandler(db)
 	announcementHandler := handlers.NewAnnouncementHandler(db)
 	surveyHandler := handlers.NewSurveyHandler(db)
+	stageLockHandler := handlers.NewStageLockHandler(db)
 
 	// Set database for enhanced handlers
 	handlers.SetEnhancedHandlerDB(db)
@@ -122,6 +123,7 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	admin.HandleFunc("/courses/{courseId:[0-9]+}/posttest", adminHandler.GetCoursePostTestAdmin).Methods("GET", "OPTIONS")
 
 	// Admin course management routes
+	admin.HandleFunc("/courses", adminHandler.GetAllCourses).Methods("GET", "OPTIONS")
 	admin.HandleFunc("/courses", adminHandler.CreateCourse).Methods("POST", "OPTIONS")
 	admin.HandleFunc("/courses/{id:[0-9]+}", adminHandler.UpdateCourse).Methods("PUT", "OPTIONS")
 	admin.HandleFunc("/courses/{id:[0-9]+}", adminHandler.DeleteCourse).Methods("DELETE", "OPTIONS")
@@ -154,6 +156,13 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 
 	// Admin survey feedback routes
 	admin.HandleFunc("/surveys/feedback/{courseId:[0-9]+}", surveyHandler.GetAllSurveyFeedbackHandler).Methods("GET", "OPTIONS")
+
+	// Admin stage lock management routes
+	admin.HandleFunc("/courses/{id:[0-9]+}/stage-locks", stageLockHandler.GetStageLocks).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/courses/{id:[0-9]+}/stage-locks", stageLockHandler.UpdateStageLock).Methods("PUT", "OPTIONS")
+
+	// Protected stage access check routes
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/stages/{stageName}/access", stageLockHandler.CheckStageAccess).Methods("GET", "OPTIONS")
 
 	// Health check endpoint
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

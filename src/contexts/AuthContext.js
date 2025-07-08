@@ -367,6 +367,109 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Stage Lock Management Functions
+  const getStageLocks = async (courseId) => {
+    try {
+      if (!currentUser || currentUser.role !== 'admin') {
+        throw new Error('Only admin can access stage locks');
+      }
+
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Use backend URL directly to avoid routing issues
+      const backendUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev' 
+        : 'http://localhost:8080';
+      
+      const response = await fetch(`${backendUrl}/api/protected/admin/courses/${courseId}/stage-locks`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error('Server returned non-JSON response');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        return { success: true, data: data.data };
+      } else {
+        throw new Error(data.message || 'Failed to fetch stage locks');
+      }
+    } catch (error) {
+      console.error('Error fetching stage locks:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const updateStageLock = async (courseId, stageName, isLocked, lockMessage = '') => {
+    try {
+      if (!currentUser || currentUser.role !== 'admin') {
+        throw new Error('Only admin can update stage locks');
+      }
+
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const requestBody = {
+        courseId: parseInt(courseId),
+        stageName: stageName,
+        isLocked: isLocked,
+        lockMessage: lockMessage
+      };
+
+      // Use backend URL directly to avoid routing issues
+      const backendUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev' 
+        : 'http://localhost:8080';
+
+      const response = await fetch(`${backendUrl}/api/protected/admin/courses/${courseId}/stage-locks`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error('Server returned non-JSON response');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        return { success: true, data: data.data };
+      } else {
+        throw new Error(data.message || 'Failed to update stage lock');
+      }
+    } catch (error) {
+      console.error('Error updating stage lock:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   const value = {
     currentUser,
     login,
@@ -384,7 +487,9 @@ export const AuthProvider = ({ children }) => {
     refreshUserProgress,
     getCoursePreTest,
     getCoursePostTest,
-    updateCourse
+    updateCourse,
+    getStageLocks,
+    updateStageLock
   };
 
   return (

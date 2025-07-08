@@ -12,6 +12,7 @@ import AnnouncementList from '../components/AnnouncementList';
 import Achievements from '../components/Achievements';
 import MyCourses from '../components/MyCourses';
 import ContactAdminButton from '../components/ContactAdminButton';
+import StageManagementWrapper from '../components/StageManagementWrapper';
 
 const LMS = () => {
   const { currentUser, isLoading, courses, updateCourses } = useAuth();
@@ -256,6 +257,10 @@ const LMS = () => {
             currentView === 'project-instructions' || currentView === 'course-instructions' || 
             currentView === 'users' || currentView === 'students') && currentUser.role === 'admin' && (
             <AdminDashboard activeTab={currentView} />
+          )}
+          
+          {currentView === 'stage-management' && currentUser.role === 'admin' && (
+            <StageManagementWrapper />
           )}
           
           {currentView === 'course' && (

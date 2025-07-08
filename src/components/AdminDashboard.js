@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Eye, Book, Users, BarChart3, HelpCircle, MessageSquare, UserCog, Bell, Award, FileText, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { adminAPI, courseAPI } from '../services/api';
+import { courseAPI, adminAPI } from '../services/api';
 import CourseForm from './CourseForm';
 import CourseList from './CourseList';
 import QuizManager from './QuizManager';
@@ -14,6 +14,7 @@ import ProjectInstructionManager from './ProjectInstructionManager';
 import CourseInstructionManager from './CourseInstructionManager';
 import GradingSystem from './GradingSystem';
 import SubmissionReview from './SubmissionReview';
+import CourseStageManager from './CourseStageManager';
 
 const AdminDashboard = ({ activeTab = 'overview' }) => {
   const { currentUser } = useAuth();
@@ -21,6 +22,7 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedCourseForStageManagement, setSelectedCourseForStageManagement] = useState(null);
   const [dashboardStats, setDashboardStats] = useState({
     totalCourses: 0,
     totalLessons: 0,
@@ -35,7 +37,7 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
     const loadData = async () => {
       try {
         // Load courses
-        const coursesResponse = await courseAPI.getAllCourses();
+        const coursesResponse = await adminAPI.getAllCourses();
         console.log('Courses API Response:', coursesResponse); // Debug log
         
         // Handle backend response format: {success: true, data: courses}
@@ -265,6 +267,54 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
 
         {activeTab === 'surveys' && (
           <SurveyManager courses={courses} />
+        )}
+
+        {activeTab === 'stage-management' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Kelola Akses Tahap Course</h3>
+              <p className="text-gray-600 mb-4">Pilih course untuk mengelola akses tahap-tahapnya:</p>
+              
+              {/* Debug Info */}
+              <div className="mb-4 p-3 bg-gray-100 rounded text-sm">
+                <p><strong>Debug Info:</strong></p>
+                <p>Courses Array: {Array.isArray(courses) ? 'Yes' : 'No'}</p>
+                <p>Courses Length: {Array.isArray(courses) ? courses.length : 'N/A'}</p>
+                <p>Loading: {loading ? 'Yes' : 'No'}</p>
+                <p>Courses Data: {JSON.stringify(courses, null, 2)}</p>
+              </div>
+              
+              <div className="grid gap-4">
+                {Array.isArray(courses) && courses.map((course) => (
+                  <div key={course.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{course.title}</h4>
+                        <p className="text-sm text-gray-500">{course.description}</p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedCourseForStageManagement(course)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Kelola Tahap
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {Array.isArray(courses) && courses.length === 0 && (
+                <p className="text-gray-500 text-center py-8">Belum ada course yang tersedia.</p>
+              )}
+            </div>
+            
+            {selectedCourseForStageManagement && (
+              <CourseStageManager 
+                courseId={selectedCourseForStageManagement.id}
+                courseName={selectedCourseForStageManagement.title}
+              />
+            )}
+          </div>
         )}
 
         {activeTab === 'announcements' && (

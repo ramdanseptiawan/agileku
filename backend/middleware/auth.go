@@ -173,6 +173,15 @@ func GetUserIDFromContext(r *http.Request) (int, error) {
 	return user.ID, nil
 }
 
+// GetUserRoleFromContext extracts user role from request context
+func GetUserRoleFromContext(r *http.Request) (string, error) {
+	user, err := GetUserFromContext(r)
+	if err != nil {
+		return "", err
+	}
+	return user.Role, nil
+}
+
 // ParseIDFromURL extracts ID from URL path
 func ParseIDFromURL(r *http.Request, paramName string) (int, error) {
 	idStr := r.URL.Query().Get(paramName)

@@ -4,6 +4,7 @@ import { ArrowLeft, BookOpen, Video, FileText, CheckCircle, Award, Upload, Targe
 import { useAuth } from '../contexts/AuthContext';
 import { useLearningProgress } from '../hooks/useLearningProgress';
 import { useCertificate } from '../hooks/useCertificate';
+import { courseAPI } from '../services/api';
 import IntroductoryMaterial from './IntroductoryMaterial';
 import PreTestEnhanced from './PreTestEnhanced';
 import LessonContent from './LessonContent';
@@ -27,6 +28,8 @@ const CourseView = ({
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [course, setCourse] = useState(currentLesson);
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
+  const [stageAccess, setStageAccess] = useState({});
+  const [loadingStageAccess, setLoadingStageAccess] = useState(false);
   
   // Load course data from API - always from backend, no fallback
   useEffect(() => {
@@ -54,6 +57,45 @@ const CourseView = ({
     
     loadCourse();
   }, [currentLesson?.id, getCourseById]);
+
+  // Check stage access for all stages
+  useEffect(() => {
+    const checkStageAccess = async () => {
+      if (!course?.id || !currentUser) return;
+      
+      setLoadingStageAccess(true);
+      const stages = ['intro', 'pretest', 'lessons', 'posttest', 'postwork', 'finalproject'];
+      const accessResults = {};
+      
+      try {
+        for (const stage of stages) {
+          try {
+            const response = await courseAPI.checkStageAccess(course.id, stage);
+            // Backend returns 'canAccess' in response.data, not 'hasAccess'
+            const stageData = response.data || response;
+            accessResults[stage] = {
+              canAccess: stageData.canAccess,
+              lockMessage: stageData.lockMessage || 'Tahap ini masih dikunci oleh admin.'
+            };
+          } catch (error) {
+            console.warn(`Failed to check access for stage ${stage}:`, error);
+            // Default to allowing access if API fails
+            accessResults[stage] = {
+              canAccess: true,
+              lockMessage: null
+            };
+          }
+        }
+        setStageAccess(accessResults);
+      } catch (error) {
+        console.error('Error checking stage access:', error);
+      } finally {
+        setLoadingStageAccess(false);
+      }
+    };
+    
+    checkStageAccess();
+  }, [course?.id, currentUser]);
   
 
   
@@ -139,6 +181,14 @@ const CourseView = ({
     const currentIndex = steps.indexOf(stepId);
     if (currentIndex < steps.length - 1) {
       const nextStep = steps[currentIndex + 1];
+      
+      // Check if next stage is locked before navigating
+      const nextStageAccessInfo = stageAccess[nextStep];
+      if (nextStageAccessInfo && !nextStageAccessInfo.canAccess) {
+        alert(nextStageAccessInfo.lockMessage || 'Tahap selanjutnya telah dikunci oleh admin. Silakan hubungi admin untuk membuka akses.');
+        return;
+      }
+      
       setCurrentStep(nextStep);
     }
   };
@@ -148,6 +198,13 @@ const CourseView = ({
     const steps = ['intro', 'pretest', 'lessons', 'posttest', 'postwork', 'finalproject'];
     const stepIndex = steps.indexOf(stepId);
     const currentStepIndex = steps.indexOf(progress.currentStep);
+    
+    // Check if stage is locked
+    const stageAccessInfo = stageAccess[stepId];
+    if (stageAccessInfo && !stageAccessInfo.canAccess) {
+      alert(stageAccessInfo.lockMessage || 'Tahap ini masih dikunci oleh admin.');
+      return;
+    }
     
     // Check if course is completed (all steps completed)
     const allStepsCompleted = steps.every(step => progress.completedSteps.includes(step));
@@ -279,6 +336,7 @@ const CourseView = ({
             onStepClick={handleStepClick}
             isCourseCompleted={backendProgress === 100}
             backendProgress={backendProgress}
+            stageAccess={stageAccess}
           />
         </div>
         
@@ -333,6 +391,7 @@ const CourseView = ({
             <PostWork 
               courseId={course.id}
               onSubmit={handlePostWorkSubmit}
+              stageAccess={stageAccess}
             />
           )}
           
@@ -340,6 +399,7 @@ const CourseView = ({
             <FinalProject 
               courseId={course.id}
               onSubmit={handleFinalProjectSubmit}
+              stageAccess={stageAccess}
             />
           )}
           

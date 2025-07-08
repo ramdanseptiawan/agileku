@@ -73,7 +73,7 @@ const styles = `
   }
 `;
 
-const PostWork = ({ courseId, onSubmit }) => {
+const PostWork = ({ courseId, onSubmit, stageAccess }) => {
   const { currentUser, isEnrolledInCourse, enrollInCourse } = useAuth();
   const [workStatus, setWorkStatus] = useState('not_submitted'); // not_submitted, submitted, reviewed
   const [selectedFile, setSelectedFile] = useState(null);
@@ -298,6 +298,12 @@ const PostWork = ({ courseId, onSubmit }) => {
       return;
     }
     
+    // Check if next stage (finalproject) is locked
+    if (stageAccess && stageAccess.finalproject && !stageAccess.finalproject.canAccess) {
+      alert(`Tahap selanjutnya dikunci oleh admin: ${stageAccess.finalproject.lockMessage || 'Silakan hubungi admin untuk informasi lebih lanjut.'}`);
+      return;
+    }
+    
     try {
       setAutoSaveStatus('saving');
       
@@ -341,7 +347,13 @@ const PostWork = ({ courseId, onSubmit }) => {
       return;
     }
     
-    try {
+    // Check if next stage (finalproject) is locked
+     if (stageAccess && stageAccess.finalproject && !stageAccess.finalproject.canAccess) {
+       alert(`Tahap selanjutnya dikunci oleh admin: ${stageAccess.finalproject.lockMessage || 'Silakan hubungi admin untuk informasi lebih lanjut.'}`);
+       return;
+     }
+     
+     try {
       setAutoSaveStatus('saving');
       
       const submissionData = {

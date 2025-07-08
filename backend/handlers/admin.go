@@ -26,6 +26,55 @@ func NewAdminHandler(db *sql.DB) *AdminHandler {
 
 // Course Management
 
+// GetAllCourses gets all courses (admin only)
+func (h *AdminHandler) GetAllCourses(w http.ResponseWriter, r *http.Request) {
+	log.Printf("[ADMIN DEBUG] GetAllCourses called")
+	query := `
+		SELECT id, title, description, category, level, duration, instructor, rating, students, image,
+		       intro_material, lessons, pre_test, post_test, post_work, final_project, created_at, updated_at
+		FROM courses
+		ORDER BY created_at DESC
+	`
+
+	rows, err := h.db.Query(query)
+	if err != nil {
+		log.Printf("[ADMIN ERROR] Error querying courses: %v", err)
+		http.Error(w, "Failed to get courses", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var courses []models.Course
+	for rows.Next() {
+		var course models.Course
+		err := rows.Scan(&course.ID, &course.Title, &course.Description, &course.Category,
+			&course.Level, &course.Duration, &course.Instructor, &course.Rating,
+			&course.Students, &course.Image, &course.IntroMaterial, &course.Lessons,
+			&course.PreTest, &course.PostTest, &course.PostWork, &course.FinalProject,
+			&course.CreatedAt, &course.UpdatedAt)
+		if err != nil {
+			log.Printf("[ADMIN ERROR] Error scanning course: %v", err)
+			continue
+		}
+		courses = append(courses, course)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("[ADMIN ERROR] Error iterating courses: %v", err)
+		http.Error(w, "Failed to get courses", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("[ADMIN DEBUG] Found %d courses", len(courses))
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{
+		"success": true,
+		"data":    courses,
+	}
+	log.Printf("[ADMIN DEBUG] Sending response: %+v", response)
+	json.NewEncoder(w).Encode(response)
+}
+
 // CreateCourse creates a new course (admin only)
 func (h *AdminHandler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	var course models.Course
@@ -48,6 +97,28 @@ func (h *AdminHandler) CreateCourse(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to create course", http.StatusInternalServerError)
 		return
+	}
+
+	// Create default stage locks for the new course
+	defaultStages := []string{
+		"intro",
+		"pretest",
+		"lessons",
+		"posttest",
+		"postwork",
+		"finalproject",
+	}
+
+	for _, stageName := range defaultStages {
+		stageQuery := `
+			INSERT INTO course_stage_locks (course_id, stage_name, is_locked, lock_message, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		`
+		_, stageErr := h.db.Exec(stageQuery, course.ID, stageName, false, "")
+		if stageErr != nil {
+			// Log the error but don't fail the course creation
+			log.Printf("Warning: Failed to create stage lock for course %d, stage %s: %v", course.ID, stageName, stageErr)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

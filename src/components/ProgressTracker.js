@@ -1,7 +1,22 @@
 import React from 'react';
 import { CheckCircle, Circle, Lock, BookOpen, FileText, Award, Upload, Target } from 'lucide-react';
 
-const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCompleted = false, backendProgress = null }) => {
+const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCompleted = false, backendProgress = null, stageAccess = {} }) => {
+  // Function to handle step click with lock warning
+  const handleStepClick = (stepId, status) => {
+    if (status === 'locked' || status === 'admin-locked') {
+      const message = status === 'admin-locked' 
+        ? 'Stage ini telah dikunci oleh admin. Silakan hubungi admin untuk membuka akses.'
+        : 'Stage ini masih terkunci. Selesaikan stage sebelumnya terlebih dahulu.';
+      alert(message);
+      return;
+    }
+    
+    if (onStepClick && (status === 'available' || status === 'current' || status === 'completed')) {
+      onStepClick(stepId);
+    }
+  };
+
   const steps = [
     {
       id: 'intro',
@@ -48,6 +63,12 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
   ];
 
   const getStepStatus = (stepId, index) => {
+    // Check if stage is locked by admin
+    const stageAccessInfo = stageAccess[stepId];
+    if (stageAccessInfo && !stageAccessInfo.canAccess) {
+      return 'admin-locked';
+    }
+    
     // Check if course is completed (all steps completed)
     const allStepsCompleted = steps.every(step => completedSteps.includes(step.id));
     const currentStepIndex = steps.findIndex(step => step.id === currentStep);
@@ -77,8 +98,8 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
     
     if (status === 'completed') {
       return <CheckCircle className="text-green-500" size={24} />;
-    } else if (status === 'locked') {
-      return <Lock className="text-gray-400" size={24} />;
+    } else if (status === 'locked' || status === 'admin-locked') {
+      return <Lock className={status === 'admin-locked' ? 'text-red-500' : 'text-gray-400'} size={24} />;
     } else {
       return <Icon className={`text-${step.color}-500`} size={24} />;
     }
@@ -94,6 +115,8 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
         return `${baseClasses} bg-${color}-50 border-2 border-${color}-500 shadow-lg ring-2 ring-${color}-200`;
       case 'available':
         return `${baseClasses} bg-gray-50 border-2 border-gray-200 hover:bg-gray-100 hover:border-${color}-300`;
+      case 'admin-locked':
+        return `${baseClasses} bg-red-50 border-2 border-red-200 opacity-70 cursor-not-allowed`;
       case 'locked':
         return `${baseClasses} bg-gray-50 border-2 border-gray-200 opacity-60 cursor-not-allowed`;
       default:
@@ -159,7 +182,7 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
               <div key={step.id} className="relative">
                 <div 
                   className={getStepClasses(status, step.color)}
-                  onClick={() => isClickable && onStepClick && onStepClick(step.id)}
+                  onClick={() => handleStepClick(step.id, status)}
                 >
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0">
@@ -198,9 +221,9 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
             return (
               <div key={step.id} className="relative">
                 <div 
-                  className={getStepClasses(status, step.color)}
-                  onClick={() => isClickable && onStepClick && onStepClick(step.id)}
-                >
+                className={getStepClasses(status, step.color)}
+                onClick={() => handleStepClick(step.id, status)}
+              >
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0">
                       {getStepIcon(step, status)}
@@ -239,7 +262,7 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
             <div key={step.id} className="relative">
               <div 
                 className={getStepClasses(status, step.color)}
-                onClick={() => isClickable && onStepClick && onStepClick(step.id)}
+                onClick={() => handleStepClick(step.id, status)}
               >
                 <div className="flex items-center space-x-4 w-full">
                   <div className="flex-shrink-0">
@@ -293,6 +316,10 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
           <div className="flex items-center space-x-2">
             <Lock className="text-gray-400" size={16} />
             <span className="text-gray-600">Terkunci</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Lock className="text-red-500" size={16} />
+            <span className="text-gray-600">Dikunci Admin</span>
           </div>
 
         </div>

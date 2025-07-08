@@ -11,7 +11,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { submissionAPI } from '../services/api';
 
-const FinalProject = ({ courseId, onSubmit }) => {
+const FinalProject = ({ courseId, onSubmit, stageAccess }) => {
   const { currentUser } = useAuth();
   const [projectStatus, setProjectStatus] = useState('not_submitted'); // not_submitted, submitted, reviewed
   const [selectedFile, setSelectedFile] = useState(null);
@@ -316,6 +316,12 @@ const FinalProject = ({ courseId, onSubmit }) => {
       : (projectLink.trim() && projectDescription.trim());
 
     if (isValid) {
+      // Check if current stage (finalproject) is locked
+      if (stageAccess && stageAccess.finalproject && !stageAccess.finalproject.canAccess) {
+        alert(`Tahap ini dikunci oleh admin: ${stageAccess.finalproject.lockMessage || 'Silakan hubungi admin untuk informasi lebih lanjut.'}`);
+        return;
+      }
+      
       try {
         setAutoSaveStatus('saving');
         
@@ -369,6 +375,12 @@ const FinalProject = ({ courseId, onSubmit }) => {
       : (projectLink.trim() && projectDescription.trim());
 
     if (isValid) {
+      // Check if current stage (finalproject) is locked
+      if (stageAccess && stageAccess.finalproject && !stageAccess.finalproject.canAccess) {
+        alert(`Tahap ini dikunci oleh admin: ${stageAccess.finalproject.lockMessage || 'Silakan hubungi admin untuk informasi lebih lanjut.'}`);
+        return;
+      }
+      
       try {
         setAutoSaveStatus('saving');
         

@@ -24,6 +24,9 @@ func SeedData(db *sql.DB) {
 	// Seed quizzes from course data
 	seedQuizzes(db)
 
+	// Seed stage locks for all courses
+	seedStageLocks(db)
+
 	log.Println("Database seeding completed")
 }
 
@@ -94,6 +97,13 @@ func createNewTables(db *sql.DB) {
 		log.Println("Created grades table")
 	}
 
+	// Create course stage locks table
+	if err := createCourseStageLocks(db); err != nil {
+		log.Printf("Error creating course_stage_locks table: %v", err)
+	} else {
+		log.Println("Created course_stage_locks table")
+	}
+
 	log.Println("New tables creation completed")
 }
 
@@ -139,6 +149,63 @@ func seedUsers(db *sql.DB) {
 	}
 }
 
+func seedStageLocks(db *sql.DB) {
+	// Check if stage locks already exist
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM course_stage_locks").Scan(&count)
+	if err != nil {
+		log.Printf("Error checking stage locks: %v", err)
+		return
+	}
+
+	if count > 0 {
+		log.Println("Stage locks already exist, skipping stage lock seeding")
+		return
+	}
+
+	// Get all courses
+	query := `SELECT id FROM courses`
+	rows, err := db.Query(query)
+	if err != nil {
+		log.Printf("Error getting courses for stage lock seeding: %v", err)
+		return
+	}
+	defer rows.Close()
+
+	// Default stages for all courses
+	defaultStages := []string{
+		"intro",
+		"pretest",
+		"lessons",
+		"posttest",
+		"postwork",
+		"finalproject",
+	}
+
+	for rows.Next() {
+		var courseID int
+		err := rows.Scan(&courseID)
+		if err != nil {
+			log.Printf("Error scanning course ID: %v", err)
+			continue
+		}
+
+		// Create stage locks for each stage
+		for _, stageName := range defaultStages {
+			insertQuery := `
+				INSERT INTO course_stage_locks (course_id, stage_name, is_locked, lock_message, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+			`
+			_, err := db.Exec(insertQuery, courseID, stageName, false, "")
+			if err != nil {
+				log.Printf("Error creating stage lock for course %d, stage %s: %v", courseID, stageName, err)
+			} else {
+				log.Printf("Created stage lock for course %d, stage: %s", courseID, stageName)
+			}
+		}
+	}
+}
+
 
 // createCertificatesTable creates the certificates table
 func createCertificatesTable(db *sql.DB) error {
@@ -178,6 +245,43 @@ func createGradesTable(db *sql.DB) error {
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(submission_id, course_id)
 	);
+	`
+	_, err := db.Exec(query)
+	return err
+}
+
+// createCourseStageLocks creates the course_stage_locks table
+func createCourseStageLocks(db *sql.DB) error {
+	query := `
+	CREATE TABLE IF NOT EXISTS course_stage_locks (
+		id SERIAL PRIMARY KEY,
+		course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+		stage_name VARCHAR(50) NOT NULL,
+		is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+		lock_message TEXT DEFAULT '',
+		locked_by INTEGER REFERENCES users(id),
+		locked_at TIMESTAMP,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(course_id, stage_name)
+	);
+	
+	CREATE INDEX IF NOT EXISTS idx_course_stage_locks_course_id ON course_stage_locks(course_id);
+	CREATE INDEX IF NOT EXISTS idx_course_stage_locks_stage_name ON course_stage_locks(stage_name);
+	
+	CREATE OR REPLACE FUNCTION update_course_stage_locks_updated_at()
+	RETURNS TRIGGER AS $$
+	BEGIN
+		NEW.updated_at = CURRENT_TIMESTAMP;
+		RETURN NEW;
+	END;
+	$$ language 'plpgsql';
+	
+	DROP TRIGGER IF EXISTS update_course_stage_locks_updated_at ON course_stage_locks;
+	CREATE TRIGGER update_course_stage_locks_updated_at
+		BEFORE UPDATE ON course_stage_locks
+		FOR EACH ROW
+		EXECUTE FUNCTION update_course_stage_locks_updated_at();
 	`
 	_, err := db.Exec(query)
 	return err

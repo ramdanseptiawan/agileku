@@ -217,6 +217,11 @@ export const courseAPI = {
   getCoursePostTest: async (courseId) => {
     return await apiRequest(`/protected/courses/${courseId}/posttest`);
   },
+
+  // Check stage access (protected)
+  checkStageAccess: async (courseId, stageName) => {
+    return await apiRequest(`/protected/courses/${courseId}/stages/${stageName}/access`);
+  },
 };
 
 // Quiz API
@@ -305,6 +310,10 @@ export const certificateAPI = {
 // Admin API
 export const adminAPI = {
   // Course Management
+  getAllCourses: async () => {
+    return await apiRequest('/protected/admin/courses');
+  },
+
   createCourse: async (courseData) => {
     return await apiRequest('/protected/admin/courses', {
       method: 'POST',
@@ -438,6 +447,18 @@ export const adminAPI = {
   // Dashboard Statistics
   getDashboardStats: async () => {
     return await apiRequest('/protected/admin/dashboard/stats');
+  },
+
+  // Stage Lock Management
+  getStageLocks: async (courseId) => {
+    return await apiRequest(`/protected/admin/courses/${courseId}/stage-locks`);
+  },
+
+  updateStageLock: async (courseId, stageLockData) => {
+    return await apiRequest(`/protected/admin/courses/${courseId}/stage-locks`, {
+      method: 'PUT',
+      body: JSON.stringify(stageLockData),
+    });
   },
 };
 
