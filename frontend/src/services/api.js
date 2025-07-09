@@ -50,7 +50,7 @@ export const getUserEnrollments = async () => {
 };
 
 export const getCourseProgress = async (courseId) => {
-  return makeRequest(`/progress/course/${courseId}`);
+  return makeRequest(`/api/protected/courses/${courseId}/progress`);
 };
 
 export const updateLessonProgress = async (progressData) => {

@@ -205,6 +205,138 @@ func (h *AdminHandler) DeleteCourse(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Test Results Management
+
+// GetAllTestResults gets all pre test and post test results (admin only)
+func (h *AdminHandler) GetAllTestResults(w http.ResponseWriter, r *http.Request) {
+	log.Printf("[ADMIN DEBUG] GetAllTestResults called")
+	
+	query := `
+		SELECT 
+			qa.id as attempt_id,
+			qa.quiz_id,
+			qa.user_id,
+			qa.score,
+			qa.time_spent,
+			qa.passed,
+			qa.attempt_number,
+			qa.submitted_at,
+			qa.created_at,
+			u.full_name as user_name,
+			u.email as user_email,
+			c.id as course_id,
+			c.title as course_title,
+			q.title as quiz_title,
+			q.quiz_type,
+			q.passing_score,
+			-- Calculate correct and total count from answers and questions
+			COALESCE(
+				(
+					SELECT COUNT(*)
+					FROM json_array_elements(q.questions::json) as question
+				), 0
+			) as total_count,
+			-- Estimate correct count based on score and total questions
+			COALESCE(
+				ROUND(
+					(qa.score::float / 100.0) * 
+					(
+						SELECT COUNT(*)
+						FROM json_array_elements(q.questions::json) as question
+					)
+				), 0
+			) as correct_count
+		FROM quiz_attempts qa
+		JOIN users u ON qa.user_id = u.id
+		JOIN quizzes q ON qa.quiz_id = q.id
+		JOIN courses c ON q.course_id = c.id
+		WHERE qa.completed = true 
+			AND qa.submitted_at IS NOT NULL
+			AND q.quiz_type IN ('pretest', 'posttest')
+		ORDER BY qa.submitted_at DESC
+	`
+
+	rows, err := h.db.Query(query)
+	if err != nil {
+		log.Printf("[ADMIN ERROR] Error querying test results: %v", err)
+		http.Error(w, "Failed to get test results", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type TestResult struct {
+		AttemptID     int        `json:"attempt_id"`
+		QuizID        int        `json:"quiz_id"`
+		UserID        int        `json:"user_id"`
+		UserName      string     `json:"user_name"`
+		UserEmail     string     `json:"user_email"`
+		CourseID      int        `json:"course_id"`
+		CourseTitle   string     `json:"course_title"`
+		QuizTitle     string     `json:"quiz_title"`
+		QuizType      string     `json:"quiz_type"`
+		Score         int        `json:"score"`
+		Passed        bool       `json:"passed"`
+		PassingScore  int        `json:"passing_score"`
+		CorrectCount  int        `json:"correct_count"`
+		TotalCount    int        `json:"total_count"`
+		TimeSpent     int        `json:"time_spent"`
+		AttemptNumber int        `json:"attempt_number"`
+		SubmittedAt   *time.Time `json:"submitted_at"`
+		CreatedAt     time.Time  `json:"created_at"`
+	}
+
+	var results []TestResult
+	for rows.Next() {
+		var result TestResult
+		var submittedAt sql.NullTime
+		
+		err := rows.Scan(
+			&result.AttemptID,
+			&result.QuizID,
+			&result.UserID,
+			&result.Score,
+			&result.TimeSpent,
+			&result.Passed,
+			&result.AttemptNumber,
+			&submittedAt,
+			&result.CreatedAt,
+			&result.UserName,
+			&result.UserEmail,
+			&result.CourseID,
+			&result.CourseTitle,
+			&result.QuizTitle,
+			&result.QuizType,
+			&result.PassingScore,
+			&result.TotalCount,
+			&result.CorrectCount,
+		)
+		if err != nil {
+			log.Printf("[ADMIN ERROR] Error scanning test result: %v", err)
+			continue
+		}
+		
+		if submittedAt.Valid {
+			result.SubmittedAt = &submittedAt.Time
+		}
+		
+		results = append(results, result)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Printf("[ADMIN ERROR] Error iterating test results: %v", err)
+		http.Error(w, "Failed to get test results", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("[ADMIN DEBUG] Found %d test results", len(results))
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{
+		"success": true,
+		"data":    results,
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
 // Grading System
 
 type GradeRequest struct {

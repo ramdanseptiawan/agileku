@@ -157,6 +157,9 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	// Admin dashboard statistics route
 	admin.HandleFunc("/dashboard/stats", adminHandler.GetDashboardStats).Methods("GET", "OPTIONS")
 
+	// Admin test results route
+	admin.HandleFunc("/test-results", adminHandler.GetAllTestResults).Methods("GET", "OPTIONS")
+
 	// Admin survey feedback routes
 	admin.HandleFunc("/surveys/feedback/{courseId:[0-9]+}", surveyHandler.GetAllSurveyFeedbackHandler).Methods("GET", "OPTIONS")
 

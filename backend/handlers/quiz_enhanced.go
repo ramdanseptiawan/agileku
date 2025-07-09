@@ -71,15 +71,39 @@ func GetQuizEnhancedHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove correct answers and explanations from response for security
-	for i := range quiz.Questions {
-		quiz.Questions[i].CorrectAnswer = 0
-		quiz.Questions[i].Explanation = ""
+	// Convert to map to remove sensitive fields
+	quizData := map[string]interface{}{
+		"id":          quiz.ID,
+		"courseId":    quiz.CourseID,
+		"title":       quiz.Title,
+		"description": quiz.Description,
+		"timeLimit":   quiz.TimeLimit,
+		"maxAttempts": quiz.MaxAttempts,
+		"passingScore": quiz.PassingScore,
+		"quizType":    quiz.QuizType,
+		"isActive":    quiz.IsActive,
+		"createdAt":   quiz.CreatedAt,
+		"updatedAt":   quiz.UpdatedAt,
 	}
+
+	// Process questions to remove sensitive fields
+	var safeQuestions []map[string]interface{}
+	for _, question := range quiz.Questions {
+		safeQuestion := map[string]interface{}{
+			"id":       question.ID,
+			"question": question.Question,
+			"options":   question.Options,
+			"points":   question.Points,
+			// correctAnswer and explanation are intentionally omitted
+		}
+		safeQuestions = append(safeQuestions, safeQuestion)
+	}
+	quizData["questions"] = safeQuestions
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
-		"data":    quiz,
+		"data":    quizData,
 	})
 }
 
@@ -309,7 +333,7 @@ func GetQuizResultEnhancedHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get detailed result with correct answers and explanations
+	// Get basic result without correct answers (for security)
 	query := `
 	SELECT qa.id, qa.score, qa.time_spent, qa.attempt_number, qa.passed, qa.answers,
 	       q.questions, q.max_attempts, q.passing_score
@@ -336,7 +360,7 @@ func GetQuizResultEnhancedHandler(w http.ResponseWriter, r *http.Request) {
 		result.Answers = make(map[string]interface{})
 	}
 
-	// Parse questions to get correct answers and explanations
+	// Parse questions to count correct answers (without revealing correct answers)
 	var questions []models.QuizQuestion
 	err = json.Unmarshal(questionsJSON, &questions)
 	if err != nil {
@@ -344,15 +368,10 @@ func GetQuizResultEnhancedHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build correct answers and explanations maps
-	result.CorrectAnswers = make(map[string]int)
-	result.Explanations = make(map[string]string)
+	// Count correct answers without revealing them
 	correctCount := 0
-
 	for _, question := range questions {
 		questionIDStr := fmt.Sprintf("%d", question.ID)
-		result.CorrectAnswers[questionIDStr] = question.CorrectAnswer
-		result.Explanations[questionIDStr] = question.Explanation
 		
 		// Count correct answers
 		if userAnswer, exists := result.Answers[questionIDStr]; exists {
@@ -366,6 +385,10 @@ func GetQuizResultEnhancedHandler(w http.ResponseWriter, r *http.Request) {
 
 	result.CorrectCount = correctCount
 	result.TotalCount = len(questions)
+
+	// DO NOT include CorrectAnswers and Explanations for security
+	result.CorrectAnswers = nil
+	result.Explanations = nil
 
 	// Check if can retake
 	var totalAttempts int

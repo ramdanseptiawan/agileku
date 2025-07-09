@@ -54,6 +54,7 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
         { id: 'project-instructions', label: 'Project Instructions', icon: FileText, badge: null },
         { id: 'course-instructions', label: 'Course Instructions', icon: Settings, badge: null },
         { id: 'users', label: 'User Management', icon: UserCog, badge: null },
+        { id: 'test-results', label: 'Test Results', icon: BarChart3, badge: null },
         { id: 'students', label: 'Students', icon: Users, badge: null },
         ...commonItems
       ];
@@ -71,10 +72,12 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
   const sidebarMenuItems = getUserMenuItems();
 
   const handleMenuClick = (viewId) => {
+    console.log('Sidebar: Menu clicked, viewId =', viewId); // Debug log
     if (viewId === 'menu') {
       setIsSidebarOpen(true);
       return;
     }
+    console.log('Sidebar: Setting currentView to', viewId); // Debug log
     setCurrentView(viewId);
     // Close sidebar on mobile after selection
     if (window.innerWidth < 1024) {

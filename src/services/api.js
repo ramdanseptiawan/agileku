@@ -469,6 +469,11 @@ export const adminAPI = {
     return await apiRequest('/protected/admin/dashboard/stats');
   },
 
+  // Test Results
+  getTestResults: async () => {
+    return await apiRequest('/protected/admin/test-results');
+  },
+
   // Stage Lock Management
   getStageLocks: async (courseId) => {
     return await apiRequest(`/protected/admin/courses/${courseId}/stage-locks`);

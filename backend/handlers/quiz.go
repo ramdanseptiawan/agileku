@@ -43,6 +43,16 @@ func (h *Handler) GetQuizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Hide correct answers and explanations from questions
+	var questions []map[string]interface{}
+	if err := json.Unmarshal(quiz.Questions, &questions); err == nil {
+		for i := range questions {
+			delete(questions[i], "correctAnswer")
+			delete(questions[i], "explanation")
+		}
+		quiz.Questions, _ = json.Marshal(questions)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
@@ -80,6 +90,18 @@ func (h *Handler) GetQuizzesByCourseHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		http.Error(w, "Failed to get quizzes", http.StatusInternalServerError)
 		return
+	}
+
+	// Hide correct answers and explanations from all quizzes
+	for i := range quizzes {
+		var questions []map[string]interface{}
+		if err := json.Unmarshal(quizzes[i].Questions, &questions); err == nil {
+			for j := range questions {
+				delete(questions[j], "correctAnswer")
+				delete(questions[j], "explanation")
+			}
+			quizzes[i].Questions, _ = json.Marshal(questions)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

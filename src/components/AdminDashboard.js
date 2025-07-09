@@ -15,8 +15,10 @@ import CourseInstructionManager from './CourseInstructionManager';
 import GradingSystem from './GradingSystem';
 import SubmissionReview from './SubmissionReview';
 import CourseStageManager from './CourseStageManager';
+import TestResultsManager from './TestResultsManager';
 
 const AdminDashboard = ({ activeTab = 'overview' }) => {
+  console.log('AdminDashboard: activeTab =', activeTab); // Debug log
   const { currentUser } = useAuth();
   const [courses, setCourses] = useState([]);
   const [showCourseForm, setShowCourseForm] = useState(false);
@@ -231,6 +233,7 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
 
       {/* Tab Content */}
       <div className="mt-6">
+        {console.log('AdminDashboard: Rendering tab content, activeTab =', activeTab)}
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -335,6 +338,13 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
 
         {activeTab === 'users' && (
           <UserManagement />
+        )}
+
+        {activeTab === 'test-results' && (
+          <div>
+            {console.log('AdminDashboard: Rendering TestResultsManager')}
+            <TestResultsManager />
+          </div>
         )}
 
         {activeTab === 'grading' && (
