@@ -10,7 +10,6 @@ const PostTestEnhanced = ({ courseId, onComplete, onBack }) => {
     if (onComplete) {
       onComplete({
         type: 'posttest',
-        passed: result.passed,
         score: result.result.score,
         canRetake: result.result.canRetake,
         result: result.result

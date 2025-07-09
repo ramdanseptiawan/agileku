@@ -36,15 +36,14 @@ const PostTest = ({ quiz, onQuizSubmit, showQuizResult, currentQuizScore, onReta
         <div className="bg-gradient-to-r from-green-400 to-blue-500 rounded-full w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center mx-auto">
           <span className="text-xl sm:text-2xl font-bold text-white">{currentQuizScore}%</span>
         </div>
-        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Post-Test Selesai!</h3>
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Post-Test Telah Disubmit!</h3>
         <p className="text-gray-600 text-sm sm:text-base">
-          Skor Anda: {currentQuizScore}% 
-          {currentQuizScore >= 70 ? ' - Selamat! Anda telah menguasai materi dengan baik! 🎉' : ' - Terus belajar dan berlatih! 💪'}
+          Skor Anda: {currentQuizScore}%
         </p>
-        <div className="bg-green-50 rounded-lg p-4 mb-6">
-          <h4 className="font-semibold text-green-800 mb-2">Informasi Post-Test</h4>
-          <p className="text-green-700 text-sm">
-            Post-test mengukur pemahaman Anda setelah mempelajari materi. Hasil ini menunjukkan kemajuan pembelajaran Anda dari pre-test.
+        <div className="bg-blue-50 rounded-lg p-4 mb-6">
+          <h4 className="font-semibold text-blue-800 mb-2">Post-Test Berhasil Disubmit</h4>
+          <p className="text-blue-700 text-sm">
+            Terima kasih telah menyelesaikan post-test. Skor Anda telah tercatat dan dapat dilihat di atas.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
