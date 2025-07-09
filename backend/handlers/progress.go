@@ -387,14 +387,14 @@ func (h *Handler) SyncProgressHandler(w http.ResponseWriter, r *http.Request) {
   }
   
   if allStepsCompleted {
-    // Check if certificate already exists
+    // Check if certificate request already exists
     existingCert, _ := models.GetCertificateForCourse(h.DB, userID, req.CourseID)
     if existingCert == nil {
-      // Generate certificate automatically
-      err = models.AutoGenerateCertificate(h.DB, userID, req.CourseID)
+      // Create certificate request with pending status
+      err = models.RequestCertificate(h.DB, userID, req.CourseID)
       if err != nil {
         // Log error but don't fail the request
-        // Certificate can be generated manually later
+        // Certificate can be requested manually later
       }
     }
   }

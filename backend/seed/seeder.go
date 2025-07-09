@@ -220,10 +220,18 @@ func createCertificatesTable(db *sql.DB) error {
 		instructor VARCHAR(255) NOT NULL,
 		completion_date TIMESTAMP NOT NULL,
 		issued_at TIMESTAMP NOT NULL,
+		status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+		approved_by INTEGER REFERENCES users(id),
+		approved_at TIMESTAMP,
+		rejection_reason TEXT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(user_id, course_id)
 	);
+	
+	-- Create indexes for better query performance
+	CREATE INDEX IF NOT EXISTS idx_certificates_status ON certificates(status);
+	CREATE INDEX IF NOT EXISTS idx_certificates_user_course_status ON certificates(user_id, course_id, status);
 	`
 	_, err := db.Exec(query)
 	return err

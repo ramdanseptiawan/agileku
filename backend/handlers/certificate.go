@@ -8,10 +8,8 @@ import (
 	"lms-backend/models"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/google/uuid"
 )
 
 type CertificateHandler struct {
@@ -22,8 +20,8 @@ func NewCertificateHandler(db *sql.DB) *CertificateHandler {
 	return &CertificateHandler{db: db}
 }
 
-// GenerateCertificate generates a certificate for course completion
-func (h *CertificateHandler) GenerateCertificate(w http.ResponseWriter, r *http.Request) {
+// RequestCertificate creates a certificate request for course completion
+func (h *CertificateHandler) RequestCertificate(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	courseIDStr := vars["courseId"]
 	courseID, err := strconv.Atoi(courseIDStr)
@@ -75,57 +73,29 @@ func (h *CertificateHandler) GenerateCertificate(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Check if certificate already exists
+	// Check if certificate request already exists
 	existingCert, _ := models.GetCertificateForCourse(h.db, userID, courseID)
 	if existingCert != nil {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
-			"message": "Certificate already exists",
+			"message": "Certificate request already exists",
 			"certificate": existingCert,
 		})
 		return
 	}
 
-	// Get user and course information
-	user, err := models.GetUserByID(h.db, userID)
+	// Create certificate request
+	err = models.RequestCertificate(h.db, userID, courseID)
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	course, err := models.GetCourseByID(h.db, courseID)
-	if err != nil {
-		http.Error(w, "Course not found", http.StatusNotFound)
-		return
-	}
-
-	// Generate certificate number
-	certNumber := fmt.Sprintf("CERT-%s-%d-%d", uuid.New().String()[:8], courseID, userID)
-
-	// Create certificate
-	cert := &models.Certificate{
-		UserID:         userID,
-		CourseID:       courseID,
-		CertNumber:     certNumber,
-		UserName:       user.FullName,
-		CourseName:     course.Title,
-		Instructor:     course.Instructor,
-		CompletionDate: time.Now(),
-		IssuedAt:       time.Now(),
-	}
-
-	err = models.CreateCertificate(h.db, cert)
-	if err != nil {
-		http.Error(w, "Failed to create certificate", http.StatusInternalServerError)
+		http.Error(w, "Failed to create certificate request", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
-		"message": "Certificate generated successfully",
-		"certificate": cert,
+		"message": "Certificate request submitted successfully. Please wait for admin approval.",
 	})
 }
 
@@ -171,40 +141,165 @@ func (h *CertificateHandler) GetUserCertificates(w http.ResponseWriter, r *http.
 	})
 }
 
-// GetAllCertificates gets all certificates (admin only)
+// GetAllCertificates returns all certificates (admin only)
 func (h *CertificateHandler) GetAllCertificates(w http.ResponseWriter, r *http.Request) {
-	query := `
-		SELECT id, user_id, course_id, cert_number, user_name, course_name, instructor,
-		       completion_date, issued_at, created_at, updated_at
-		FROM certificates
-		ORDER BY issued_at DESC
-	`
-
-	rows, err := h.db.Query(query)
+	// Get user ID from context
+	userID, err := middleware.GetUserIDFromContext(r)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		http.Error(w, "Failed to get user ID", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
 
-	var certificates []models.Certificate
-	for rows.Next() {
-		var cert models.Certificate
-		err := rows.Scan(
-			&cert.ID, &cert.UserID, &cert.CourseID, &cert.CertNumber, &cert.UserName,
-			&cert.CourseName, &cert.Instructor, &cert.CompletionDate, &cert.IssuedAt,
-			&cert.CreatedAt, &cert.UpdatedAt,
-		)
-		if err != nil {
-			http.Error(w, "Database scan error", http.StatusInternalServerError)
-			return
-		}
-		certificates = append(certificates, cert)
+	// Check if user is admin
+	user, err := models.GetUserByID(h.db, userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	if user.Role != "admin" {
+		http.Error(w, "Access denied. Admin role required.", http.StatusForbidden)
+		return
+	}
+
+	certificates, err := models.GetAllCertificates(h.db)
+	if err != nil {
+		http.Error(w, "Failed to get certificates", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":      true,
+		"certificates": certificates,
+	})
+}
+
+// GetPendingCertificates returns all pending certificates (admin only)
+func (h *CertificateHandler) GetPendingCertificates(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context
+	userID, err := middleware.GetUserIDFromContext(r)
+	if err != nil {
+		http.Error(w, "Failed to get user ID", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if user is admin
+	user, err := models.GetUserByID(h.db, userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	if user.Role != "admin" {
+		http.Error(w, "Access denied. Admin role required.", http.StatusForbidden)
+		return
+	}
+
+	certificates, err := models.GetPendingCertificates(h.db)
+	if err != nil {
+		http.Error(w, "Failed to get pending certificates", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":      true,
+		"certificates": certificates,
+	})
+}
+
+// ApproveCertificate approves a pending certificate (admin only)
+func (h *CertificateHandler) ApproveCertificate(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	certIDStr := vars["certId"]
+	certID, err := strconv.Atoi(certIDStr)
+	if err != nil {
+		http.Error(w, "Invalid certificate ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get user ID from context
+	userID, err := middleware.GetUserIDFromContext(r)
+	if err != nil {
+		http.Error(w, "Failed to get user ID", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if user is admin
+	user, err := models.GetUserByID(h.db, userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	if user.Role != "admin" {
+		http.Error(w, "Access denied. Admin role required.", http.StatusForbidden)
+		return
+	}
+
+	err = models.ApproveCertificate(h.db, certID, userID)
+	if err != nil {
+		http.Error(w, "Failed to approve certificate", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
-		"certificates": certificates,
+		"message": "Certificate approved successfully",
+	})
+}
+
+// RejectCertificate rejects a pending certificate (admin only)
+func (h *CertificateHandler) RejectCertificate(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	certIDStr := vars["certId"]
+	certID, err := strconv.Atoi(certIDStr)
+	if err != nil {
+		http.Error(w, "Invalid certificate ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get user ID from context
+	userID, err := middleware.GetUserIDFromContext(r)
+	if err != nil {
+		http.Error(w, "Failed to get user ID", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if user is admin
+	user, err := models.GetUserByID(h.db, userID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	if user.Role != "admin" {
+		http.Error(w, "Access denied. Admin role required.", http.StatusForbidden)
+		return
+	}
+
+	// Parse request body for rejection reason
+	var requestBody struct {
+		Reason string `json:"reason"`
+	}
+
+	err = json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = models.RejectCertificate(h.db, certID, userID, requestBody.Reason)
+	if err != nil {
+		http.Error(w, "Failed to reject certificate", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Certificate rejected successfully",
 	})
 }

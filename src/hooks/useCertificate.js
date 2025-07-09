@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserCertificates, generateCertificate } from '../services/api';
+import { getUserCertificates, requestCertificate } from '../services/api';
 import { getCourseProgress } from '../services/api';
 
 /**
@@ -143,7 +143,7 @@ export const useCertificate = (courseId, userProgress) => {
     return '0 jam';
   }, [backendProgress]);
 
-  // Generate certificate menggunakan backend API
+  // Request certificate menggunakan backend API
   const generateCertificateForCourse = useCallback(async (targetCourseId) => {
     console.log('generateCertificateForCourse called with:', {
       targetCourseId,
@@ -151,29 +151,29 @@ export const useCertificate = (courseId, userProgress) => {
     });
     
     if (!currentUserRef.current || !targetCourseId) {
-      console.log('Cannot generate certificate: missing data');
+      console.log('Cannot request certificate: missing data');
       return;
     }
 
     setIsGenerating(true);
 
     try {
-      console.log('Generating certificate via backend API for course:', targetCourseId);
+      console.log('Requesting certificate via backend API for course:', targetCourseId);
 
-      const response = await generateCertificate(targetCourseId);
+      const response = await requestCertificate(targetCourseId);
       
-      if (response.success && response.certificate) {
-        console.log('Certificate generated successfully:', response.certificate);
+      if (response.success) {
+        console.log('Certificate request submitted successfully:', response.message);
         await loadCertificates();
         setIsGenerating(false);
-        return response.certificate;
+        return response;
       } else {
-        console.error('Failed to generate certificate:', response);
+        console.error('Failed to request certificate:', response);
         setIsGenerating(false);
         return null;
       }
     } catch (error) {
-      console.error('Error generating certificate:', error);
+      console.error('Error requesting certificate:', error);
       setIsGenerating(false);
       throw error;
     }
@@ -205,14 +205,14 @@ export const useCertificate = (courseId, userProgress) => {
     }
   }, [userProgress]); // Remove checkEligibility dependency to prevent loop
 
-  // Auto-generate certificate jika eligible dan belum ada - with debounce
+  // Auto-request certificate jika eligible dan belum ada - with debounce
   useEffect(() => {
     if (!isEligible || !courseId || isGenerating || !currentUser?.id) return;
     
     const existingCert = certificates.find(cert => cert.courseId === parseInt(courseId));
     if (existingCert) return;
     
-    console.log('Auto-generating certificate in 5 seconds...');
+    console.log('Auto-requesting certificate in 5 seconds...');
     const timer = setTimeout(() => {
       generateCertificateForCourse(courseId).catch(console.error);
     }, 5000); // Increased delay to prevent rapid calls

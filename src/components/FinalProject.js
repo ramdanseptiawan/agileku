@@ -72,7 +72,6 @@ const FinalProject = ({ courseId, onSubmit, stageAccess }) => {
           description: 'Proyek akhir untuk mendemonstrasikan pemahaman komprehensif terhadap seluruh materi kursus.',
           requirements: [
             'Menyelesaikan semua tahap pembelajaran',
-            'Lulus post-test dengan nilai minimal 70%',
             'Menyelesaikan post work assignment'
           ],
           deliverables: [
@@ -127,6 +126,18 @@ const FinalProject = ({ courseId, onSubmit, stageAccess }) => {
            }
            if (submission.fileId) {
              setUploadedFileId(submission.fileId);
+           }
+           
+           // Call parent submit handler to mark step as completed
+           if (onSubmit) {
+             onSubmit({
+               type: submission.githubUrl ? 'link' : 'file',
+               link: submission.githubUrl || submission.liveUrl,
+               description: submission.content,
+               submissionDate: submission.submittedAt,
+               submissionId: submission.id,
+               isExisting: true
+             });
            }
          }
        } catch (error) {
@@ -186,36 +197,34 @@ const FinalProject = ({ courseId, onSubmit, stageAccess }) => {
     return false;
   };
 
-  const generateCertificate = () => {
+  const generateCertificate = async () => {
     if (!checkCourseCompletion()) {
       alert('Anda harus menyelesaikan semua materi kursus terlebih dahulu untuk mendapatkan sertifikat.');
       return;
     }
 
-    if (projectStatus !== 'reviewed' || !grade || grade < 70) {
-      alert('Proyek akhir harus dinilai dan mendapat nilai minimal 70 untuk mendapatkan sertifikat.');
+    // Removed grade requirement - only need course completion
+    if (projectStatus !== 'reviewed') {
+      alert('Proyek akhir harus dinilai terlebih dahulu untuk mendapatkan sertifikat.');
       return;
     }
 
-    // Generate certificate
-    const certificate = {
-      id: Date.now().toString(),
-      courseId,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userEmail: currentUser.email,
-      courseName: `Course ${courseId}`,
-      completionDate: new Date().toISOString(),
-      certificateNumber: `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      grade: grade,
-      issueDate: new Date().toISOString()
-    };
-
-    const certificates = JSON.parse(localStorage.getItem('certificates') || '[]');
-    certificates.push(certificate);
-    localStorage.setItem('certificates', JSON.stringify(certificates));
-    
-    alert('Selamat! Sertifikat Anda telah berhasil dibuat. Anda dapat mengunduhnya dari menu Sertifikat.');
+    try {
+      // Import certificateAPI
+      const { certificateAPI } = await import('../services/api');
+      
+      // Request certificate from backend
+      const response = await certificateAPI.requestCertificate(parseInt(courseId));
+      
+      if (response.success) {
+        alert('Selamat! Anda berhasil mengerjakan course 100 persen. Sertifikat menunggu approval admin.');
+      } else {
+        alert('Gagal mengajukan sertifikat: ' + (response.message || 'Terjadi kesalahan'));
+      }
+    } catch (error) {
+      console.error('Error requesting certificate:', error);
+      alert('Gagal mengajukan sertifikat. Silakan coba lagi.');
+    }
   };
 
   const handleFileSelect = async (event) => {
@@ -814,7 +823,7 @@ const FinalProject = ({ courseId, onSubmit, stageAccess }) => {
             </span>
           </div>
           
-          {projectStatus === 'reviewed' && grade >= 70 && (
+          {projectStatus === 'reviewed' && (
             <button
               onClick={generateCertificate}
               className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-2 rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all duration-300 font-semibold flex items-center space-x-2"
@@ -824,14 +833,7 @@ const FinalProject = ({ courseId, onSubmit, stageAccess }) => {
             </button>
           )}
         </div>
-        
-        {projectStatus === 'reviewed' && grade < 70 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-yellow-800 text-sm">
-              <strong>Catatan:</strong> Nilai minimal 70 diperlukan untuk mendapatkan sertifikat. Nilai Anda saat ini: {grade}/100
-            </p>
-          </div>
-        )}
+
       </div>
         </div>
       </div>

@@ -148,6 +148,10 @@ func createTables(db *sql.DB) error {
 		instructor VARCHAR(255) NOT NULL,
 		completion_date TIMESTAMP NOT NULL,
 		issued_at TIMESTAMP NOT NULL,
+		status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+		approved_by INTEGER REFERENCES users(id),
+		approved_at TIMESTAMP,
+		rejection_reason TEXT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(user_id, course_id)

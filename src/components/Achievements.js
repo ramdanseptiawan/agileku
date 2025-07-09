@@ -263,14 +263,55 @@ const Achievements = () => {
                   </div>
                 )}
 
-                {/* Download Button */}
-                <button
-                  onClick={() => downloadCertificate(certificate)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Certificate
-                </button>
+                {/* Status and Download Button */}
+                {certificate.status === 'pending' ? (
+                  <div className="space-y-2">
+                    <div className="w-full bg-yellow-100 text-yellow-800 font-semibold py-3 px-4 rounded-lg text-center">
+                      Menunggu Persetujuan Admin
+                    </div>
+                    <button
+                      disabled
+                      className="w-full bg-gray-300 text-gray-500 font-semibold py-3 px-4 rounded-lg cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Certificate
+                    </button>
+                  </div>
+                ) : certificate.status === 'approved' ? (
+                  <button
+                    onClick={() => downloadCertificate(certificate)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Certificate
+                  </button>
+                ) : certificate.status === 'rejected' ? (
+                  <div className="space-y-2">
+                    <div className="w-full bg-red-100 text-red-800 font-semibold py-3 px-4 rounded-lg text-center">
+                      Sertifikat Ditolak
+                    </div>
+                    {certificate.rejectionReason && (
+                      <div className="text-sm text-red-600 text-center">
+                        Alasan: {certificate.rejectionReason}
+                      </div>
+                    )}
+                    <button
+                      disabled
+                      className="w-full bg-gray-300 text-gray-500 font-semibold py-3 px-4 rounded-lg cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Certificate
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => downloadCertificate(certificate)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Certificate
+                  </button>
+                )}
               </div>
             </div>
           ))

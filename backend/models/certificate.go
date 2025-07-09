@@ -8,17 +8,21 @@ import (
 
 // Certificate represents a course completion certificate
 type Certificate struct {
-	ID           int       `json:"id"`
-	UserID       int       `json:"userId"`
-	CourseID     int       `json:"courseId"`
-	CertNumber   string    `json:"certNumber"`
-	UserName     string    `json:"userName"`
-	CourseName   string    `json:"courseName"`
-	Instructor   string    `json:"instructor"`
-	CompletionDate time.Time `json:"completionDate"`
-	IssuedAt     time.Time `json:"issuedAt"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	ID             int        `json:"id"`
+	UserID         int        `json:"userId"`
+	CourseID       int        `json:"courseId"`
+	CertNumber     string     `json:"certNumber"`
+	UserName       string     `json:"userName"`
+	CourseName     string     `json:"courseName"`
+	Instructor     string     `json:"instructor"`
+	CompletionDate time.Time  `json:"completionDate"`
+	IssuedAt       time.Time  `json:"issuedAt"`
+	Status         string     `json:"status"`
+	ApprovedBy     *int       `json:"approvedBy"`
+	ApprovedAt     *time.Time `json:"approvedAt"`
+	RejectionReason *string   `json:"rejectionReason"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
 }
 
 // CertificateVerification represents certificate verification data
@@ -35,13 +39,13 @@ type CertificateVerification struct {
 // CreateCertificate creates a new certificate in the database
 func CreateCertificate(db *sql.DB, cert *Certificate) error {
 	query := `
-		INSERT INTO certificates (user_id, course_id, cert_number, user_name, course_name, instructor, completion_date, issued_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO certificates (user_id, course_id, cert_number, user_name, course_name, instructor, completion_date, issued_at, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at
 	`
 
 	err := db.QueryRow(query, cert.UserID, cert.CourseID, cert.CertNumber, cert.UserName, 
-		cert.CourseName, cert.Instructor, cert.CompletionDate, cert.IssuedAt).Scan(
+		cert.CourseName, cert.Instructor, cert.CompletionDate, cert.IssuedAt, cert.Status).Scan(
 		&cert.ID, &cert.CreatedAt, &cert.UpdatedAt,
 	)
 
@@ -52,7 +56,7 @@ func CreateCertificate(db *sql.DB, cert *Certificate) error {
 func GetCertificateByNumber(db *sql.DB, certNumber string) (*Certificate, error) {
 	query := `
 		SELECT id, user_id, course_id, cert_number, user_name, course_name, instructor,
-		       completion_date, issued_at, created_at, updated_at
+		       completion_date, issued_at, status, approved_by, approved_at, rejection_reason, created_at, updated_at
 		FROM certificates
 		WHERE cert_number = $1
 	`
@@ -61,6 +65,7 @@ func GetCertificateByNumber(db *sql.DB, certNumber string) (*Certificate, error)
 	err := db.QueryRow(query, certNumber).Scan(
 		&cert.ID, &cert.UserID, &cert.CourseID, &cert.CertNumber, &cert.UserName,
 		&cert.CourseName, &cert.Instructor, &cert.CompletionDate, &cert.IssuedAt,
+		&cert.Status, &cert.ApprovedBy, &cert.ApprovedAt, &cert.RejectionReason,
 		&cert.CreatedAt, &cert.UpdatedAt,
 	)
 
@@ -75,10 +80,10 @@ func GetCertificateByNumber(db *sql.DB, certNumber string) (*Certificate, error)
 func GetUserCertificates(db *sql.DB, userID int) ([]Certificate, error) {
 	query := `
 		SELECT id, user_id, course_id, cert_number, user_name, course_name, instructor,
-		       completion_date, issued_at, created_at, updated_at
+		       completion_date, issued_at, status, approved_by, approved_at, rejection_reason, created_at, updated_at
 		FROM certificates
 		WHERE user_id = $1
-		ORDER BY issued_at DESC
+		ORDER BY created_at DESC
 	`
 
 	rows, err := db.Query(query, userID)
@@ -93,6 +98,7 @@ func GetUserCertificates(db *sql.DB, userID int) ([]Certificate, error) {
 		err := rows.Scan(
 			&cert.ID, &cert.UserID, &cert.CourseID, &cert.CertNumber, &cert.UserName,
 			&cert.CourseName, &cert.Instructor, &cert.CompletionDate, &cert.IssuedAt,
+			&cert.Status, &cert.ApprovedBy, &cert.ApprovedAt, &cert.RejectionReason,
 			&cert.CreatedAt, &cert.UpdatedAt,
 		)
 		if err != nil {
@@ -108,15 +114,18 @@ func GetUserCertificates(db *sql.DB, userID int) ([]Certificate, error) {
 func GetCertificateForCourse(db *sql.DB, userID, courseID int) (*Certificate, error) {
 	query := `
 		SELECT id, user_id, course_id, cert_number, user_name, course_name, instructor,
-		       completion_date, issued_at, created_at, updated_at
+		       completion_date, issued_at, status, approved_by, approved_at, rejection_reason, created_at, updated_at
 		FROM certificates
 		WHERE user_id = $1 AND course_id = $2
+		ORDER BY created_at DESC
+		LIMIT 1
 	`
 
 	var cert Certificate
 	err := db.QueryRow(query, userID, courseID).Scan(
 		&cert.ID, &cert.UserID, &cert.CourseID, &cert.CertNumber, &cert.UserName,
 		&cert.CourseName, &cert.Instructor, &cert.CompletionDate, &cert.IssuedAt,
+		&cert.Status, &cert.ApprovedBy, &cert.ApprovedAt, &cert.RejectionReason,
 		&cert.CreatedAt, &cert.UpdatedAt,
 	)
 
@@ -148,8 +157,8 @@ func VerifyCertificate(db *sql.DB, certNumber string) (*CertificateVerification,
 	}, nil
 }
 
-// AutoGenerateCertificate automatically generates a certificate for course completion
-func AutoGenerateCertificate(db *sql.DB, userID, courseID int) error {
+// RequestCertificate creates a certificate request with pending status
+func RequestCertificate(db *sql.DB, userID, courseID int) error {
 	// Get user information
 	user, err := GetUserByID(db, userID)
 	if err != nil {
@@ -165,7 +174,7 @@ func AutoGenerateCertificate(db *sql.DB, userID, courseID int) error {
 	// Generate certificate number
 	certNumber := generateCertificateNumber(courseID, userID)
 
-	// Create certificate
+	// Create certificate with pending status
 	cert := &Certificate{
 		UserID:         userID,
 		CourseID:       courseID,
@@ -175,9 +184,103 @@ func AutoGenerateCertificate(db *sql.DB, userID, courseID int) error {
 		Instructor:     course.Instructor,
 		CompletionDate: time.Now(),
 		IssuedAt:       time.Now(),
+		Status:         "pending",
 	}
 
 	return CreateCertificate(db, cert)
+}
+
+// ApproveCertificate approves a pending certificate
+func ApproveCertificate(db *sql.DB, certificateID, approvedBy int) error {
+	query := `
+		UPDATE certificates 
+		SET status = 'approved', approved_by = $1, approved_at = $2, updated_at = $2
+		WHERE id = $3 AND status = 'pending'
+	`
+
+	now := time.Now()
+	_, err := db.Exec(query, approvedBy, now, certificateID)
+	return err
+}
+
+// RejectCertificate rejects a pending certificate with reason
+func RejectCertificate(db *sql.DB, certificateID, rejectedBy int, reason string) error {
+	query := `
+		UPDATE certificates 
+		SET status = 'rejected', approved_by = $1, approved_at = $2, rejection_reason = $3, updated_at = $2
+		WHERE id = $4 AND status = 'pending'
+	`
+
+	now := time.Now()
+	_, err := db.Exec(query, rejectedBy, now, reason, certificateID)
+	return err
+}
+
+// GetPendingCertificates retrieves all pending certificates for admin approval
+func GetPendingCertificates(db *sql.DB) ([]Certificate, error) {
+	query := `
+		SELECT id, user_id, course_id, cert_number, user_name, course_name, instructor,
+		       completion_date, issued_at, status, approved_by, approved_at, rejection_reason, created_at, updated_at
+		FROM certificates
+		WHERE status = 'pending'
+		ORDER BY created_at ASC
+	`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var certificates []Certificate
+	for rows.Next() {
+		var cert Certificate
+		err := rows.Scan(
+			&cert.ID, &cert.UserID, &cert.CourseID, &cert.CertNumber, &cert.UserName,
+			&cert.CourseName, &cert.Instructor, &cert.CompletionDate, &cert.IssuedAt,
+			&cert.Status, &cert.ApprovedBy, &cert.ApprovedAt, &cert.RejectionReason,
+			&cert.CreatedAt, &cert.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		certificates = append(certificates, cert)
+	}
+
+	return certificates, nil
+}
+
+// GetAllCertificates retrieves all certificates for admin management
+func GetAllCertificates(db *sql.DB) ([]Certificate, error) {
+	query := `
+		SELECT id, user_id, course_id, cert_number, user_name, course_name, instructor,
+		       completion_date, issued_at, status, approved_by, approved_at, rejection_reason, created_at, updated_at
+		FROM certificates
+		ORDER BY created_at DESC
+	`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var certificates []Certificate
+	for rows.Next() {
+		var cert Certificate
+		err := rows.Scan(
+			&cert.ID, &cert.UserID, &cert.CourseID, &cert.CertNumber, &cert.UserName,
+			&cert.CourseName, &cert.Instructor, &cert.CompletionDate, &cert.IssuedAt,
+			&cert.Status, &cert.ApprovedBy, &cert.ApprovedAt, &cert.RejectionReason,
+			&cert.CreatedAt, &cert.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		certificates = append(certificates, cert)
+	}
+
+	return certificates, nil
 }
 
 // generateCertificateNumber generates a unique certificate number

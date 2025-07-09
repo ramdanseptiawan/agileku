@@ -289,8 +289,8 @@ export const apiUtils = {
 
 // Certificate API
 export const certificateAPI = {
-  // Generate certificate for course completion
-  generateCertificate: async (courseId) => {
+  // Request certificate for course completion
+  requestCertificate: async (courseId) => {
     return await apiRequest(`/protected/courses/${courseId}/certificate`, {
       method: 'POST',
     });
@@ -354,6 +354,26 @@ export const adminAPI = {
   // Certificate Management
   getAllCertificates: async () => {
     return await apiRequest('/protected/admin/certificates');
+  },
+  
+  // Get pending certificates (admin only)
+  getPendingCertificates: async () => {
+    return await apiRequest('/protected/admin/certificates/pending');
+  },
+  
+  // Approve certificate (admin only)
+  approveCertificate: async (certificateId) => {
+    return await apiRequest(`/protected/admin/certificates/${certificateId}/approve`, {
+      method: 'POST'
+    });
+  },
+  
+  // Reject certificate (admin only)
+  rejectCertificate: async (certificateId, reason) => {
+    return await apiRequest(`/protected/admin/certificates/${certificateId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    });
   },
 
   // User Management
@@ -535,7 +555,7 @@ export const getUserEnrollments = courseAPI.getUserEnrollments;
 
 // Export certificate functions directly for easier import
 export const getUserCertificates = certificateAPI.getUserCertificates;
-export const generateCertificate = certificateAPI.generateCertificate;
+export const requestCertificate = certificateAPI.requestCertificate;
 
 export default {
   auth: authAPI,

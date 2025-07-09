@@ -328,6 +328,25 @@ const CourseView = ({
           </div>
         </div>
         
+        {/* Course Completion Banner - Moved to top for better visibility */}
+        {(progress.isCompleted || backendProgress === 100) && (
+          <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white p-6 sm:p-8">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <Trophy size={48} className="text-yellow-300" />
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold">Selamat! 🎉</h2>
+                <p className="text-green-100 text-lg">Anda telah menyelesaikan course ini!</p>
+              </div>
+              <Trophy size={48} className="text-yellow-300" />
+            </div>
+            
+            <div className="bg-white/20 rounded-xl p-4 sm:p-6 text-center">
+              <p className="text-lg mb-2">Course <strong>{course.title}</strong> telah selesai!</p>
+              <p className="text-green-100">Untuk sertifikat, silakan cek menu Achievement.</p>
+            </div>
+          </div>
+        )}
+        
         {/* Progress Tracker */}
         <div className="p-4 sm:p-6 bg-gray-50">
           <ProgressTracker 
@@ -402,63 +421,7 @@ const CourseView = ({
               stageAccess={stageAccess}
             />
           )}
-          
-          {/* Course Completion Banner - Use backend progress for consistency */}
-          {(progress.isCompleted || backendProgress === 100) && (
-            <div className="mt-8 bg-gradient-to-r from-green-500 to-blue-600 text-white p-8 rounded-2xl text-center">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <Trophy size={48} className="text-yellow-300" />
-                <div>
-                  <h2 className="text-3xl font-bold">Selamat! 🎉</h2>
-                  <p className="text-green-100 text-lg">Anda telah menyelesaikan kursus ini dengan sempurna!</p>
-                </div>
-                <Trophy size={48} className="text-yellow-300" />
-              </div>
-              
-              <div className="bg-opacity-20 p-6 rounded-xl mb-6">
-                <p className="text-lg mb-4">Kursus <strong>{course.title}</strong> telah selesai!</p>
-                <p className="text-green-100">Dapatkan sertifikat resmi sebagai bukti pencapaian Anda</p>
-              </div>
-              
-              {/* Certificate Status */}
-              {isEligible ? (
-                <div className="space-y-4">
-                  {getCertificateForCourse(currentLesson?.id) ? (
-                    <div className="bg-white/20 rounded-lg p-4 mb-4">
-                      <p className="text-sm opacity-90 mb-2">✅ Sertifikat sudah tersedia!</p>
-                      <button
-                        onClick={() => setShowCertificate(true)}
-                        className="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center gap-2"
-                      >
-                        <Award size={20} />
-                        Lihat Sertifikat
-                      </button>
-                    </div>
-                  ) : isGenerating ? (
-                    <div className="bg-white/20 rounded-lg p-4 mb-4">
-                      <p className="text-sm opacity-90">🔄 Sedang memproses sertifikat...</p>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={generateCertificate}
-                      className="bg-yellow-500 hover:bg-yellow-600 text-yellow-900 font-bold py-4 px-8 rounded-xl transition-all duration-200 flex items-center gap-3 mx-auto text-lg"
-                    >
-                      <Award size={24} />
-                      Generate Sertifikat
-                      <Award size={24} />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-yellow-500/20 rounded-lg p-4 mb-4">
-                  <p className="text-sm opacity-90">⚠️ Belum memenuhi syarat untuk sertifikat</p>
-                  <p className="text-xs opacity-75 mt-1">
-                    Pastikan semua tahap selesai dan nilai post-test minimal 70%
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+
         </div>
       </div>
       

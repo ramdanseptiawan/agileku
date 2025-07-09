@@ -98,7 +98,7 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	protected.HandleFunc("/uploads/file/{id:[0-9]+}", submissionHandler.GetFileHandler).Methods("GET", "OPTIONS")
 
 	// Certificate routes
-	protected.HandleFunc("/courses/{courseId:[0-9]+}/certificate", certificateHandler.GenerateCertificate).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/certificate", certificateHandler.RequestCertificate).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/user/certificates", certificateHandler.GetUserCertificates).Methods("GET", "OPTIONS")
 
 	// Announcement routes for users
@@ -137,6 +137,9 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 
 	// Admin certificate management
 	admin.HandleFunc("/certificates", certificateHandler.GetAllCertificates).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/certificates/pending", certificateHandler.GetPendingCertificates).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/certificates/{certId:[0-9]+}/approve", certificateHandler.ApproveCertificate).Methods("POST", "OPTIONS")
+	admin.HandleFunc("/certificates/{certId:[0-9]+}/reject", certificateHandler.RejectCertificate).Methods("POST", "OPTIONS")
 
 	// Admin user management routes
 	admin.HandleFunc("/users", adminHandler.GetAllUsers).Methods("GET", "OPTIONS")

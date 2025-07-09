@@ -194,8 +194,8 @@ func UpdateCourseProgress(db *sql.DB, userID, courseID int) error {
 		// Check if certificate already exists
 		existingCert, _ := GetCertificateForCourse(db, userID, courseID)
 		if existingCert == nil {
-			// Auto-generate certificate
-			err = AutoGenerateCertificate(db, userID, courseID)
+			// Request certificate (pending approval)
+			err = RequestCertificate(db, userID, courseID)
 			if err != nil {
 				// Log error but don't fail the progress update
 				// In production, you might want to use a proper logger

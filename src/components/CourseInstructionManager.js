@@ -72,10 +72,9 @@ const CourseInstructionManager = () => {
             title: 'Final Project',
             description: 'Proyek akhir untuk mendemonstrasikan pemahaman komprehensif terhadap seluruh materi kursus.',
             requirements: [
-              'Menyelesaikan semua tahap pembelajaran',
-              'Lulus post-test dengan nilai minimal 70%',
-              'Menyelesaikan post work assignment'
-            ],
+            'Menyelesaikan semua tahap pembelajaran',
+            'Menyelesaikan post work assignment'
+          ],
             deliverables: [
               'Proyek lengkap sesuai spesifikasi',
               'Dokumentasi proyek',
