@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle, Circle, Lock, BookOpen, FileText, Award, Upload, Target } from 'lucide-react';
 
-const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCompleted = false, backendProgress = null, stageAccess = {} }) => {
+const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCompleted = false, backendProgress = null, stageAccess = {}, courseConfig = {} }) => {
   // Function to handle step click with lock warning
   const handleStepClick = (stepId, status) => {
     if (status === 'locked' || status === 'admin-locked') {
@@ -17,7 +17,7 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
     }
   };
 
-  const steps = [
+  const allSteps = [
     {
       id: 'intro',
       title: 'Materi Pengantar',
@@ -61,6 +61,17 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
       color: 'red'
     }
   ];
+
+  // Filter steps based on course configuration
+  const steps = allSteps.filter(step => {
+    if (step.id === 'postwork') {
+      return courseConfig.hasPostWork === true;
+    }
+    if (step.id === 'finalproject') {
+      return courseConfig.hasFinalProject === true;
+    }
+    return true; // Include all other steps (intro, pretest, lessons, posttest)
+  });
 
   const getStepStatus = (stepId, index) => {
     // Check if stage is locked by admin
@@ -171,10 +182,14 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
         </div>
       </div>
 
-      {/* Desktop View - Grid Layout */}
+      {/* Desktop View - Dynamic Grid Layout */}
       <div className="hidden lg:block">
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          {steps.slice(0, 3).map((step, index) => {
+        <div className={`grid gap-4 ${
+          steps.length <= 3 ? 'grid-cols-3' :
+          steps.length <= 4 ? 'grid-cols-2' :
+          steps.length <= 6 ? 'grid-cols-3' : 'grid-cols-3'
+        }`}>
+          {steps.map((step, index) => {
             const status = getStepStatus(step.id, index);
             const isClickable = status === 'available' || status === 'current' || status === 'completed';
             
@@ -204,46 +219,6 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
                     'bg-gray-300 text-gray-500'
                   }`}>
                     {index + 1}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* Second Row for remaining steps */}
-        <div className="grid grid-cols-3 gap-4">
-          {steps.slice(3).map((step, index) => {
-            const actualIndex = index + 3;
-            const status = getStepStatus(step.id, actualIndex);
-            const isClickable = status === 'available' || status === 'current' || status === 'completed';
-            
-            return (
-              <div key={step.id} className="relative">
-                <div 
-                className={getStepClasses(status, step.color)}
-                onClick={() => handleStepClick(step.id, status)}
-              >
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      {getStepIcon(step, status)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <h4 className="font-semibold text-gray-900 text-sm">{step.title}</h4>
-                      </div>
-                      <p className="text-xs text-gray-600">{step.description}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Step Number Badge */}
-                  <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    status === 'completed' ? 'bg-green-500 text-white' :
-                    status === 'current' ? `bg-${step.color}-500 text-white` :
-                    status === 'available' ? 'bg-gray-400 text-white' :
-                    'bg-gray-300 text-gray-500'
-                  }`}>
-                    {actualIndex + 1}
                   </div>
                 </div>
               </div>

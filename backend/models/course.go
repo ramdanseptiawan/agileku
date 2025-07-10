@@ -24,8 +24,13 @@ type Course struct {
 	PostTest      *json.RawMessage `json:"postTest,omitempty"`
 	PostWork      *json.RawMessage `json:"postWork,omitempty"`
 	FinalProject  *json.RawMessage `json:"finalProject,omitempty"`
-	CreatedAt     time.Time        `json:"createdAt"`
-	UpdatedAt     time.Time        `json:"updatedAt"`
+	// Course Configuration
+	HasPostWork      bool             `json:"hasPostWork"`
+	HasFinalProject  bool             `json:"hasFinalProject"`
+	CertificateDelay int              `json:"certificateDelay"` // dalam hari (0 = immediate)
+	StepWeights      *json.RawMessage `json:"stepWeights,omitempty"` // dynamic step weights
+	CreatedAt        time.Time        `json:"createdAt"`
+	UpdatedAt        time.Time        `json:"updatedAt"`
 }
 
 // CourseWithEnrollment includes enrollment information for a user
@@ -60,7 +65,8 @@ func GetAllCourses(db *sql.DB) ([]Course, error) {
 	query := `
 		SELECT id, title, description, category, level, duration, instructor,
 		       rating, students, image, intro_material, lessons, pre_test,
-		       post_test, post_work, final_project, created_at, updated_at
+		       post_test, post_work, final_project, has_post_work, has_final_project,
+		       certificate_delay, step_weights, created_at, updated_at
 		FROM courses
 		ORDER BY created_at DESC
 	`
@@ -79,7 +85,8 @@ func GetAllCourses(db *sql.DB) ([]Course, error) {
 			&course.Level, &course.Duration, &course.Instructor, &course.Rating,
 			&course.Students, &course.Image, &course.IntroMaterial, &course.Lessons,
 			&course.PreTest, &course.PostTest, &course.PostWork, &course.FinalProject,
-			&course.CreatedAt, &course.UpdatedAt,
+			&course.HasPostWork, &course.HasFinalProject, &course.CertificateDelay,
+			&course.StepWeights, &course.CreatedAt, &course.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -95,7 +102,8 @@ func GetCourseByID(db *sql.DB, id int) (*Course, error) {
 	query := `
 		SELECT id, title, description, category, level, duration, instructor,
 		       rating, students, image, intro_material, lessons, pre_test,
-		       post_test, post_work, final_project, created_at, updated_at
+		       post_test, post_work, final_project, has_post_work, has_final_project,
+		       certificate_delay, step_weights, created_at, updated_at
 		FROM courses
 		WHERE id = $1
 	`
@@ -106,7 +114,8 @@ func GetCourseByID(db *sql.DB, id int) (*Course, error) {
 		&course.Level, &course.Duration, &course.Instructor, &course.Rating,
 		&course.Students, &course.Image, &course.IntroMaterial, &course.Lessons,
 		&course.PreTest, &course.PostTest, &course.PostWork, &course.FinalProject,
-		&course.CreatedAt, &course.UpdatedAt,
+		&course.HasPostWork, &course.HasFinalProject, &course.CertificateDelay,
+		&course.StepWeights, &course.CreatedAt, &course.UpdatedAt,
 	)
 
 	if err != nil {
@@ -122,6 +131,7 @@ func GetCoursesWithEnrollment(db *sql.DB, userID int) ([]CourseWithEnrollment, e
 		SELECT c.id, c.title, c.description, c.category, c.level, c.duration,
 		       c.instructor, c.rating, c.students, c.image, c.intro_material,
 		       c.lessons, c.pre_test, c.post_test, c.post_work, c.final_project,
+		       c.has_post_work, c.has_final_project, c.certificate_delay, c.step_weights,
 		       c.created_at, c.updated_at,
 		       CASE WHEN ce.id IS NOT NULL THEN true ELSE false END as is_enrolled,
 		       COALESCE(ce.progress, 0) as progress
@@ -144,7 +154,8 @@ func GetCoursesWithEnrollment(db *sql.DB, userID int) ([]CourseWithEnrollment, e
 			&course.Level, &course.Duration, &course.Instructor, &course.Rating,
 			&course.Students, &course.Image, &course.IntroMaterial, &course.Lessons,
 			&course.PreTest, &course.PostTest, &course.PostWork, &course.FinalProject,
-			&course.CreatedAt, &course.UpdatedAt, &course.IsEnrolled, &course.Progress,
+			&course.HasPostWork, &course.HasFinalProject, &course.CertificateDelay,
+			&course.StepWeights, &course.CreatedAt, &course.UpdatedAt, &course.IsEnrolled, &course.Progress,
 		)
 		if err != nil {
 			return nil, err
@@ -197,4 +208,34 @@ func IsUserEnrolledInCourse(db *sql.DB, userID, courseID int) (bool, error) {
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// UpdateCourseConfiguration updates course configuration (hasPostWork, hasFinalProject, certificateDelay, stepWeights)
+func UpdateCourseConfiguration(db *sql.DB, courseID int, hasPostWork, hasFinalProject bool, certificateDelay int, stepWeights *json.RawMessage) error {
+	query := `
+		UPDATE courses 
+		SET has_post_work = $2, has_final_project = $3, certificate_delay = $4, step_weights = $5, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+	`
+	_, err := db.Exec(query, courseID, hasPostWork, hasFinalProject, certificateDelay, stepWeights)
+	return err
+}
+
+// GetCourseConfiguration gets course configuration
+func GetCourseConfiguration(db *sql.DB, courseID int) (bool, bool, int, *json.RawMessage, error) {
+	query := `
+		SELECT has_post_work, has_final_project, certificate_delay, step_weights
+		FROM courses
+		WHERE id = $1
+	`
+	var hasPostWork, hasFinalProject bool
+	var certificateDelay int
+	var stepWeights *json.RawMessage
+	
+	err := db.QueryRow(query, courseID).Scan(&hasPostWork, &hasFinalProject, &certificateDelay, &stepWeights)
+	if err != nil {
+		return false, false, 0, nil, err
+	}
+	
+	return hasPostWork, hasFinalProject, certificateDelay, stepWeights, nil
 }

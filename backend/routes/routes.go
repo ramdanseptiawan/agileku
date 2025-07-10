@@ -167,6 +167,10 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	admin.HandleFunc("/courses/{id:[0-9]+}/stage-locks", stageLockHandler.GetStageLocks).Methods("GET", "OPTIONS")
 	admin.HandleFunc("/courses/{id:[0-9]+}/stage-locks", stageLockHandler.UpdateStageLock).Methods("PUT", "OPTIONS")
 
+	// Admin course configuration routes
+	admin.HandleFunc("/courses/{courseId:[0-9]+}/config", handlers.GetCourseConfigHandler(db)).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/courses/{courseId:[0-9]+}/config", handlers.UpdateCourseConfigHandler(db)).Methods("PUT", "OPTIONS")
+
 	// Protected stage access check routes
 	protected.HandleFunc("/courses/{courseId:[0-9]+}/stages/{stageName}/access", stageLockHandler.CheckStageAccess).Methods("GET", "OPTIONS")
 

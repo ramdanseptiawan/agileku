@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, ArrowRight, CheckCircle, Users } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '../contexts/AuthContext';
+import { getCourseProgress } from '../services/api';
 
 const CourseCard = ({ course, onStartLearning }) => {
   const { 
@@ -12,16 +13,103 @@ const CourseCard = ({ course, onStartLearning }) => {
     refreshUserProgress 
   } = useAuth();
   const [isEnrolling, setIsEnrolling] = useState(false);
+  const [correctProgress, setCorrectProgress] = useState(null);
+  
+  // Calculate progress using the same weighted system as ProgressTracker
+  const calculateWeightedProgress = (completedSteps, courseConfig = {}) => {
+    // Default step weights (same as useLearningProgress)
+    let stepWeights = {
+      'intro': 15,
+      'pretest': 10,
+      'lessons': 50,
+      'posttest': 15,
+      'postwork': 10,
+      'finalproject': 10
+    };
+    
+    // Override with course-specific weights if available
+    if (courseConfig && courseConfig.stepWeights) {
+      stepWeights = { ...stepWeights, ...courseConfig.stepWeights };
+    }
+    
+    let totalProgress = 0;
+    completedSteps.forEach(step => {
+      if (stepWeights[step]) {
+        totalProgress += stepWeights[step];
+      }
+    });
+    
+    return Math.min(totalProgress, 100);
+  };
   
   const isEnrolled = currentUser ? isEnrolledInCourse(course.id) : false;
-  const progress = currentUser ? getUserProgressSync(course.id) : 0;
+  const progress = correctProgress !== null ? correctProgress : (currentUser ? getUserProgressSync(course.id) : 0);
   
-  // Refresh progress when component mounts
+  // Fetch correct progress when component mounts
   useEffect(() => {
-    if (isEnrolled && currentUser) {
-      refreshUserProgress();
-    }
-  }, [isEnrolled, currentUser]); // Removed refreshUserProgress from dependencies to prevent infinite loop
+    const fetchCorrectProgress = async () => {
+      if (currentUser && isEnrolled) {
+        try {
+          const backendUrl = process.env.NODE_ENV === 'production' 
+            ? 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5dfowoyipt52.cloudworkstations.dev' 
+            : 'http://localhost:8080';
+          
+          // Fetch both progress and course config in parallel
+          const [progressData, courseResponse] = await Promise.all([
+            getCourseProgress(course.id),
+            fetch(`${backendUrl}/api/public/courses/${course.id}`).then(res => res.json())
+          ]);
+          
+          if (progressData && progressData.data) {
+            // Get course configuration for step weights
+            let courseConfig = {};
+            if (courseResponse && courseResponse.success && courseResponse.data) {
+              courseConfig = {
+                hasPostWork: courseResponse.data.hasPostWork,
+                hasFinalProject: courseResponse.data.hasFinalProject,
+                stepWeights: courseResponse.data.stepWeights
+              };
+            }
+            
+            // Calculate progress based on completed steps using weighted system
+            let completedSteps = [];
+            if (progressData.data.completedSteps) {
+              // Backend now returns completedSteps as array directly from GetCourseProgressHandler
+              if (Array.isArray(progressData.data.completedSteps)) {
+                completedSteps = progressData.data.completedSteps;
+              } else if (typeof progressData.data.completedSteps === 'string') {
+                try {
+                  // Try to parse as JSON first
+                  if (progressData.data.completedSteps.startsWith('[')) {
+                    completedSteps = JSON.parse(progressData.data.completedSteps);
+                  } else {
+                    // Handle legacy comma-separated string format
+                    completedSteps = progressData.data.completedSteps.split(',').map(s => s.trim()).filter(s => s);
+                  }
+                } catch (parseError) {
+                  console.error('Failed to parse completedSteps:', parseError, 'Raw data:', progressData.data.completedSteps);
+                  // Fallback: try to extract steps from string
+                  completedSteps = progressData.data.completedSteps.split(',').map(s => s.trim()).filter(s => s);
+                }
+              } else {
+                console.warn('Unexpected completedSteps format:', progressData.data.completedSteps);
+              }
+            }
+            
+            // Use the same weighted calculation as ProgressTracker
+            const calculatedProgress = calculateWeightedProgress(completedSteps, courseConfig);
+            setCorrectProgress(calculatedProgress);
+          }
+        } catch (error) {
+          console.error('Failed to fetch course progress:', error);
+          // Fallback to refresh user progress
+          await refreshUserProgress();
+        }
+      }
+    };
+
+    fetchCorrectProgress();
+  }, [currentUser, isEnrolled, course.id]); // Removed refreshUserProgress from dependencies to prevent infinite loop
   
   const handleEnrollOrStart = async () => {
     if (!currentUser) {
@@ -84,25 +172,11 @@ const CourseCard = ({ course, onStartLearning }) => {
         </p>
         
         {/* Course Stats */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4 text-sm text-gray-500">
-            <div className="flex items-center space-x-1">
-              <Clock size={16} />
-              <span>{course.lessons?.length || 0} Lessons</span>
-            </div>
-            {course.students && (
-              <div className="flex items-center space-x-1">
-                <Users size={16} />
-                <span>{course.students} Students</span>
-              </div>
-            )}
+        <div className="flex items-center mb-4">
+          <div className="flex items-center space-x-1 text-sm text-gray-500">
+            <Clock size={16} />
+            <span>{course.lessons?.length || 0} Lessons</span>
           </div>
-          
-          {course.rating && (
-            <div className="text-sm text-yellow-600 font-medium">
-              ⭐ {course.rating}
-            </div>
-          )}
         </div>
         
         {/* Enrollment Status & Progress */}

@@ -3,8 +3,6 @@ import { Search, Download, Eye, Filter, BarChart3, Users, Award, TrendingUp } fr
 import { adminAPI } from '../services/api';
 
 const TestResultsManager = () => {
-  console.log('TestResultsManager: Component mounted - START'); // Debug log
-  console.log('TestResultsManager: Component rendering...'); // Debug log
   const [testResults, setTestResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -125,10 +123,6 @@ const TestResultsManager = () => {
     return matchesSearch && matchesType && matchesCourse;
   });
   
-  console.log('TestResultsManager: Total test results:', testResults.length);
-  console.log('TestResultsManager: Filtered results:', filteredResults.length);
-  console.log('TestResultsManager: Current filters:', { searchTerm, filterType, filterCourse });
-
   const exportToCSV = () => {
     const headers = ['Nama Pengguna', 'Course', 'Jenis Test', 'Skor', 'Status', 'Waktu Pengerjaan', 'Tanggal'];
     const csvContent = [

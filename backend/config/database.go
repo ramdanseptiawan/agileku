@@ -95,6 +95,10 @@ func createTables(db *sql.DB) error {
 		post_test JSONB,
 		post_work JSONB,
 		final_project JSONB,
+		has_post_work BOOLEAN DEFAULT TRUE,
+		has_final_project BOOLEAN DEFAULT TRUE,
+		certificate_delay INTEGER DEFAULT 7,
+		step_weights JSONB DEFAULT '{"intro": 5, "pretest": 10, "lessons": 30, "posttest": 15, "postwork": 20, "finalproject": 20}',
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`

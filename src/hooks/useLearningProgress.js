@@ -20,6 +20,7 @@ export const useLearningProgress = (courseId) => {
     completedAt: null,
     isCompleted: false
   });
+  const [courseConfig, setCourseConfig] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [autoSaveStatus, setAutoSaveStatus] = useState('saved');
 
@@ -161,10 +162,10 @@ export const useLearningProgress = (courseId) => {
     }
   }, [updateProgress, progress.completedSteps]);
 
-  // Calculate completion percentage with weighted steps
+  // Calculate completion percentage with dynamic weighted steps
   const getCompletionPercentage = useCallback(() => {
-    // Step weights matching backend logic
-    const stepWeights = {
+    // Use dynamic step weights from course configuration or default weights
+    let stepWeights = {
       'intro': 5,
       'pretest': 10,
       'lessons': 50,
@@ -172,6 +173,11 @@ export const useLearningProgress = (courseId) => {
       'postwork': 10,
       'finalproject': 10
     };
+    
+    // Override with course-specific weights if available
+    if (courseConfig && courseConfig.stepWeights) {
+      stepWeights = { ...stepWeights, ...courseConfig.stepWeights };
+    }
     
     let totalProgress = 0;
     progress.completedSteps.forEach(step => {
@@ -181,14 +187,23 @@ export const useLearningProgress = (courseId) => {
     });
     
     return Math.min(totalProgress, 100);
-  }, [progress.completedSteps]);
+  }, [progress.completedSteps, courseConfig]);
 
-  // Check if course is completed
+  // Check if course is completed based on course configuration
   const isCourseCompleted = useCallback(() => {
-    // Course is completed when all steps are done
-    const allSteps = ['intro', 'pretest', 'lessons', 'posttest', 'postwork', 'finalproject'];
-    return allSteps.every(step => progress.completedSteps.includes(step));
-  }, [progress.completedSteps]);
+    // Get required steps based on course configuration
+    let requiredSteps = ['intro', 'pretest', 'lessons', 'posttest'];
+    
+    // Add optional steps if enabled in course configuration
+    if (courseConfig?.hasPostWork) {
+      requiredSteps.push('postwork');
+    }
+    if (courseConfig?.hasFinalProject) {
+      requiredSteps.push('finalproject');
+    }
+    
+    return requiredSteps.every(step => progress.completedSteps.includes(step));
+  }, [progress.completedSteps, courseConfig]);
 
   // Get time spent in course (in minutes)
   const getTimeSpent = useCallback(() => {
@@ -234,18 +249,36 @@ export const useLearningProgress = (courseId) => {
     }
   }, [courseId, currentUser]);
 
-  // Load progress from backend only, no localStorage
+  // Load course configuration and progress from backend
   useEffect(() => {
-    const loadProgressFromBackend = async () => {
+    const loadCourseData = async () => {
       if (!courseId || !currentUser?.id) return;
       
       try {
         setIsLoading(true);
-        // Fetch existing progress from backend using getCourseProgress
-        const response = await getCourseProgress(courseId);
+          const backendUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev' 
+        : 'http://localhost:8080';
+        // Load course configuration and progress in parallel
+        const [progressResponse, courseResponse] = await Promise.all([
+          getCourseProgress(courseId),
+          fetch(`${backendUrl}/api/public/courses/${courseId}`).then(res => res.json())
+        ]);
         
-        if (response && response.success && response.data) {
-          const backendProgress = response.data;
+        // Set course configuration
+        if (courseResponse && courseResponse.success && courseResponse.data) {
+          const course = courseResponse.data;
+          setCourseConfig({
+            hasPostWork: course.hasPostWork,
+            hasFinalProject: course.hasFinalProject,
+            certificateDelay: course.certificateDelay,
+            stepWeights: course.stepWeights
+          });
+        }
+        
+        // Set progress data
+        if (progressResponse && progressResponse.success && progressResponse.data) {
+          const backendProgress = progressResponse.data;
           const progressData = {
             currentStep: backendProgress.currentStep || 'intro',
             completedSteps: backendProgress.completedSteps || [],
@@ -276,7 +309,7 @@ export const useLearningProgress = (courseId) => {
           setProgress(initialProgress);
         }
       } catch (error) {
-        console.error('Failed to load progress from backend:', error);
+        console.error('Failed to load course data from backend:', error);
         // Fallback to default progress if backend fails
         setProgress({
           currentStep: 'intro',
@@ -295,7 +328,7 @@ export const useLearningProgress = (courseId) => {
       }
     };
     
-    loadProgressFromBackend();
+    loadCourseData();
   }, [courseId, currentUser?.id]);
 
   // Auto-save progress to backend only, no localStorage
@@ -317,6 +350,7 @@ export const useLearningProgress = (courseId) => {
 
   return {
     progress,
+    courseConfig,
     isLoading,
     autoSaveStatus,
     updateProgress,

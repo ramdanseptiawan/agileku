@@ -279,16 +279,53 @@ func (h *Handler) SyncProgressHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Calculate overall progress based on completed steps
-  // Calculate overall progress with weighted steps
-  // Essential steps: intro(5%), pretest(10%), lessons(50%), posttest(15%), postwork(10%), finalproject(10%)
-  stepWeights := map[string]int{
-    "intro":       5,
-    "pretest":     10,
-    "lessons":     50,
-    "posttest":    15,
-    "postwork":    10,
-    "finalproject": 10,
+	// Calculate overall progress based on completed steps and course configuration
+  // Get course configuration to determine which steps are required
+  hasPostWork, hasFinalProject, _, _, err := models.GetCourseConfiguration(h.DB, req.CourseID)
+  if err != nil {
+    // If we can't get course config, assume all steps are required (fallback)
+    hasPostWork = true
+    hasFinalProject = true
+  }
+  
+  // Define step weights based on course configuration
+  var stepWeights map[string]int
+  if !hasPostWork && !hasFinalProject {
+    // Course without post work and final project: redistribute weights
+    stepWeights = map[string]int{
+      "intro":    25,
+      "pretest":  25,
+      "lessons":  25,
+      "posttest": 25,
+    }
+  } else if !hasPostWork {
+    // Course without post work: redistribute its weight
+    stepWeights = map[string]int{
+      "intro":       5,
+      "pretest":     15,
+      "lessons":     50,
+      "posttest":    15,
+      "finalproject": 15,
+    }
+  } else if !hasFinalProject {
+    // Course without final project: redistribute its weight
+    stepWeights = map[string]int{
+      "intro":    5,
+      "pretest":  15,
+      "lessons":  50,
+      "posttest": 15,
+      "postwork": 15,
+    }
+  } else {
+    // Course with all steps
+    stepWeights = map[string]int{
+      "intro":       5,
+      "pretest":     10,
+      "lessons":     50,
+      "posttest":    15,
+      "postwork":    10,
+      "finalproject": 10,
+    }
   }
   
   totalProgress := 0
@@ -369,8 +406,24 @@ func (h *Handler) SyncProgressHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-generate certificate only if ALL steps are actually completed
-  allRequiredSteps := []string{"intro", "pretest", "lessons", "posttest", "postwork", "finalproject"}
+	// Auto-generate certificate only if ALL required steps are completed
+  // Get course configuration to determine which steps are required
+  hasPostWork, hasFinalProject, _, _, configErr := models.GetCourseConfiguration(h.DB, req.CourseID)
+   if configErr != nil {
+     // If we can't get course config, assume all steps are required (fallback)
+     hasPostWork = true
+     hasFinalProject = true
+   }
+  
+  // Build list of required steps based on course configuration
+  allRequiredSteps := []string{"intro", "pretest", "lessons", "posttest"}
+  if hasPostWork {
+    allRequiredSteps = append(allRequiredSteps, "postwork")
+  }
+  if hasFinalProject {
+    allRequiredSteps = append(allRequiredSteps, "finalproject")
+  }
+  
   allStepsCompleted := true
   for _, requiredStep := range allRequiredSteps {
     found := false

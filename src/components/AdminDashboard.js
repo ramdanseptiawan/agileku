@@ -12,6 +12,7 @@ import AnnouncementManager from './AnnouncementManager';
 import CertificateManager from './CertificateManager';
 import ProjectInstructionManager from './ProjectInstructionManager';
 import CourseInstructionManager from './CourseInstructionManager';
+import CourseConfigManager from './CourseConfigManager';
 import GradingSystem from './GradingSystem';
 import SubmissionReview from './SubmissionReview';
 import CourseStageManager from './CourseStageManager';
@@ -334,6 +335,10 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
 
         {activeTab === 'course-instructions' && (
           <CourseInstructionManager />
+        )}
+
+        {activeTab === 'course-config' && (
+          <CourseConfigManager />
         )}
 
         {activeTab === 'users' && (

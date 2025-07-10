@@ -30,6 +30,8 @@ const CourseView = ({
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
   const [stageAccess, setStageAccess] = useState({});
   const [loadingStageAccess, setLoadingStageAccess] = useState(false);
+  const [courseConfig, setCourseConfig] = useState(null);
+  const [loadingCourseConfig, setLoadingCourseConfig] = useState(false);
   
   // Load course data from API - always from backend, no fallback
   useEffect(() => {
@@ -57,6 +59,57 @@ const CourseView = ({
     
     loadCourse();
   }, [currentLesson?.id, getCourseById]);
+
+  // Load course configuration from backend
+  useEffect(() => {
+    const loadCourseConfig = async () => {
+      if (!course?.id || !currentUser) return;
+      
+      setLoadingCourseConfig(true);
+      try {
+        const backendUrl = process.env.NODE_ENV === 'production' 
+          ? 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev' 
+          : 'http://localhost:8080';
+        
+        const response = await fetch(`${backendUrl}/api/protected/admin/courses/${course.id}/config`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setCourseConfig({
+            hasPostWork: data.hasPostWork || false,
+            hasFinalProject: data.hasFinalProject || false,
+            certificateDelay: data.certificateDelay || 0,
+            stepWeights: data.stepWeights || {}
+          });
+        } else {
+          console.warn('Failed to load course config, using defaults');
+          setCourseConfig({
+            hasPostWork: false,
+            hasFinalProject: false,
+            certificateDelay: 0,
+            stepWeights: {}
+          });
+        }
+      } catch (error) {
+        console.error('Error loading course config:', error);
+        setCourseConfig({
+          hasPostWork: false,
+          hasFinalProject: false,
+          certificateDelay: 0,
+          stepWeights: {}
+        });
+      } finally {
+        setLoadingCourseConfig(false);
+      }
+    };
+    
+    loadCourseConfig();
+  }, [course?.id, currentUser]);
 
   // Check stage access for all stages
   useEffect(() => {
@@ -109,7 +162,9 @@ const CourseView = ({
     updateLessonProgress,
     saveQuizScore,
     saveSubmission,
-    markCourseCompleted
+    markCourseCompleted,
+    getCompletionPercentage,
+    isCourseCompleted
   } = useLearningProgress(course?.id);
   
   // Get user progress from backend (AuthContext) - this is the source of truth for display
@@ -150,7 +205,7 @@ const CourseView = ({
     });
   };
   
-  if (!course || isLoadingCourse || progressLoading) {
+  if (!course || isLoadingCourse || progressLoading || loadingCourseConfig) {
     return (
       <div className="max-w-6xl mx-auto p-8">
         <div className="text-center">
@@ -158,6 +213,7 @@ const CourseView = ({
           <p className="text-gray-600">
             {!course ? 'Loading course...' : 
              isLoadingCourse ? 'Loading course details...' : 
+             loadingCourseConfig ? 'Loading course configuration...' :
              'Loading progress...'}
           </p>
         </div>
@@ -177,7 +233,14 @@ const CourseView = ({
     }
     
     // Auto-navigate to next step
-    const steps = ['intro', 'pretest', 'lessons', 'posttest', 'postwork', 'finalproject'];
+    const getActiveSteps = () => {
+      const baseSteps = ['intro', 'pretest', 'lessons', 'posttest'];
+      if (courseConfig?.hasPostWork) baseSteps.push('postwork');
+      if (courseConfig?.hasFinalProject) baseSteps.push('finalproject');
+      return baseSteps;
+    };
+    
+    const steps = getActiveSteps();
     const currentIndex = steps.indexOf(stepId);
     if (currentIndex < steps.length - 1) {
       const nextStep = steps[currentIndex + 1];
@@ -195,7 +258,14 @@ const CourseView = ({
 
   // Handle step navigation
   const handleStepClick = (stepId) => {
-    const steps = ['intro', 'pretest', 'lessons', 'posttest', 'postwork', 'finalproject'];
+    const getActiveSteps = () => {
+      const baseSteps = ['intro', 'pretest', 'lessons', 'posttest'];
+      if (courseConfig?.hasPostWork) baseSteps.push('postwork');
+      if (courseConfig?.hasFinalProject) baseSteps.push('finalproject');
+      return baseSteps;
+    };
+    
+    const steps = getActiveSteps();
     const stepIndex = steps.indexOf(stepId);
     const currentStepIndex = steps.indexOf(progress.currentStep);
     
@@ -320,16 +390,21 @@ const CourseView = ({
           {/* Quick Stats - Use backend progress for consistency */}
           <div className="mt-4 flex flex-wrap gap-4 text-sm">
             <div className="bg-white/20 rounded-lg px-3 py-1">
-              <span className="font-medium">{progress.completedSteps.length}/6</span> Tahap Selesai
+              <span className="font-medium">{progress.completedSteps.length}/{(() => {
+                const baseSteps = ['intro', 'pretest', 'lessons', 'posttest'];
+                if (courseConfig?.hasPostWork) baseSteps.push('postwork');
+                if (courseConfig?.hasFinalProject) baseSteps.push('finalproject');
+                return baseSteps.length;
+              })()}</span> Tahap Selesai
             </div>
             <div className="bg-white/20 rounded-lg px-3 py-1">
-              <span className="font-medium">{backendProgress}%</span> Progress
+              <span className="font-medium">{getCompletionPercentage()}%</span> Progress
             </div>
           </div>
         </div>
         
         {/* Course Completion Banner - Moved to top for better visibility */}
-        {(progress.isCompleted || backendProgress === 100) && (
+        {(progress.isCompleted || isCourseCompleted()) && (
           <div className="bg-gradient-to-r from-green-500 to-blue-600 text-white p-6 sm:p-8">
             <div className="flex items-center justify-center gap-3 mb-4">
               <Trophy size={48} className="text-yellow-300" />
@@ -350,13 +425,14 @@ const CourseView = ({
         {/* Progress Tracker */}
         <div className="p-4 sm:p-6 bg-gray-50">
           <ProgressTracker 
-            currentStep={progress.currentStep}
-            completedSteps={progress.completedSteps}
-            onStepClick={handleStepClick}
-            isCourseCompleted={backendProgress === 100}
-            backendProgress={backendProgress}
-            stageAccess={stageAccess}
-          />
+          currentStep={progress.currentStep}
+          completedSteps={progress.completedSteps}
+          onStepClick={handleStepClick}
+          isCourseCompleted={isCourseCompleted()}
+          backendProgress={getCompletionPercentage()}
+          stageAccess={stageAccess}
+          courseConfig={courseConfig}
+        />
         </div>
         
         {/* Step Content */}
@@ -406,7 +482,7 @@ const CourseView = ({
             />
           )}
           
-          {progress.currentStep === 'postwork' && (
+          {progress.currentStep === 'postwork' && courseConfig?.hasPostWork && (
             <PostWork 
               courseId={course.id}
               onSubmit={handlePostWorkSubmit}
@@ -414,7 +490,7 @@ const CourseView = ({
             />
           )}
           
-          {progress.currentStep === 'finalproject' && (
+          {progress.currentStep === 'finalproject' && courseConfig?.hasFinalProject && (
             <FinalProject 
               courseId={course.id}
               onSubmit={handleFinalProjectSubmit}

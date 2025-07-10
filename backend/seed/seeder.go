@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
-	"time"
 
 	"lms-backend/models"
 )
@@ -29,7 +28,6 @@ func SeedData(db *sql.DB) {
 	seedStageLocks(db)
 
 	// Seed quiz attempts for test results
-	seedQuizAttempts(db)
 
 	log.Println("Database seeding completed")
 }
@@ -766,12 +764,29 @@ func seedCourses(db *sql.DB) {
 		preTestJSON, _ := json.Marshal(courseData["preTest"])
 		postTestJSON, _ := json.Marshal(courseData["postTest"])
 
-		// Insert course
+		// Default course configuration
+		hasPostWork := true
+		hasFinalProject := true
+		certificateDelay := 7 // 7 days default
+		
+		// Default step weights (total should be 100)
+		stepWeights := map[string]int{
+			"intro":        5,
+			"pretest":      10,
+			"lessons":      30,
+			"posttest":     15,
+			"postwork":     20,
+			"finalproject": 20,
+		}
+		stepWeightsJSON, _ := json.Marshal(stepWeights)
+
+		// Insert course with new configuration fields
 		query := `
 			INSERT INTO courses (
 				title, description, category, level, duration, instructor,
-				rating, students, image, intro_material, lessons, pre_test, post_test
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+				rating, students, image, intro_material, lessons, pre_test, post_test,
+				has_post_work, has_final_project, certificate_delay, step_weights
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		`
 
 		_, err := db.Exec(query,
@@ -779,6 +794,7 @@ func seedCourses(db *sql.DB) {
 			courseData["level"], courseData["duration"], courseData["instructor"],
 			courseData["rating"], courseData["students"], courseData["image"],
 			introMaterialJSON, lessonsJSON, preTestJSON, postTestJSON,
+			hasPostWork, hasFinalProject, certificateDelay, stepWeightsJSON,
 		)
 
 		if err != nil {
@@ -863,113 +879,4 @@ func seedQuizzes(db *sql.DB) {
 			}
 		}
 	}
-}
-
-func seedQuizAttempts(db *sql.DB) {
-	// Check if quiz attempts already exist
-	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM quiz_attempts").Scan(&count)
-	if err != nil {
-		log.Printf("Error checking quiz attempts: %v", err)
-		return
-	}
-
-	if count > 0 {
-		log.Println("Quiz attempts already exist, skipping quiz attempts seeding")
-		return
-	}
-
-	// Get all quizzes
-	quizQuery := `SELECT id, course_id, quiz_type FROM quizzes WHERE is_active = true`
-	quizRows, err := db.Query(quizQuery)
-	if err != nil {
-		log.Printf("Error getting quizzes for seeding attempts: %v", err)
-		return
-	}
-	defer quizRows.Close()
-
-	type Quiz struct {
-		ID       int
-		CourseID int
-		Type     string
-	}
-
-	var quizzes []Quiz
-	for quizRows.Next() {
-		var quiz Quiz
-		err := quizRows.Scan(&quiz.ID, &quiz.CourseID, &quiz.Type)
-		if err != nil {
-			log.Printf("Error scanning quiz: %v", err)
-			continue
-		}
-		quizzes = append(quizzes, quiz)
-	}
-
-	// Get all users (excluding admin)
-	userQuery := `SELECT id FROM users WHERE role != 'admin'`
-	userRows, err := db.Query(userQuery)
-	if err != nil {
-		log.Printf("Error getting users for seeding attempts: %v", err)
-		return
-	}
-	defer userRows.Close()
-
-	var userIDs []int
-	for userRows.Next() {
-		var userID int
-		err := userRows.Scan(&userID)
-		if err != nil {
-			log.Printf("Error scanning user: %v", err)
-			continue
-		}
-		userIDs = append(userIDs, userID)
-	}
-
-	if len(userIDs) == 0 || len(quizzes) == 0 {
-		log.Println("No users or quizzes found for seeding quiz attempts")
-		return
-	}
-
-	// Create sample quiz attempts
-	for _, quiz := range quizzes {
-		// Create attempts for some users (not all)
-		numAttempts := len(userIDs) / 2 // Half of users attempt each quiz
-		if numAttempts == 0 {
-			numAttempts = 1
-		}
-
-		for i := 0; i < numAttempts; i++ {
-			userID := userIDs[i%len(userIDs)]
-			
-			// Generate random score between 40-95
-			score := 40 + (i*7)%56
-			passed := score >= 70
-			
-			// Generate random time spent (5-25 minutes)
-			timeSpent := 300 + (i*60)%1200
-			
-			// Generate random submitted time (last 30 days)
-			daysAgo := i % 30
-			submittedAt := time.Now().AddDate(0, 0, -daysAgo)
-
-			insertQuery := `
-				INSERT INTO quiz_attempts (
-					quiz_id, user_id, score, time_spent, passed, attempt_number, 
-					completed, submitted_at, created_at, updated_at
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-			`
-			
-			_, err := db.Exec(insertQuery, 
-				quiz.ID, userID, score, timeSpent, passed, 1, 
-				true, submittedAt)
-			
-			if err != nil {
-				log.Printf("Error creating quiz attempt for quiz %d, user %d: %v", quiz.ID, userID, err)
-			} else {
-				log.Printf("Created quiz attempt: Quiz %d, User %d, Score %d%%", quiz.ID, userID, score)
-			}
-		}
-	}
-
-	log.Println("Quiz attempts seeding completed")
 }

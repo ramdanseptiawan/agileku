@@ -4,8 +4,56 @@ import { useCertificate } from '../hooks/useCertificate';
 import { Award, Download, Calendar, User, Trophy, Star, Target, BookOpen, Medal } from 'lucide-react';
 
 const Achievements = () => {
-  const { currentUser } = useAuth();
-  const { certificates } = useCertificate();
+  const { currentUser, getUserProgressSync } = useAuth();
+  const { certificates, loadCertificates } = useCertificate();
+  const [completedCourses, setCompletedCourses] = useState([]);
+
+  // Load completed courses and check for missing certificates
+  useEffect(() => {
+    const checkCompletedCourses = async () => {
+      if (!currentUser?.id) return;
+      
+      try {
+        // Get all user progress
+        const allProgress = await getUserProgressSync();
+        if (allProgress && Array.isArray(allProgress)) {
+          // Find courses with 100% progress
+          const completed = allProgress.filter(progress => 
+            progress.overall_progress >= 100
+          );
+          setCompletedCourses(completed);
+          
+          // Check for missing certificates and auto-request them
+          for (const progress of completed) {
+            const existingCert = certificates.find(cert => 
+              cert.courseId === progress.course_id
+            );
+            
+            if (!existingCert) {
+              console.log(`Auto-requesting certificate for completed course ${progress.course_id}`);
+              try {
+                const { requestCertificate } = await import('../services/api');
+                await requestCertificate(progress.course_id);
+              } catch (error) {
+                console.error(`Failed to auto-request certificate for course ${progress.course_id}:`, error);
+              }
+            }
+          }
+          
+          // Reload certificates after auto-requests
+          if (completed.length > 0) {
+            setTimeout(() => {
+              loadCertificates();
+            }, 2000);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking completed courses:', error);
+      }
+    };
+    
+    checkCompletedCourses();
+  }, [currentUser?.id, certificates.length]);
 
   // Certificates are automatically loaded by the hook
 
