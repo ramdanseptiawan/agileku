@@ -37,7 +37,7 @@ const WysiwygEditor = ({ value = '', onChange, placeholder = 'Mulai menulis...',
   };
 
   const insertLink = () => {
-    const selectedText = window.getSelection().toString();
+    const selectedText = typeof window !== 'undefined' ? window.getSelection().toString() : '';
     setLinkData({ 
       url: '', 
       text: selectedText || 'Link Text', 

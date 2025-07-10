@@ -1,5 +1,25 @@
 // localStorage utility functions for course management
 
+// Safe localStorage wrapper for SSR compatibility
+export const safeLocalStorage = {
+  getItem: (key) => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key, value) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(key);
+    }
+  }
+};
+
 const STORAGE_KEYS = {
   COURSES: 'courses', // Changed to match AuthContext
   COURSE_PROGRESS: 'agileku_course_progress',

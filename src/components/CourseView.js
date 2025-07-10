@@ -68,12 +68,12 @@ const CourseView = ({
       setLoadingCourseConfig(true);
       try {
         const backendUrl = process.env.NODE_ENV === 'production' 
-          ? 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev' 
-          : 'http://localhost:8080';
+          ? 'https://api.mindshiftlearning.id' 
+          : 'https://api.mindshiftlearning.id';
         
         const response = await fetch(`${backendUrl}/api/protected/admin/courses/${course.id}/config`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('authToken') : ''}`,
             'Content-Type': 'application/json'
           }
         });

@@ -1,17 +1,18 @@
 // API service untuk berkomunikasi dengan backend
+import { safeLocalStorage } from '../utils/localStorage';
 
 // API Base URLs for different environments
-const PRODUCTION_API_URL = 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev';
-const DEVELOPMENT_API_URL = 'http://localhost:8080';
+const PRODUCTION_API_URL = 'https://api.mindshiftlearning.id';
+const DEVELOPMENT_API_URL = 'https://api.mindshiftlearning.id';
 
 // Determine current environment and set API base URL
-const isDevelopment = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+const isDevelopment = process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && window.location.hostname === 'localhost');
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : `${isDevelopment ? DEVELOPMENT_API_URL : PRODUCTION_API_URL}/api`;
 
 // Helper function untuk membuat request dengan error handling
 const apiRequest = async (url, options = {}) => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = safeLocalStorage.getItem('authToken');
     
     const config = {
       mode: 'cors',
@@ -69,7 +70,7 @@ export const authAPI = {
     
     // Handle response structure: {success: true, data: {user, token}}
     if (response.success && response.data && response.data.token) {
-      localStorage.setItem('authToken', response.data.token);
+      safeLocalStorage.setItem('authToken', response.data.token);
       return response; // Return full response with success flag
     }
     
@@ -99,7 +100,7 @@ export const authAPI = {
 
   // Logout (clear token)
   logout: () => {
-    localStorage.removeItem('authToken');
+    safeLocalStorage.removeItem('authToken');
   },
 };
 
@@ -110,7 +111,7 @@ export const submissionAPI = {
     const formData = new FormData();
     formData.append('file', file);
     
-    const token = localStorage.getItem('authToken');
+    const token = safeLocalStorage.getItem('authToken');
     
     const response = await fetch(`${API_BASE_URL}/protected/uploads/file`, {
       method: 'POST',
@@ -261,18 +262,18 @@ export const quizAPI = {
 export const apiUtils = {
   // Check if user is authenticated
   isAuthenticated: () => {
-    return !!localStorage.getItem('authToken');
+    return !!safeLocalStorage.getItem('authToken');
   },
 
   // Get stored token
   getToken: () => {
-    return localStorage.getItem('authToken');
+    return safeLocalStorage.getItem('authToken');
   },
 
   // Clear all auth data
   clearAuthData: () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('currentUser');
+    safeLocalStorage.removeItem('authToken');
+  safeLocalStorage.removeItem('currentUser');
   },
 
   // Test backend connectivity

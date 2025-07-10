@@ -121,7 +121,7 @@ const MyCourses = ({ onStartLearning }) => {
               You haven&apos;t enrolled in any courses yet. Browse available courses to start learning!
             </p>
             <button
-              onClick={() => window.location.reload()} // Simple way to go back to dashboard
+              onClick={() => typeof window !== 'undefined' && window.location.reload()} // Simple way to go back to dashboard
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Browse Courses

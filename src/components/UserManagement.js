@@ -93,7 +93,7 @@ const UserManagement = () => {
   };
 
   const handleDelete = async (userId) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus user ini?')) {
+    if (typeof window !== 'undefined' && window.confirm('Apakah Anda yakin ingin menghapus user ini?')) {
       try {
         setLoading(true);
         setError('');

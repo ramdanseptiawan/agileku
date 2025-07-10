@@ -37,9 +37,7 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
   // Desktop sidebar menu items based on user role
   const getUserMenuItems = () => {
     const commonItems = [
-      { id: 'profile', label: 'Profile', icon: User, badge: null },
-      { id: 'settings', label: 'Settings', icon: Settings, badge: null },
-      { id: 'help', label: 'Help Center', icon: HelpCircle, badge: null }
+      { id: 'profile', label: 'Profile', icon: User, badge: null }
     ];
 
     if (userRole === 'admin') {
@@ -81,7 +79,7 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
     console.log('Sidebar: Setting currentView to', viewId); // Debug log
     setCurrentView(viewId);
     // Close sidebar on mobile after selection
-    if (window.innerWidth < 1024) {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setIsSidebarOpen(false);
     }
   };

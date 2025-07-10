@@ -184,7 +184,7 @@ const LMS = () => {
     setCurrentLesson(course);
     setCurrentView('course');
     // Close sidebar on mobile
-    if (window.innerWidth < 1024) {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setIsSidebarOpen(false);
     }
   };

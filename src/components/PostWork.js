@@ -95,7 +95,7 @@ const PostWork = ({ courseId, onSubmit, stageAccess }) => {
   const loadInstructions = useCallback(() => {
     try {
       const storageKey = `course_instructions_${courseId}`;
-      const savedInstructions = localStorage.getItem(storageKey);
+      const savedInstructions = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
       
       if (savedInstructions) {
         const parsedInstructions = JSON.parse(savedInstructions);
@@ -136,7 +136,7 @@ const PostWork = ({ courseId, onSubmit, stageAccess }) => {
 
   const loadProgress = useCallback(async () => {
     // Load from localStorage first
-    const savedProgress = localStorage.getItem(`postWork_${courseId}_${currentUser?.id}`);
+    const savedProgress = typeof window !== 'undefined' ? localStorage.getItem(`postWork_${courseId}_${currentUser?.id}`) : null;
     if (savedProgress) {
       const progress = JSON.parse(savedProgress);
       setWorkDescription(progress.description || '');
@@ -210,7 +210,9 @@ const PostWork = ({ courseId, onSubmit, stageAccess }) => {
     };
     
     try {
-      localStorage.setItem(`postWork_${courseId}_${currentUser.id}`, JSON.stringify(progress));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`postWork_${courseId}_${currentUser.id}`, JSON.stringify(progress));
+      }
       setAutoSaveStatus('saved');
       setLastSaved(new Date().toISOString());
     } catch (error) {

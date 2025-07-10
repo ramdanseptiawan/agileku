@@ -55,6 +55,11 @@ const CertificateManager = () => {
     // Load all certificates from all users for admin management
     const allCertificates = [];
     
+    if (typeof window === 'undefined') {
+      setCertificates([]);
+      return;
+    }
+    
     // Get all localStorage keys that match certificate pattern
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -121,15 +126,17 @@ const CertificateManager = () => {
   // filterCertificates is now defined as useCallback above
 
   const deleteCertificate = (certificateId) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus sertifikat ini?')) {
+    if (typeof window !== 'undefined' && window.confirm('Apakah Anda yakin ingin menghapus sertifikat ini?')) {
       const updatedCertificates = certificates.filter(cert => cert.id !== certificateId);
       setCertificates(updatedCertificates);
-      localStorage.setItem('certificates', JSON.stringify(updatedCertificates));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('certificates', JSON.stringify(updatedCertificates));
+      }
     }
   };
 
   const approveCertificate = async (certificateId) => {
-    if (!window.confirm('Apakah Anda yakin ingin menyetujui sertifikat ini?')) return;
+    if (typeof window !== 'undefined' && !window.confirm('Apakah Anda yakin ingin menyetujui sertifikat ini?')) return;
     
     setLoading(true);
     try {
@@ -150,7 +157,7 @@ const CertificateManager = () => {
   };
 
   const rejectCertificate = async (certificateId) => {
-    const reason = prompt('Masukkan alasan penolakan:');
+    const reason = typeof window !== 'undefined' ? prompt('Masukkan alasan penolakan:') : null;
     if (!reason) return;
     
     setLoading(true);

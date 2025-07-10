@@ -1,5 +1,7 @@
 'use client';
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { safeLocalStorage } from '../utils/localStorage';
 import { authAPI, courseAPI, apiUtils, getUserEnrollments, getCourseProgress } from '../services/api';
 
 const AuthContext = createContext();
@@ -113,7 +115,7 @@ export const AuthProvider = ({ children }) => {
       // Check if login was successful and we have user data
       if (response && response.success && response.data && response.data.user && response.data.token) {
         setCurrentUser(response.data.user);
-        localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+        safeLocalStorage.setItem('currentUser', JSON.stringify(response.data.user));
         
         // Load user enrollments after login using the updated API
         try {
@@ -145,7 +147,7 @@ export const AuthProvider = ({ children }) => {
     authAPI.logout();
     setCurrentUser(null);
     setEnrollments([]);
-    localStorage.removeItem('currentUser');
+    safeLocalStorage.removeItem('currentUser');
   };
 
   // Functions moved above useEffect to fix initialization order
@@ -374,15 +376,15 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Only admin can access stage locks');
       }
 
-      const token = localStorage.getItem('authToken');
+      const token = safeLocalStorage.getItem('authToken');
       if (!token) {
         throw new Error('No authentication token found');
       }
 
       // Use backend URL directly to avoid routing issues
       const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev' 
-        : 'http://localhost:8080';
+        ? 'https://api.mindshiftlearning.id' 
+        : 'https://api.mindshiftlearning.id';
       
       const response = await fetch(`${backendUrl}/api/protected/admin/courses/${courseId}/stage-locks`, {
         method: 'GET',
@@ -421,7 +423,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Only admin can update stage locks');
       }
 
-      const token = localStorage.getItem('authToken');
+      const token = safeLocalStorage.getItem('authToken');
       if (!token) {
         throw new Error('No authentication token found');
       }
@@ -435,8 +437,8 @@ export const AuthProvider = ({ children }) => {
 
       // Use backend URL directly to avoid routing issues
       const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev' 
-        : 'http://localhost:8080';
+        ? 'https://api.mindshiftlearning.id' 
+        : 'https://api.mindshiftlearning.id';
 
       const response = await fetch(`${backendUrl}/api/protected/admin/courses/${courseId}/stage-locks`, {
         method: 'PUT',

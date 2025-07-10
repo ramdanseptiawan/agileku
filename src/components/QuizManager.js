@@ -17,7 +17,7 @@ const QuizManager = () => {
       let currentUser = user;
       if (!currentUser) {
         try {
-          const storedUser = localStorage.getItem('currentUser');
+          const storedUser = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
           if (storedUser) {
             currentUser = JSON.parse(storedUser);
           }
@@ -80,7 +80,7 @@ const QuizManager = () => {
   };
 
   const handleDeleteQuestion = (questionId) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus pertanyaan ini?')) {
+    if (typeof window !== 'undefined' && window.confirm('Apakah Anda yakin ingin menghapus pertanyaan ini?')) {
       setQuestions(questions.filter(q => q.id !== questionId));
       if (editingQuiz === questionId) {
         setEditingQuiz(null);
@@ -109,7 +109,7 @@ const QuizManager = () => {
     let currentUser = user;
     if (!currentUser) {
       try {
-        const storedUser = localStorage.getItem('currentUser');
+        const storedUser = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
         if (storedUser) {
           currentUser = JSON.parse(storedUser);
         }
@@ -196,7 +196,7 @@ const QuizManager = () => {
   let currentUser = user;
   if (!currentUser) {
     try {
-      const storedUser = localStorage.getItem('currentUser');
+      const storedUser = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
       if (storedUser) {
         currentUser = JSON.parse(storedUser);
       }

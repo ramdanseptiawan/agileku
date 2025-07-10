@@ -16,7 +16,7 @@ const AnnouncementBell = ({ onClick }) => {
     }
 
     // Get all announcements
-    const saved = localStorage.getItem('announcements');
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('announcements') : null;
     if (!saved) {
       setUnreadCount(0);
       return;
@@ -34,7 +34,7 @@ const AnnouncementBell = ({ onClick }) => {
 
     // Get read announcements for current user
     const userId = currentUser.id || 'guest';
-    const readSaved = localStorage.getItem(`readAnnouncements_${userId}`);
+    const readSaved = typeof window !== 'undefined' ? localStorage.getItem(`readAnnouncements_${userId}`) : null;
     const readAnnouncements = readSaved ? new Set(JSON.parse(readSaved)) : new Set();
 
     // Count unread announcements
@@ -50,13 +50,17 @@ const AnnouncementBell = ({ onClick }) => {
       updateUnreadCount();
     };
     
-    window.addEventListener('storage', handleStorageChange);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+    }
     
     // Also check periodically for updates
     const interval = setInterval(updateUnreadCount, 30000); // Check every 30 seconds
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorageChange);
+      }
       clearInterval(interval);
     };
   }, [updateUnreadCount]);

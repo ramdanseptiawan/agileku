@@ -51,8 +51,8 @@ const CourseCard = ({ course, onStartLearning }) => {
       if (currentUser && isEnrolled) {
         try {
           const backendUrl = process.env.NODE_ENV === 'production' 
-            ? 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5dfowoyipt52.cloudworkstations.dev' 
-            : 'http://localhost:8080';
+            ? 'https://api.mindshiftlearning.id' 
+            : 'https://api.mindshiftlearning.id';
           
           // Fetch both progress and course config in parallel
           const [progressData, courseResponse] = await Promise.all([

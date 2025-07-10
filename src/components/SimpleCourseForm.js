@@ -499,7 +499,7 @@ const SimpleCourseForm = ({ initialData, onSave, onCancel, isLoading, isEditing 
                       {item.embedUrl && (
                         <button
                           type="button"
-                          onClick={() => window.open(item.embedUrl, '_blank')}
+                          onClick={() => typeof window !== 'undefined' && window.open(item.embedUrl, '_blank')}
                           className="text-xs text-blue-600 hover:text-blue-800 flex items-center space-x-1"
                         >
                           <Eye size={12} />
@@ -509,7 +509,7 @@ const SimpleCourseForm = ({ initialData, onSave, onCancel, isLoading, isEditing 
                       {item.downloadUrl && (
                          <button
                            type="button"
-                           onClick={() => window.open(item.downloadUrl, '_blank')}
+                           onClick={() => typeof window !== 'undefined' && window.open(item.downloadUrl, '_blank')}
                            className="text-xs text-green-600 hover:text-green-800 flex items-center space-x-1"
                          >
                            <FileText size={12} />
@@ -747,7 +747,7 @@ const SimpleCourseForm = ({ initialData, onSave, onCancel, isLoading, isEditing 
                        {item.src && (
                          <button
                            type="button"
-                           onClick={() => window.open(item.src, '_blank')}
+                           onClick={() => typeof window !== 'undefined' && window.open(item.src, '_blank')}
                            className="text-xs text-blue-600 hover:text-blue-800 flex items-center space-x-1"
                          >
                            <Eye size={12} />

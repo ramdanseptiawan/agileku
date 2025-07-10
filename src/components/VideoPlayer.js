@@ -97,7 +97,9 @@ const VideoPlayer = ({ item, fileUrls }) => {
   // Open video in new tab
   const openInNewTab = () => {
     if (videoSource?.originalUrl || videoSource?.url) {
-      window.open(videoSource.originalUrl || videoSource.url, '_blank');
+      if (typeof window !== 'undefined') {
+        window.open(videoSource.originalUrl || videoSource.url, '_blank');
+      }
     }
   };
 
@@ -203,7 +205,7 @@ const VideoPlayer = ({ item, fileUrls }) => {
       ) : (
         <iframe
           ref={iframeRef}
-          src={`${videoSource.url}${videoSource.url.includes('?') ? '&' : '?'}enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
+          src={`${videoSource.url}${videoSource.url.includes('?') ? '&' : '?'}enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
           className="absolute top-0 left-0 w-full h-full"
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

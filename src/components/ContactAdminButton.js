@@ -11,7 +11,9 @@ const ContactAdminButton = () => {
       icon: MessageCircle,
       color: 'bg-green-500 hover:bg-green-600',
       action: () => {
-        window.open('https://wa.me/6285255149256?text=Halo%20Admin%2C%20saya%20membutuhkan%20bantuan%20terkait%20kursus', '_blank');
+        if (typeof window !== 'undefined') {
+      window.open('https://wa.me/6285255149256?text=Halo%20Admin%2C%20saya%20membutuhkan%20bantuan%20terkait%20kursus', '_blank');
+    }
       }
     },
     {
@@ -20,7 +22,9 @@ const ContactAdminButton = () => {
       icon: Mail,
       color: 'bg-blue-500 hover:bg-blue-600',
       action: () => {
-        window.location.href = 'mailto:ramdan.einstein@gmail.com?subject=Bantuan%20Kursus&body=Halo%20Admin%2C%0A%0ASaya%20membutuhkan%20bantuan%20terkait%3A%0A%0ATerima%20kasih.';
+        if (typeof window !== 'undefined') {
+      window.location.href = 'mailto:ramdan.einstein@gmail.com?subject=Bantuan%20Kursus&body=Halo%20Admin%2C%0A%0ASaya%20membutuhkan%20bantuan%20terkait%3A%0A%0ATerima%20kasih.';
+    }
       }
     },
     {
@@ -29,7 +33,9 @@ const ContactAdminButton = () => {
       icon: Phone,
       color: 'bg-purple-500 hover:bg-purple-600',
       action: () => {
-        window.location.href = 'tel:+6285255149256';
+        if (typeof window !== 'undefined') {
+      window.location.href = 'tel:+6285255149256';
+    }
       }
     }
   ];

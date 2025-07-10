@@ -101,7 +101,7 @@ ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 go run main.go
 ```
 
-Server akan berjalan di `https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev`
+Server akan berjalan di `https://api.mindshiftlearning.id`
 
 ## API Endpoints
 
@@ -135,7 +135,7 @@ Server akan berjalan di `https://8080-firebase-agileku-1751862903205.cluster-ejd
 
 ### Register User
 ```bash
-curl -X POST https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev/api/public/register \
+curl -X POST https://api.mindshiftlearning.id/api/public/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -147,7 +147,7 @@ curl -X POST https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5
 
 ### Login
 ```bash
-curl -X POST https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev/api/public/login \
+curl -X POST https://api.mindshiftlearning.id/api/public/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -158,7 +158,7 @@ curl -X POST https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5
 ### Using JWT Token
 ```bash
 # Gunakan token dari response login
-curl -X GET https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev/api/protected/user/profile \
+curl -X GET https://api.mindshiftlearning.id/api/protected/user/profile \
   -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
 ```
 

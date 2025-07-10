@@ -85,7 +85,7 @@ const AnnouncementManager = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')) {
+    if (typeof window !== 'undefined' && window.confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')) {
       try {
         const response = await api.admin.deleteAnnouncement(id);
         if (response.success) {

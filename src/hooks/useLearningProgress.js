@@ -257,8 +257,8 @@ export const useLearningProgress = (courseId) => {
       try {
         setIsLoading(true);
           const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev' 
-        : 'http://localhost:8080';
+        ? 'https://api.mindshiftlearning.id' 
+        : 'https://api.mindshiftlearning.id';
         // Load course configuration and progress in parallel
         const [progressResponse, courseResponse] = await Promise.all([
           getCourseProgress(courseId),

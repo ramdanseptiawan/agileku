@@ -43,7 +43,7 @@ const FinalProject = ({ courseId, onSubmit, stageAccess }) => {
   const maxFileSize = 50 * 1024 * 1024; // 50MB
 
   const loadProgress = useCallback(() => {
-    const savedProgress = localStorage.getItem(`finalProject_${courseId}_${currentUser?.id}`);
+    const savedProgress = typeof window !== 'undefined' ? localStorage.getItem(`finalProject_${courseId}_${currentUser?.id}`) : null;
     if (savedProgress) {
       const progress = JSON.parse(savedProgress);
       setProjectDescription(progress.description || '');
@@ -60,7 +60,7 @@ const FinalProject = ({ courseId, onSubmit, stageAccess }) => {
   const loadInstructions = useCallback(() => {
     try {
       const storageKey = `course_instructions_${courseId}`;
-      const savedInstructions = localStorage.getItem(storageKey);
+      const savedInstructions = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
       
       if (savedInstructions) {
         const parsedInstructions = JSON.parse(savedInstructions);
@@ -168,7 +168,9 @@ const FinalProject = ({ courseId, onSubmit, stageAccess }) => {
     };
     
     try {
-      localStorage.setItem(`finalProject_${courseId}_${currentUser.id}`, JSON.stringify(progress));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`finalProject_${courseId}_${currentUser.id}`, JSON.stringify(progress));
+      }
       setAutoSaveStatus('saved');
       setLastSaved(new Date().toISOString());
     } catch (error) {
@@ -189,7 +191,7 @@ const FinalProject = ({ courseId, onSubmit, stageAccess }) => {
 
   const checkCourseCompletion = () => {
     // Check if user has completed all course requirements
-    const courseProgress = localStorage.getItem(`courseProgress_${courseId}_${currentUser?.id}`);
+    const courseProgress = typeof window !== 'undefined' ? localStorage.getItem(`courseProgress_${courseId}_${currentUser?.id}`) : null;
     if (courseProgress) {
       const progress = JSON.parse(courseProgress);
       return progress.completed === true;

@@ -1,16 +1,17 @@
 // Enhanced Quiz API for improved pretest and posttest functionality
+import { safeLocalStorage } from '../utils/localStorage';
 
 // API Base URLs for different environments
-const PRODUCTION_API_URL = 'https://8080-firebase-agileku-1751862903205.cluster-ejd22kqny5htuv5dfowoyipt52.cloudworkstations.dev';
-const DEVELOPMENT_API_URL = 'http://localhost:8080';
+const PRODUCTION_API_URL = 'https://api.mindshiftlearning.id';
+const DEVELOPMENT_API_URL = 'https://api.mindshiftlearning.id';
 
 // Determine current environment and set API base URL
-const isDevelopment = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+const isDevelopment = process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && window.location.hostname === 'localhost');
 const API_BASE_URL = `${isDevelopment ? DEVELOPMENT_API_URL : PRODUCTION_API_URL}/api/protected`;
 
 // Get authentication token from localStorage
 const getAuthToken = () => {
-  return localStorage.getItem('authToken');
+  return safeLocalStorage.getItem('authToken');
 };
 
 // Create headers with authentication

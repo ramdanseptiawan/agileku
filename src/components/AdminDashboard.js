@@ -88,7 +88,7 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
   };
 
   const handleDeleteCourse = async (courseId) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus course ini?')) {
+    if (typeof window !== 'undefined' && window.confirm('Apakah Anda yakin ingin menghapus course ini?')) {
       try {
         await adminAPI.deleteCourse(courseId);
         setCourses(courses.filter(course => course.id !== courseId));

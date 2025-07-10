@@ -80,7 +80,7 @@ const SurveyManager = () => {
   };
 
   const handleDeleteQuestion = (questionId) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus pertanyaan ini?')) {
+    if (typeof window !== 'undefined' && window.confirm('Apakah Anda yakin ingin menghapus pertanyaan ini?')) {
       setSurveyQuestions(surveyQuestions.filter(q => q.id !== questionId));
       if (editingQuestion === questionId) {
         setEditingQuestion(null);
@@ -131,7 +131,7 @@ const SurveyManager = () => {
   };
 
   const resetToDefault = () => {
-    if (window.confirm('Reset ke pertanyaan default? Semua perubahan akan hilang.')) {
+    if (typeof window !== 'undefined' && window.confirm('Reset ke pertanyaan default? Semua perubahan akan hilang.')) {
       setSurveyQuestions(defaultQuestions);
       setEditingQuestion(null);
     }
