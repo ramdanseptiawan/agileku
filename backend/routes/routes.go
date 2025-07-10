@@ -25,6 +25,7 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	announcementHandler := handlers.NewAnnouncementHandler(db)
 	surveyHandler := handlers.NewSurveyHandler(db)
 	stageLockHandler := handlers.NewStageLockHandler(db)
+	userDetailHandler := handlers.NewUserDetailHandler(db)
 
 	// Set database for enhanced handlers
 	handlers.SetEnhancedHandlerDB(db)
@@ -58,6 +59,10 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	// User profile routes
 	protected.HandleFunc("/user/profile", authHandler.GetProfile).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/user/profile", authHandler.UpdateProfile).Methods("PUT", "OPTIONS")
+
+	// User detail routes
+	protected.HandleFunc("/user/detail", userDetailHandler.GetUserDetail).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/user/detail", userDetailHandler.UpdateUserDetail).Methods("PUT", "OPTIONS")
 
 	// Course enrollment routes
 	protected.HandleFunc("/courses", courseHandler.GetCoursesWithEnrollment).Methods("GET", "OPTIONS")
@@ -146,6 +151,12 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	admin.HandleFunc("/users", adminHandler.CreateUser).Methods("POST", "OPTIONS")
 	admin.HandleFunc("/users/{id:[0-9]+}", adminHandler.UpdateUser).Methods("PUT", "OPTIONS")
 	admin.HandleFunc("/users/{id:[0-9]+}", adminHandler.DeleteUser).Methods("DELETE", "OPTIONS")
+
+	// Admin user detail management routes
+	admin.HandleFunc("/user-details", userDetailHandler.GetAllUserDetails).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/user-details/{id:[0-9]+}", userDetailHandler.GetUserDetailByID).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/user-details/{id:[0-9]+}", userDetailHandler.UpdateUserDetailByID).Methods("PUT", "OPTIONS")
+	admin.HandleFunc("/user-details/{id:[0-9]+}", userDetailHandler.DeleteUserDetailByID).Methods("DELETE", "OPTIONS")
 
 	// Admin announcement management routes
 	admin.HandleFunc("/announcements", adminHandler.CreateAnnouncement).Methods("POST", "OPTIONS")
