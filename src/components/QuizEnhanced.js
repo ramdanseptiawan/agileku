@@ -265,14 +265,6 @@ const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
           </div>
           
           <div className="grid grid-cols-2 gap-6 mb-8">
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-xl text-center">
-              <div className="text-3xl font-bold text-blue-600 mb-2">{result.score}%</div>
-              <div className="text-gray-600 font-medium">Score</div>
-            </div>
-            <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-xl text-center">
-              <div className="text-3xl font-bold text-green-600 mb-2">{result.correctCount}/{result.totalCount}</div>
-              <div className="text-gray-600 font-medium">Correct Answers</div>
-            </div>
             <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-6 rounded-xl text-center">
               <div className="text-3xl font-bold text-purple-600 mb-2">{formatTime(result.timeSpent)}</div>
               <div className="text-gray-600 font-medium">Time Spent</div>
