@@ -286,3 +286,82 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		Data:    user,
 	})
 }
+
+// ChangePassword handles password change requests
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	user, err := middleware.GetUserFromContext(r)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Failed to get user",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	var changePasswordReq struct {
+		CurrentPassword string `json:"currentPassword"`
+		NewPassword     string `json:"newPassword"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&changePasswordReq); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Invalid request body",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Validate required fields
+	if changePasswordReq.CurrentPassword == "" || changePasswordReq.NewPassword == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Missing required fields",
+			Message: "Current password and new password are required",
+		})
+		return
+	}
+
+	// Validate new password length
+	if len(changePasswordReq.NewPassword) < 3 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Password too short",
+			Message: "Password must be at least 3 characters long",
+		})
+		return
+	}
+
+	// Verify current password
+	if !user.CheckPassword(changePasswordReq.CurrentPassword) {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Invalid current password",
+			Message: "Password saat ini tidak benar",
+		})
+		return
+	}
+
+	// Update password in database
+	err = models.UpdatePassword(h.DB, user.ID, changePasswordReq.NewPassword)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Error:   "Failed to update password",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(SuccessResponse{
+		Success: true,
+		Message: "Password berhasil diubah",
+	})
+}

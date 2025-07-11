@@ -247,14 +247,6 @@ const CertificateManager = () => {
             <p><strong>Tanggal Penyelesaian:</strong> ${new Date(completionDate).toLocaleDateString('id-ID')}</p>
             <p><strong>Grade:</strong> ${grade}</p>
           </div>
-          <div class="signature">
-            <div class="sig-line">
-              <div>Direktur Akademik</div>
-            </div>
-            <div class="sig-line">
-              <div>Instruktur Kursus</div>
-            </div>
-          </div>
         </div>
       </body>
       </html>

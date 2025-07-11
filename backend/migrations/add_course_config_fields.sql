@@ -4,8 +4,8 @@
 
 -- Add new columns to courses table
 ALTER TABLE courses 
-ADD COLUMN has_post_work BOOLEAN DEFAULT false,
-ADD COLUMN has_final_project BOOLEAN DEFAULT false,
+ADD COLUMN has_post_work BOOLEAN DEFAULT true,
+ADD COLUMN has_final_project BOOLEAN DEFAULT true,
 ADD COLUMN certificate_delay INTEGER DEFAULT 0,
 ADD COLUMN step_weights JSONB DEFAULT NULL;
 

@@ -59,6 +59,7 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	// User profile routes
 	protected.HandleFunc("/user/profile", authHandler.GetProfile).Methods("GET", "OPTIONS")
 	protected.HandleFunc("/user/profile", authHandler.UpdateProfile).Methods("PUT", "OPTIONS")
+	protected.HandleFunc("/user/change-password", authHandler.ChangePassword).Methods("POST", "OPTIONS")
 
 	// User detail routes
 	protected.HandleFunc("/user/detail", userDetailHandler.GetUserDetail).Methods("GET", "OPTIONS")
@@ -184,6 +185,9 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 
 	// Protected stage access check routes
 	protected.HandleFunc("/courses/{courseId:[0-9]+}/stages/{stageName}/access", stageLockHandler.CheckStageAccess).Methods("GET", "OPTIONS")
+
+	// Course configuration route for regular users
+	protected.HandleFunc("/courses/{courseId:[0-9]+}/config", handlers.GetCourseConfigForUserHandler(db)).Methods("GET", "OPTIONS")
 
 	// Health check endpoint
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

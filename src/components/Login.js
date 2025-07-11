@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, User, Lock } from 'lucide-react';
+import Branding from './Branding';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -32,22 +33,11 @@ const Login = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-8">
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          {/* Header */}
+          {/* Header with Branding */}
           <div className="text-center mb-8">
-            <div className="mx-auto h-12 w-12 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
-              <User className="h-6 w-6 text-white" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
-            <p className="text-gray-600 mt-2">Sign in to your account</p>
-          </div>
-
-          {/* Demo Credentials */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div><strong>Admin:</strong> admin / 123</div>
-              <div><strong>User:</strong> user / 123</div>
-            </div>
+            <Branding size="medium" className="mb-6" />
+            <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
+            <p className="text-gray-600 mt-2">Sign in to your learning platform</p>
           </div>
 
           {/* Form */}
@@ -127,6 +117,18 @@ const Login = () => {
               )}
             </button>
           </form>
+          
+          {/* Footer Branding */}
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <div className="flex items-center justify-center space-x-2 opacity-75">
+              <span className="text-xs text-gray-600">Powered by</span>
+              <img
+                  src="/shinka.png"
+                  alt="Shinka"
+                  className="h-12 w-auto object-contain rounded px-1 py-0.5"
+                />
+            </div>
+          </div>
         </div>
       </div>
     </div>

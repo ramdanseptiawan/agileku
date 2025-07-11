@@ -98,14 +98,6 @@ const Certificate = ({ courseId, courseName, onClose }) => {
             <p><strong>Tanggal Penyelesaian:</strong> ${new Date(certificate.completionDate).toLocaleDateString('id-ID')}</p>
             <p><strong>Grade:</strong> ${certificate.grade}</p>
           </div>
-          <div class="signature">
-            <div class="sig-line">
-              <div>Direktur Akademik</div>
-            </div>
-            <div class="sig-line">
-              <div>Instruktur Kursus</div>
-            </div>
-          </div>
         </div>
       </body>
       </html>
@@ -160,14 +152,6 @@ const Certificate = ({ courseId, courseName, onClose }) => {
             <p><strong>Nomor Sertifikat:</strong> ${certificate.certificateNumber}</p>
             <p><strong>Tanggal Penyelesaian:</strong> ${new Date(certificate.completionDate).toLocaleDateString('id-ID')}</p>
             <p><strong>Grade:</strong> ${certificate.grade || 'A'}</p>
-          </div>
-          <div style="margin-top: 50px; display: flex; justify-content: space-between; position: relative; z-index: 1;">
-            <div style="border-top: 2px solid #e2e8f0; width: 200px; padding-top: 10px;">
-              <div>Direktur Akademik</div>
-            </div>
-            <div style="border-top: 2px solid #e2e8f0; width: 200px; padding-top: 10px;">
-              <div>Instruktur Kursus</div>
-            </div>
           </div>
         </div>
       `;

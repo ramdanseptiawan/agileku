@@ -126,3 +126,21 @@ func UpdateUser(db *sql.DB, user *User) error {
 	err := db.QueryRow(query, user.Username, user.Email, user.FullName, user.ID).Scan(&user.UpdatedAt)
 	return err
 }
+
+// UpdatePassword updates user password
+func UpdatePassword(db *sql.DB, userID int, newPassword string) error {
+	// Hash the new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	query := `
+		UPDATE users
+		SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+
+	_, err = db.Exec(query, string(hashedPassword), userID)
+	return err
+}

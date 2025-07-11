@@ -71,7 +71,7 @@ const CourseView = ({
           ? 'https://api.mindshiftlearning.id' 
           : 'https://api.mindshiftlearning.id';
         
-        const response = await fetch(`${backendUrl}/api/protected/admin/courses/${course.id}/config`, {
+        const response = await fetch(`${backendUrl}/api/protected/courses/${course.id}/config`, {
           headers: {
             'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('authToken') : ''}`,
             'Content-Type': 'application/json'

@@ -174,14 +174,6 @@ const Achievements = () => {
                 <p><strong>Nomor Sertifikat:</strong> ${certificate.certNumber || 'N/A'}</p>
                 <p><strong>Tanggal Penyelesaian:</strong> ${certificate.completionDate ? new Date(certificate.completionDate).toLocaleDateString('id-ID') : 'N/A'}</p>
               </div>
-              <div class="signatures">
-                <div class="signature">
-                  <div>Direktur Akademik</div>
-                </div>
-                <div class="signature">
-                  <div>Instruktur Kursus</div>
-                </div>
-              </div>
             </div>
           </div>
         </body>

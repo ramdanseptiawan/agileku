@@ -150,3 +150,60 @@ func GetCourseConfigHandler(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(response)
 	}
 }
+
+// GetCourseConfigForUserHandler handles getting course configuration for regular users
+func GetCourseConfigForUserHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get course ID from URL
+		vars := mux.Vars(r)
+		courseIDStr := vars["courseId"]
+		courseID, err := strconv.Atoi(courseIDStr)
+		if err != nil {
+			http.Error(w, "Invalid course ID", http.StatusBadRequest)
+			return
+		}
+
+		// Get course configuration (no admin check needed for reading)
+		hasPostWork, hasFinalProject, certificateDelay, stepWeights, err := models.GetCourseConfiguration(db, courseID)
+		if err != nil {
+			http.Error(w, "Failed to get course configuration", http.StatusInternalServerError)
+			return
+		}
+
+		// Parse stepWeights
+		var stepWeightsMap map[string]interface{}
+		if stepWeights != nil {
+			if err := json.Unmarshal(*stepWeights, &stepWeightsMap); err != nil {
+				// If parsing fails, use default weights
+				stepWeightsMap = map[string]interface{}{
+					"intro":        10,
+					"pretest":      15,
+					"lessons":      40,
+					"posttest":     35,
+					"postwork":     0,
+					"finalproject": 0,
+				}
+			}
+		} else {
+			// Default weights
+			stepWeightsMap = map[string]interface{}{
+				"intro":        10,
+				"pretest":      15,
+				"lessons":      40,
+				"posttest":     35,
+				"postwork":     0,
+				"finalproject": 0,
+			}
+		}
+
+		response := CourseConfigResponse{
+			HasPostWork:      hasPostWork,
+			HasFinalProject:  hasFinalProject,
+			CertificateDelay: certificateDelay,
+			StepWeights:      stepWeightsMap,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
+}

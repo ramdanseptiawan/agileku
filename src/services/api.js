@@ -98,6 +98,17 @@ export const authAPI = {
     });
   },
 
+  // Change password
+  changePassword: async (currentPassword, newPassword) => {
+    return await apiRequest('/protected/user/change-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+      }),
+    });
+  },
+
   // Logout (clear token)
   logout: () => {
     safeLocalStorage.removeItem('authToken');
