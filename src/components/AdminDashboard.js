@@ -17,6 +17,7 @@ import GradingSystem from './GradingSystem';
 import SubmissionReview from './SubmissionReview';
 import CourseStageManager from './CourseStageManager';
 import TestResultsManager from './TestResultsManager';
+import FeedbackManager from './FeedbackManager';
 
 const AdminDashboard = ({ activeTab = 'overview' }) => {
   console.log('AdminDashboard: activeTab =', activeTab); // Debug log
@@ -365,6 +366,10 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
             <h3 className="text-lg font-medium text-gray-900 mb-4">Student Management</h3>
             <p className="text-gray-600">Student management features will be implemented here.</p>
           </div>
+        )}
+
+        {activeTab === 'feedback-management' && (
+          <FeedbackManager />
         )}
       </div>
     </div>

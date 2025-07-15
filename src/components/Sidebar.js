@@ -14,12 +14,13 @@ import {
   FileText,
   Users,
   Star,
-  Menu,
   GraduationCap,
-  Shield,
+  Menu,
   MessageSquare,
+  Shield,
   UserCog,
-  Edit
+  Edit,
+  MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import AnnouncementBell from './AnnouncementBell';
@@ -54,6 +55,7 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
         { id: 'course-config', label: 'Course Configuration', icon: Edit, badge: null },
         { id: 'users', label: 'User Management', icon: UserCog, badge: null },
         { id: 'test-results', label: 'Test Results', icon: BarChart3, badge: null },
+        { id: 'feedback-management', label: 'Feedback Management', icon: MessageCircle, badge: null },
         { id: 'students', label: 'Students', icon: Users, badge: null },
         ...commonItems
       ];

@@ -256,7 +256,7 @@ const LMS = () => {
             currentView === 'surveys' || currentView === 'announcements' || currentView === 'certificates' || 
             currentView === 'project-instructions' || currentView === 'course-instructions' || 
             currentView === 'course-config' || currentView === 'users' || currentView === 'test-results' || 
-            currentView === 'students') && currentUser.role === 'admin' && (
+            currentView === 'feedback-management' || currentView === 'students') && currentUser.role === 'admin' && (
             <AdminDashboard activeTab={currentView} />
           )}
           
