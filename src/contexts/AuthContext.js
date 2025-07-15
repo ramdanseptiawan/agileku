@@ -143,6 +143,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async (userData) => {
+    try {
+      const response = await authAPI.register(userData);
+      
+      if (response && response.success) {
+        return { success: true, message: 'Registrasi berhasil' };
+      }
+      
+      return { success: false, error: response.error || 'Registrasi gagal' };
+    } catch (error) {
+      return handleApiError(error);
+    }
+  };
+
   const logout = () => {
     authAPI.logout();
     setCurrentUser(null);
@@ -475,6 +489,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     currentUser,
     login,
+    register,
     logout,
     isLoading,
     courses,

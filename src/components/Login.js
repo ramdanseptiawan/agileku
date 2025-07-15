@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, User, Lock } from 'lucide-react';
@@ -117,6 +119,19 @@ const Login = () => {
               )}
             </button>
           </form>
+          
+          {/* Register Link */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <a
+                href="/register"
+                className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+              >
+                Sign up here
+              </a>
+            </p>
+          </div>
           
           {/* Footer Branding */}
           <div className="mt-8 pt-6 border-t border-gray-200">

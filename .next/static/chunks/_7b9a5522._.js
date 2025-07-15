@@ -2170,6 +2170,23 @@ const AuthProvider = ({ children })=>{
             return handleApiError(error);
         }
     };
+    const register = async (userData)=>{
+        try {
+            const response = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$services$2f$api$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["authAPI"].register(userData);
+            if (response && response.success) {
+                return {
+                    success: true,
+                    message: 'Registrasi berhasil'
+                };
+            }
+            return {
+                success: false,
+                error: response.error || 'Registrasi gagal'
+            };
+        } catch (error) {
+            return handleApiError(error);
+        }
+    };
     const logout = ()=>{
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$services$2f$api$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["authAPI"].logout();
         setCurrentUser(null);
@@ -2480,6 +2497,7 @@ const AuthProvider = ({ children })=>{
     const value = {
         currentUser,
         login,
+        register,
         logout,
         isLoading,
         courses,
@@ -2503,7 +2521,7 @@ const AuthProvider = ({ children })=>{
         children: children
     }, void 0, false, {
         fileName: "[project]/src/contexts/AuthContext.js",
-        lineNumber: 498,
+        lineNumber: 513,
         columnNumber: 5
     }, this);
 };
