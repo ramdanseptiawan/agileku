@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"lms-backend/middleware"
+	"lms-backend/models"
 
 	"github.com/gorilla/mux"
 )
@@ -100,15 +101,15 @@ func (h *SurveyHandler) SubmitSurveyFeedbackHandler(w http.ResponseWriter, r *ht
 		request.Usefulness = 0
 	}
 
-	// Check if user is enrolled in the course
-	enrolled, err := h.isUserEnrolledInCourse(userID, request.CourseID)
+	// Check if user has access to the course
+	access, err := models.GetUserCourseAccess(h.DB, userID, request.CourseID)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error checking enrollment")
+		respondWithError(w, http.StatusInternalServerError, "Error checking course access")
 		return
 	}
 
-	if !enrolled {
-		respondWithError(w, http.StatusForbidden, "User is not enrolled in this course")
+	if !access {
+		respondWithError(w, http.StatusForbidden, "User does not have access to this course")
 		return
 	}
 
@@ -150,15 +151,15 @@ func (h *SurveyHandler) GetSurveyFeedbackHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Check if user is enrolled in the course
-	enrolled, err := h.isUserEnrolledInCourse(userID, courseID)
+	// Check if user has access to the course
+	access, err := models.GetUserCourseAccess(h.DB, userID, courseID)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error checking enrollment")
+		respondWithError(w, http.StatusInternalServerError, "Error checking course access")
 		return
 	}
 
-	if !enrolled {
-		respondWithError(w, http.StatusForbidden, "User is not enrolled in this course")
+	if !access {
+		respondWithError(w, http.StatusForbidden, "User does not have access to this course")
 		return
 	}
 
@@ -222,15 +223,13 @@ func (h *SurveyHandler) GetAllSurveyFeedbackHandler(w http.ResponseWriter, r *ht
 	})
 }
 
-// Helper method to check if user is enrolled in course
+// Helper method to check if user has access to course (deprecated - use models.GetUserCourseAccess instead)
 func (h *SurveyHandler) isUserEnrolledInCourse(userID, courseID int) (bool, error) {
-	query := `SELECT COUNT(*) FROM course_enrollments WHERE user_id = $1 AND course_id = $2`
-	var count int
-	err := h.DB.QueryRow(query, userID, courseID).Scan(&count)
+	access, err := models.GetUserCourseAccess(h.DB, userID, courseID)
 	if err != nil {
 		return false, err
 	}
-	return count > 0, nil
+	return access, nil
 }
 
 // Helper method to create survey feedback

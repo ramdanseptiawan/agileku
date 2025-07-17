@@ -285,10 +285,16 @@ func (h *StageLockHandler) CheckStageAccess(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Admin users can always access locked stages, but we still return the lock status for UI display
+	canAccess := !isLocked
+	if userRole == "admin" {
+		canAccess = true
+	}
+
 	response := map[string]interface{}{
 		"isLocked":    isLocked,
 		"lockMessage": lockMessage,
-		"canAccess":   !isLocked,
+		"canAccess":   canAccess,
 	}
 
 	w.WriteHeader(http.StatusOK)

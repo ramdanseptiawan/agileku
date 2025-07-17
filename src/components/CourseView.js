@@ -14,6 +14,7 @@ import FinalProject from './FinalProject';
 import Certificate from './Certificate';
 import ProgressTracker from './ProgressTracker';
 import DebugPanel from './DebugPanel';
+import { API_BASE_URL, createApiUrl } from '../config/api';
 
 const CourseView = ({ 
   currentLesson, 
@@ -67,11 +68,9 @@ const CourseView = ({
       
       setLoadingCourseConfig(true);
       try {
-        const backendUrl = process.env.NODE_ENV === 'production' 
-          ? 'https://api.mindshiftlearning.id' 
-          : 'https://api.mindshiftlearning.id';
+        const backendUrl = API_BASE_URL.replace('/api', '');
         
-        const response = await fetch(`${backendUrl}/api/protected/courses/${course.id}/config`, {
+        const response = await fetch(createApiUrl(`/protected/courses/${course.id}/config`), {
           headers: {
             'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('authToken') : ''}`,
             'Content-Type': 'application/json'
@@ -127,6 +126,7 @@ const CourseView = ({
             // Backend returns 'canAccess' in response.data, not 'hasAccess'
             const stageData = response.data || response;
             accessResults[stage] = {
+              isLocked: stageData.isLocked,
               canAccess: stageData.canAccess,
               lockMessage: stageData.lockMessage || 'Tahap ini masih dikunci oleh admin.'
             };
@@ -178,15 +178,50 @@ const CourseView = ({
     getCertificateForCourse
   } = useCertificate(course?.id, backendProgress);
   
-  // Auto-resume to last saved progress
+  // Auto-resume to last saved progress with stage access validation
   useEffect(() => {
     // Only resume if we have valid progress data and it's not the default 'intro' step
-    if (progress.currentStep && progress.currentStep !== 'intro' && !progressLoading) {
-      // Resume to the last saved step
-      console.log('Resuming to step:', progress.currentStep);
-      // The progress.currentStep is already the source of truth from backend
+    if (progress.currentStep && progress.currentStep !== 'intro' && !progressLoading && Object.keys(stageAccess).length > 0) {
+      // Check if the saved current step is still accessible
+      const savedStepAccessInfo = stageAccess[progress.currentStep];
+      
+      if (savedStepAccessInfo && !savedStepAccessInfo.canAccess) {
+        // If saved step is locked, find the last accessible step
+        console.log(`Saved step '${progress.currentStep}' is locked, finding last accessible step`);
+        
+        const getActiveSteps = () => {
+          const baseSteps = ['intro', 'pretest', 'lessons', 'posttest'];
+          if (courseConfig?.hasPostWork) baseSteps.push('postwork');
+          if (courseConfig?.hasFinalProject) baseSteps.push('finalproject');
+          return baseSteps;
+        };
+        
+        const steps = getActiveSteps();
+        let fallbackStep = 'intro';
+        
+        // Find the last accessible step that user has completed or can access
+        for (let i = steps.length - 1; i >= 0; i--) {
+          const step = steps[i];
+          const stepAccessInfo = stageAccess[step];
+          
+          // Check if step is accessible and either completed or is the next logical step
+          if ((!stepAccessInfo || stepAccessInfo.canAccess) && 
+              (progress.completedSteps.includes(step) || 
+               (i > 0 && progress.completedSteps.includes(steps[i - 1])) ||
+               step === 'intro')) {
+            fallbackStep = step;
+            break;
+          }
+        }
+        
+        console.log(`Redirecting from locked step '${progress.currentStep}' to accessible step '${fallbackStep}'`);
+        setCurrentStep(fallbackStep);
+      } else {
+        // Resume to the last saved step if it's still accessible
+        console.log('Resuming to step:', progress.currentStep);
+      }
     }
-  }, [progress.currentStep, progressLoading]);
+  }, [progress.currentStep, progressLoading, stageAccess, courseConfig, progress.completedSteps, setCurrentStep]);
   
   // Sync currentLessonIndex with saved progress
   useEffect(() => {
@@ -471,15 +506,32 @@ const CourseView = ({
           )}
           
           {progress.currentStep === 'posttest' && (
-            <PostTestWithSurvey 
-              courseId={course?.id}
-              onComplete={(result) => {
-                console.log('Post-test with survey completed:', result);
-                // Complete the post-test step
-                handleStepComplete('posttest');
-              }}
-              onBack={onBack}
-            />
+            // Check if posttest access is allowed before rendering
+            stageAccess.posttest?.canAccess !== false ? (
+              <PostTestWithSurvey 
+                courseId={course?.id}
+                onComplete={(result) => {
+                  console.log('Post-test with survey completed:', result);
+                  // Complete the post-test step
+                  handleStepComplete('posttest');
+                }}
+                onBack={onBack}
+              />
+            ) : (
+              <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md w-full">
+                  <div className="text-red-500 text-6xl mb-4">🔒</div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-4">Post-Test Terkunci</h3>
+                  <p className="text-gray-600 mb-6">{stageAccess.posttest?.lockMessage || 'Post-test ini masih dikunci oleh admin.'}</p>
+                  <button 
+                    onClick={onBack} 
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 transform hover:scale-105"
+                  >
+                    ← Kembali ke Dashboard
+                  </button>
+                </div>
+              </div>
+            )
           )}
           
           {progress.currentStep === 'postwork' && courseConfig?.hasPostWork && (

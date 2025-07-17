@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { quizEnhancedAPI } from '../api/quizEnhancedAPI';
+import { courseAPI } from '../services/api';
 
 const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
   const [quiz, setQuiz] = useState(null);
@@ -14,10 +15,50 @@ const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
   const [error, setError] = useState(null);
   const [startTime, setStartTime] = useState(null);
   const [showResult, setShowResult] = useState(false);
+  const [stageAccess, setStageAccess] = useState(null);
+  const [accessLoading, setAccessLoading] = useState(true);
+
+  // Check stage access first
+  useEffect(() => {
+    const checkStageAccess = async () => {
+      if (!courseId || !quizType) return;
+      
+      try {
+        setAccessLoading(true);
+        
+        // Map quiz type to stage name
+        const stageName = quizType === 'pretest' ? 'pretest' : 'posttest';
+        
+        const response = await courseAPI.checkStageAccess(courseId, stageName);
+        const stageData = response.data || response;
+        
+        setStageAccess({
+          canAccess: stageData.canAccess,
+          lockMessage: stageData.lockMessage || 'Tahap ini masih dikunci oleh admin.'
+        });
+      } catch (error) {
+        console.warn('Failed to check stage access:', error);
+        // Default to allowing access if API fails
+        setStageAccess({
+          canAccess: true,
+          lockMessage: null
+        });
+      } finally {
+        setAccessLoading(false);
+      }
+    };
+    
+    checkStageAccess();
+  }, [courseId, quizType]);
 
   // Load quiz and check for existing attempts
   useEffect(() => {
     const loadQuiz = async () => {
+      // Don't load quiz if access check is still loading or access is denied
+      if (accessLoading || (stageAccess && !stageAccess.canAccess)) {
+        return;
+      }
+      
       try {
         setLoading(true);
         setError(null);
@@ -60,10 +101,10 @@ const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
       }
     };
 
-    if (courseId && quizType) {
+    if (courseId && quizType && !accessLoading) {
       loadQuiz();
     }
-  }, [courseId, quizType]);
+  }, [courseId, quizType, accessLoading, stageAccess]);
 
   // Timer effect - disabled for pretest and posttest
   useEffect(() => {
@@ -194,12 +235,31 @@ const QuizEnhanced = ({ courseId, quizType, onComplete, onBack }) => {
     return Math.round(((currentQuestionIndex + 1) / quiz.questions.length) * 100);
   };
 
-  if (loading) {
+  if (loading || accessLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md w-full">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading quiz...</p>
+          <p className="text-gray-600 text-lg">{accessLoading ? 'Checking access...' : 'Loading quiz...'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if stage access is denied
+  if (stageAccess && !stageAccess.canAccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md w-full">
+          <div className="text-red-500 text-6xl mb-4">🔒</div>
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">Akses Ditolak</h3>
+          <p className="text-gray-600 mb-6">{stageAccess.lockMessage}</p>
+          <button 
+            onClick={onBack} 
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 transform hover:scale-105"
+          >
+            ← Kembali ke Course
+          </button>
         </div>
       </div>
     );

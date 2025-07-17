@@ -290,7 +290,21 @@ func createTables(db *sql.DB) error {
 		UNIQUE(user_id)
 	);`
 
-	tables := []string{usersTable, coursesTable, enrollmentsTable, progressTable, announcementsTable, certificatesTable, quizzesTable, quizAttemptsTable, postworkSubmissionsTable, finalProjectSubmissionsTable, gradesTable, surveyFeedbackTable, userDetailsTable}
+	// Course access table
+	courseAccessTable := `
+	CREATE TABLE IF NOT EXISTS course_access (
+		id SERIAL PRIMARY KEY,
+		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+		has_access BOOLEAN NOT NULL DEFAULT true,
+		restricted_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+		restricted_at TIMESTAMP,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user_id, course_id)
+	);`
+
+	tables := []string{usersTable, coursesTable, enrollmentsTable, progressTable, announcementsTable, certificatesTable, quizzesTable, quizAttemptsTable, postworkSubmissionsTable, finalProjectSubmissionsTable, gradesTable, surveyFeedbackTable, userDetailsTable, courseAccessTable}
 
 	for _, table := range tables {
 		_, err := db.Exec(table)

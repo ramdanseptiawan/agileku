@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE_URL } from '../config/api';
 
 const FeedbackManager = () => {
   const { currentUser, courses } = useAuth();
@@ -38,9 +39,7 @@ const FeedbackManager = () => {
 
   const fetchUsers = async () => {
     try {
-      const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.mindshiftlearning.id' 
-        : 'https://api.mindshiftlearning.id';
+      const backendUrl = API_BASE_URL.replace('/api', '');
       const response = await fetch(`${backendUrl}/api/protected/admin/users`, {
         headers: {
           'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('authToken') : ''}`,
@@ -72,9 +71,7 @@ const FeedbackManager = () => {
     setError(null);
     
     try {
-      const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.mindshiftlearning.id' 
-        : 'https://api.mindshiftlearning.id';
+      const backendUrl = API_BASE_URL.replace('/api', '');
       const response = await fetch(`${backendUrl}/api/protected/admin/surveys/feedback/${courseId}`, {
         headers: {
           'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('authToken') : ''}`,

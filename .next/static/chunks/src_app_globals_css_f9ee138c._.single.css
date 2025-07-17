@@ -730,6 +730,10 @@
     margin-bottom: calc(var(--spacing) * 8);
   }
 
+  .ml-1 {
+    margin-left: calc(var(--spacing) * 1);
+  }
+
   .ml-2 {
     margin-left: calc(var(--spacing) * 2);
   }
@@ -916,6 +920,10 @@
     height: 100%;
   }
 
+  .max-h-60 {
+    max-height: calc(var(--spacing) * 60);
+  }
+
   .max-h-\[80vh\] {
     max-height: 80vh;
   }
@@ -934,6 +942,10 @@
 
   .max-h-screen {
     max-height: 100vh;
+  }
+
+  .min-h-\[40px\] {
+    min-height: 40px;
   }
 
   .min-h-screen {
@@ -1345,6 +1357,10 @@
     overflow: hidden;
   }
 
+  .overflow-auto {
+    overflow: auto;
+  }
+
   .overflow-hidden {
     overflow: hidden;
   }
@@ -1443,6 +1459,10 @@
     border-color: var(--color-blue-600);
   }
 
+  .border-current {
+    border-color: currentColor;
+  }
+
   .border-gray-100 {
     border-color: var(--color-gray-100);
   }
@@ -1461,6 +1481,10 @@
 
   .border-green-300 {
     border-color: var(--color-green-300);
+  }
+
+  .border-green-400 {
+    border-color: var(--color-green-400);
   }
 
   .border-green-600 {
@@ -1497,6 +1521,10 @@
 
   .border-red-300 {
     border-color: var(--color-red-300);
+  }
+
+  .border-red-400 {
+    border-color: var(--color-red-400);
   }
 
   .border-transparent {
@@ -1657,6 +1685,10 @@
 
   .bg-red-100 {
     background-color: var(--color-red-100);
+  }
+
+  .bg-red-300 {
+    background-color: var(--color-red-300);
   }
 
   .bg-red-400 {

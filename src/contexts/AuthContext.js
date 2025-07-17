@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { safeLocalStorage } from '../utils/localStorage';
 import { authAPI, courseAPI, apiUtils, getUserEnrollments, getCourseProgress } from '../services/api';
+import { API_BASE_URL, createApiUrl } from '../config/api';
 
 const AuthContext = createContext();
 
@@ -396,11 +397,9 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Use backend URL directly to avoid routing issues
-      const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.mindshiftlearning.id' 
-        : 'https://api.mindshiftlearning.id';
+      const backendUrl = API_BASE_URL.replace('/api', '');
       
-      const response = await fetch(`${backendUrl}/api/protected/admin/courses/${courseId}/stage-locks`, {
+      const response = await fetch(createApiUrl(`/protected/admin/courses/${courseId}/stage-locks`), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -450,11 +449,9 @@ export const AuthProvider = ({ children }) => {
       };
 
       // Use backend URL directly to avoid routing issues
-      const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.mindshiftlearning.id' 
-        : 'https://api.mindshiftlearning.id';
+      const backendUrl = API_BASE_URL.replace('/api', '');
 
-      const response = await fetch(`${backendUrl}/api/protected/admin/courses/${courseId}/stage-locks`, {
+      const response = await fetch(createApiUrl(`/protected/admin/courses/${courseId}/stage-locks`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

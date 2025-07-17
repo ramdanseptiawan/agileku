@@ -1,13 +1,11 @@
 // Enhanced Quiz API for improved pretest and posttest functionality
 import { safeLocalStorage } from '../utils/localStorage';
 
-// API Base URLs for different environments
-const PRODUCTION_API_URL = 'https://api.mindshiftlearning.id';
-const DEVELOPMENT_API_URL = 'https://api.mindshiftlearning.id';
+// Import centralized API configuration
+import { API_BASE_URL } from '../config/api';
 
-// Determine current environment and set API base URL
-const isDevelopment = process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && window.location.hostname === 'localhost');
-const API_BASE_URL = `${isDevelopment ? DEVELOPMENT_API_URL : PRODUCTION_API_URL}/api/protected`;
+// Create protected API URL
+const PROTECTED_API_URL = `${API_BASE_URL}/protected`;
 
 // Get authentication token from localStorage
 const getAuthToken = () => {
@@ -37,7 +35,7 @@ export const quizEnhancedAPI = {
   // Get quiz by course and type (pretest/posttest)
   getQuiz: async (courseId, type) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/courses/${courseId}/quiz/${type}`, {
+      const response = await fetch(`${PROTECTED_API_URL}/courses/${courseId}/quiz/${type}`, {
         method: 'GET',
         headers: createHeaders()
       });
@@ -51,7 +49,7 @@ export const quizEnhancedAPI = {
   // Start a new quiz attempt
   startQuizAttempt: async (courseId, type) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/courses/${courseId}/quiz/${type}/start`, {
+      const response = await fetch(`${PROTECTED_API_URL}/courses/${courseId}/quiz/${type}/start`, {
         method: 'POST',
         headers: createHeaders()
       });
@@ -65,7 +63,7 @@ export const quizEnhancedAPI = {
   // Submit quiz attempt
   submitQuizAttempt: async (attemptId, answers, timeSpent) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/quiz/attempts/${attemptId}/submit`, {
+      const response = await fetch(`${PROTECTED_API_URL}/quiz/attempts/${attemptId}/submit`, {
         method: 'POST',
         headers: createHeaders(),
         body: JSON.stringify({
@@ -83,7 +81,7 @@ export const quizEnhancedAPI = {
   // Get quiz attempts for a course and type
   getQuizAttempts: async (courseId, type) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/courses/${courseId}/quiz/${type}/attempts`, {
+      const response = await fetch(`${PROTECTED_API_URL}/courses/${courseId}/quiz/${type}/attempts`, {
         method: 'GET',
         headers: createHeaders()
       });
@@ -97,7 +95,7 @@ export const quizEnhancedAPI = {
   // Get detailed quiz result
   getQuizResult: async (attemptId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/quiz/attempts/${attemptId}/result`, {
+      const response = await fetch(`${PROTECTED_API_URL}/quiz/attempts/${attemptId}/result`, {
         method: 'GET',
         headers: createHeaders()
       });

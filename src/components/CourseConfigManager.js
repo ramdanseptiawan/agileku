@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Settings, ToggleLeft, ToggleRight, Sliders } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE_URL, createApiUrl } from '../config/api';
 
 /**
  * Component untuk mengelola konfigurasi course (step weights, post work, final project, certificate delay)
@@ -38,10 +39,8 @@ const CourseConfigManager = () => {
   const loadCourseConfig = async (courseId) => {
     setIsLoading(true);
     try {
-       const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.mindshiftlearning.id' 
-        : 'https://api.mindshiftlearning.id';
-      const response = await fetch(`${backendUrl}/api/protected/admin/courses/${courseId}/config`, {
+       const backendUrl = API_BASE_URL.replace('/api', '');
+      const response = await fetch(createApiUrl(`/protected/admin/courses/${courseId}/config`), {
         headers: {
           'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('authToken') : ''}`,
           'Content-Type': 'application/json'
@@ -95,10 +94,8 @@ const CourseConfigManager = () => {
     setSaveStatus('');
 
     try {
-          const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.mindshiftlearning.id' 
-        : 'https://api.mindshiftlearning.id';
-      const response = await fetch(`${backendUrl}/api/protected/admin/courses/${selectedCourse}/config`, {
+          const backendUrl = API_BASE_URL.replace('/api', '');
+      const response = await fetch(createApiUrl(`/protected/admin/courses/${selectedCourse}/config`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('authToken') : ''}`,

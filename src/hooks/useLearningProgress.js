@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { syncProgress, getCourseProgress, updateLessonProgress as apiUpdateLessonProgress } from '../services/api';
+import { API_BASE_URL, createApiUrl } from '../config/api';
 
 /**
  * Custom hook untuk mengelola progress pembelajaran
@@ -256,13 +257,11 @@ export const useLearningProgress = (courseId) => {
       
       try {
         setIsLoading(true);
-          const backendUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.mindshiftlearning.id' 
-        : 'https://api.mindshiftlearning.id';
+          const backendUrl = API_BASE_URL.replace('/api', '');
         // Load course configuration and progress in parallel
         const [progressResponse, courseResponse] = await Promise.all([
           getCourseProgress(courseId),
-          fetch(`${backendUrl}/api/public/courses/${courseId}`).then(res => res.json())
+          fetch(createApiUrl(`/public/courses/${courseId}`)).then(res => res.json())
         ]);
         
         // Set course configuration

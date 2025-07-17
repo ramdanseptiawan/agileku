@@ -26,6 +26,7 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	surveyHandler := handlers.NewSurveyHandler(db)
 	stageLockHandler := handlers.NewStageLockHandler(db)
 	userDetailHandler := handlers.NewUserDetailHandler(db)
+	courseAccessHandler := handlers.NewCourseAccessHandler(db)
 
 	// Set database for enhanced handlers
 	handlers.SetEnhancedHandlerDB(db)
@@ -114,6 +115,10 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	protected.HandleFunc("/surveys/feedback", surveyHandler.SubmitSurveyFeedbackHandler).Methods("POST", "OPTIONS")
 	protected.HandleFunc("/surveys/feedback/{courseId:[0-9]+}", surveyHandler.GetSurveyFeedbackHandler).Methods("GET", "OPTIONS")
 
+	// Course access check routes for regular users
+	protected.HandleFunc("/course-access/check/{userId:[0-9]+}/{courseId:[0-9]+}", courseAccessHandler.CheckUserCourseAccess).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/users/{userId:[0-9]+}/accessible-courses", courseAccessHandler.GetUserAccessibleCourses).Methods("GET", "OPTIONS")
+
 	// Admin routes (admin role required)
 	admin := protected.PathPrefix("/admin").Subrouter()
 	admin.Use(middleware.AdminMiddleware)
@@ -182,6 +187,12 @@ func SetupRoutes(db *sql.DB) *mux.Router {
 	// Admin course configuration routes
 	admin.HandleFunc("/courses/{courseId:[0-9]+}/config", handlers.GetCourseConfigHandler(db)).Methods("GET", "OPTIONS")
 	admin.HandleFunc("/courses/{courseId:[0-9]+}/config", handlers.UpdateCourseConfigHandler(db)).Methods("PUT", "OPTIONS")
+
+	// Admin course access management routes
+	admin.HandleFunc("/course-access", courseAccessHandler.GetUserCourseAccess).Methods("GET", "OPTIONS")
+	admin.HandleFunc("/course-access", courseAccessHandler.UpdateUserCourseAccess).Methods("PUT", "OPTIONS")
+	admin.HandleFunc("/course-access/migrate/{courseId:[0-9]+}", courseAccessHandler.MigrateEnrolledUsersAccess).Methods("POST", "OPTIONS")
+	admin.HandleFunc("/course-access/default/{courseId:[0-9]+}", courseAccessHandler.SetCourseDefaultAccess).Methods("POST", "OPTIONS")
 
 	// Protected stage access check routes
 	protected.HandleFunc("/courses/{courseId:[0-9]+}/stages/{stageName}/access", stageLockHandler.CheckStageAccess).Methods("GET", "OPTIONS")

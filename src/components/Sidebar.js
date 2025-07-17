@@ -20,7 +20,8 @@ import {
   Shield,
   UserCog,
   Edit,
-  MessageCircle
+  MessageCircle,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import AnnouncementBell from './AnnouncementBell';
@@ -28,12 +29,25 @@ import AnnouncementBell from './AnnouncementBell';
 const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen, userRole, onAnnouncementClick }) => {
   const { currentUser, logout } = useAuth();
   // Bottom navigation items for mobile
-  const bottomNavItems = [
-    { id: 'dashboard', label: 'Home', icon: Home, badge: null },
-    { id: 'courses', label: 'Courses', icon: BookOpen, badge: null },
-    { id: 'profile', label: 'Profile', icon: User, badge: null },
-    { id: 'menu', label: 'Menu', icon: Menu, badge: null }
-  ];
+  const getBottomNavItems = () => {
+    if (userRole === 'admin') {
+      return [
+        { id: 'overview', label: 'Overview', icon: BarChart3, badge: null },
+        { id: 'courses', label: 'Courses', icon: BookOpen, badge: null },
+        { id: 'users', label: 'Users', icon: UserCog, badge: null },
+        { id: 'menu', label: 'Menu', icon: Menu, badge: null }
+      ];
+    } else {
+      return [
+        { id: 'dashboard', label: 'Home', icon: Home, badge: null },
+        { id: 'courses', label: 'Courses', icon: BookOpen, badge: null },
+        { id: 'profile', label: 'Profile', icon: User, badge: null },
+        { id: 'menu', label: 'Menu', icon: Menu, badge: null }
+      ];
+    }
+  };
+
+  const bottomNavItems = getBottomNavItems();
 
   // Desktop sidebar menu items based on user role
   const getUserMenuItems = () => {
@@ -53,6 +67,7 @@ const Sidebar = ({ currentView, setCurrentView, isSidebarOpen, setIsSidebarOpen,
         { id: 'project-instructions', label: 'Project Instructions', icon: FileText, badge: null },
         { id: 'course-instructions', label: 'Course Instructions', icon: Settings, badge: null },
         { id: 'course-config', label: 'Course Configuration', icon: Edit, badge: null },
+        { id: 'course-access', label: 'Course Access', icon: Lock, badge: null },
         { id: 'users', label: 'User Management', icon: UserCog, badge: null },
         { id: 'test-results', label: 'Test Results', icon: BarChart3, badge: null },
         { id: 'feedback-management', label: 'Feedback Management', icon: MessageCircle, badge: null },

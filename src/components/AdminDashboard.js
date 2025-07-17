@@ -18,6 +18,7 @@ import SubmissionReview from './SubmissionReview';
 import CourseStageManager from './CourseStageManager';
 import TestResultsManager from './TestResultsManager';
 import FeedbackManager from './FeedbackManager';
+import CourseAccessManager from './CourseAccessManager';
 
 const AdminDashboard = ({ activeTab = 'overview' }) => {
   console.log('AdminDashboard: activeTab =', activeTab); // Debug log
@@ -370,6 +371,10 @@ const AdminDashboard = ({ activeTab = 'overview' }) => {
 
         {activeTab === 'feedback-management' && (
           <FeedbackManager />
+        )}
+
+        {activeTab === 'course-access' && (
+          <CourseAccessManager />
         )}
       </div>
     </div>

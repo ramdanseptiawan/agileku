@@ -52,17 +52,16 @@ func (h *Handler) CreatePostWorkSubmissionHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Check if user is enrolled in the course
-	var enrolled bool
-	err = h.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM course_enrollments WHERE user_id = $1 AND course_id = $2)", userID, req.CourseID).Scan(&enrolled)
+	// Check if user has access to the course
+	access, err := models.GetUserCourseAccess(h.DB, userID, req.CourseID)
 	if err != nil {
-		fmt.Printf("[DEBUG] Database error checking enrollment: %v\n", err)
+		fmt.Printf("[DEBUG] Database error checking course access: %v\n", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		fmt.Printf("[DEBUG] User %d not enrolled in course %d\n", userID, req.CourseID)
-		http.Error(w, "User not enrolled in this course", http.StatusForbidden)
+	if !access {
+		fmt.Printf("[DEBUG] User %d does not have access to course %d\n", userID, req.CourseID)
+		http.Error(w, "User does not have access to this course", http.StatusForbidden)
 		return
 	}
 	fmt.Printf("[DEBUG] User enrolled in course, proceeding with submission creation\n")
@@ -104,36 +103,27 @@ func (h *Handler) GetPostWorkSubmissionsHandler(w http.ResponseWriter, r *http.R
 		}
 		courseID = &id
 
-		// Validate that user is enrolled in the course
-		enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, *courseID)
+		// Validate that user has access to the course
+		access, err := models.GetUserCourseAccess(h.DB, userID, *courseID)
 		if err != nil {
-			// If database error, try to auto-enroll user
-			fmt.Printf("[DEBUG] Database error checking enrollment: %v, attempting auto-enroll\n", err)
-			if enrollErr := models.EnrollUserInCourse(h.DB, userID, *courseID); enrollErr != nil {
-				fmt.Printf("[DEBUG] Auto-enroll failed: %v\n", enrollErr)
-				// Return empty data instead of error
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(map[string]interface{}{
-					"success": true,
-					"data":    []interface{}{},
-				})
-				return
-			}
+			fmt.Printf("[DEBUG] Database error checking course access: %v\n", err)
+			// Return empty data instead of error
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"data":    []interface{}{},
+			})
+			return
 		}
-		if !enrolled {
-			// Try to auto-enroll user
-			fmt.Printf("[DEBUG] User not enrolled, attempting auto-enroll for user %d in course %d\n", userID, *courseID)
-			if enrollErr := models.EnrollUserInCourse(h.DB, userID, *courseID); enrollErr != nil {
-				fmt.Printf("[DEBUG] Auto-enroll failed: %v\n", enrollErr)
-				// Return empty data instead of error
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(map[string]interface{}{
-					"success": true,
-					"data":    []interface{}{},
-				})
-				return
-			}
-			fmt.Printf("[DEBUG] Auto-enroll successful for user %d in course %d\n", userID, *courseID)
+		if !access {
+			fmt.Printf("[DEBUG] User does not have access to course %d\n", *courseID)
+			// Return empty data instead of error
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"data":    []interface{}{},
+			})
+			return
 		}
 	}
 
@@ -176,14 +166,14 @@ func (h *Handler) CreateFinalProjectSubmissionHandler(w http.ResponseWriter, r *
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, req.CourseID)
+	// Validate that user has access to the course
+	access, err := models.GetUserCourseAccess(h.DB, userID, req.CourseID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !access {
+		http.Error(w, "User does not have access to this course", http.StatusForbidden)
 		return
 	}
 
@@ -216,14 +206,14 @@ func (h *Handler) GetFinalProjectSubmissionHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, courseID)
+	// Validate that user has access to the course
+	access, err := models.GetUserCourseAccess(h.DB, userID, courseID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !access {
+		http.Error(w, "User does not have access to this course", http.StatusForbidden)
 		return
 	}
 

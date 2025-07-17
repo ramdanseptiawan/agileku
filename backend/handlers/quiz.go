@@ -32,14 +32,14 @@ func (h *Handler) GetQuizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, quiz.CourseID)
+	// Validate that user has access to the course
+	hasAccess, err := models.GetUserCourseAccess(h.DB, userID, quiz.CourseID)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		http.Error(w, "Error checking course access", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !hasAccess {
+		http.Error(w, "Access denied to this course", http.StatusForbidden)
 		return
 	}
 
@@ -75,14 +75,14 @@ func (h *Handler) GetQuizzesByCourseHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, courseID)
+	// Validate that user has access to the course
+	hasAccess, err := models.GetUserCourseAccess(h.DB, userID, courseID)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		http.Error(w, "Error checking course access", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !hasAccess {
+		http.Error(w, "Access denied to this course", http.StatusForbidden)
 		return
 	}
 
@@ -140,16 +140,16 @@ func (h *Handler) StartQuizAttemptHandler(w http.ResponseWriter, r *http.Request
 
 	log.Printf("[DEBUG] StartQuizAttempt - Found quiz: %+v", quiz)
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, quiz.CourseID)
+	// Validate that user has access to the course
+	hasAccess, err := models.GetUserCourseAccess(h.DB, userID, quiz.CourseID)
 	if err != nil {
-		log.Printf("[ERROR] StartQuizAttempt - Database error checking enrollment: %v", err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		log.Printf("[ERROR] StartQuizAttempt - Error checking course access: %v", err)
+		http.Error(w, "Error checking course access", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		log.Printf("[ERROR] StartQuizAttempt - User %d not enrolled in course %d", userID, quiz.CourseID)
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !hasAccess {
+		log.Printf("[ERROR] StartQuizAttempt - User %d denied access to course %d", userID, quiz.CourseID)
+		http.Error(w, "Access denied to this course", http.StatusForbidden)
 		return
 	}
 
@@ -221,14 +221,14 @@ func (h *Handler) GetQuizAttemptsHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, quiz.CourseID)
+	// Validate that user has access to the course
+	hasAccess, err := models.GetUserCourseAccess(h.DB, userID, quiz.CourseID)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		http.Error(w, "Error checking course access", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !hasAccess {
+		http.Error(w, "Access denied to this course", http.StatusForbidden)
 		return
 	}
 
@@ -260,14 +260,14 @@ func (h *Handler) GetPreTestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, courseID)
+	// Validate that user has access to the course
+	hasAccess, err := models.GetUserCourseAccess(h.DB, userID, courseID)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		http.Error(w, "Error checking course access", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !hasAccess {
+		http.Error(w, "Access denied to this course", http.StatusForbidden)
 		return
 	}
 
@@ -299,14 +299,14 @@ func (h *Handler) GetPostTestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, courseID)
+	// Validate that user has access to the course
+	hasAccess, err := models.GetUserCourseAccess(h.DB, userID, courseID)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		http.Error(w, "Error checking course access", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !hasAccess {
+		http.Error(w, "Access denied to this course", http.StatusForbidden)
 		return
 	}
 

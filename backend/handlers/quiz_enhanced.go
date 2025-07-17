@@ -52,14 +52,14 @@ func GetQuizEnhancedHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is enrolled in the course
-	isEnrolled, err := models.IsUserEnrolledInCourse(db, userID, courseID)
+	// Check if user has access to the course
+	hasAccess, err := models.GetUserCourseAccess(db, userID, courseID)
 	if err != nil {
-		http.Error(w, "Error checking enrollment", http.StatusInternalServerError)
+		http.Error(w, "Error checking course access", http.StatusInternalServerError)
 		return
 	}
-	if !isEnrolled {
-		http.Error(w, "User not enrolled in this course", http.StatusForbidden)
+	if !hasAccess {
+		http.Error(w, "Access denied to this course", http.StatusForbidden)
 		return
 	}
 
@@ -139,14 +139,14 @@ func StartQuizAttemptEnhancedHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check enrollment
-	isEnrolled, err := models.IsUserEnrolledInCourse(db, userID, courseID)
+	// Check if user has access to the course
+	hasAccess, err := models.GetUserCourseAccess(db, userID, courseID)
 	if err != nil {
-		http.Error(w, "Error checking enrollment", http.StatusInternalServerError)
+		http.Error(w, "Error checking course access", http.StatusInternalServerError)
 		return
 	}
-	if !isEnrolled {
-		http.Error(w, "User not enrolled in this course", http.StatusForbidden)
+	if !hasAccess {
+		http.Error(w, "Access denied to this course", http.StatusForbidden)
 		return
 	}
 
@@ -263,14 +263,14 @@ func GetQuizAttemptsEnhancedHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check enrollment
-	isEnrolled, err := models.IsUserEnrolledInCourse(db, userID, courseID)
+	// Check if user has access to the course
+	hasAccess, err := models.GetUserCourseAccess(db, userID, courseID)
 	if err != nil {
-		http.Error(w, "Error checking enrollment", http.StatusInternalServerError)
+		http.Error(w, "Error checking course access", http.StatusInternalServerError)
 		return
 	}
-	if !isEnrolled {
-		http.Error(w, "User not enrolled in this course", http.StatusForbidden)
+	if !hasAccess {
+		http.Error(w, "Access denied to this course", http.StatusForbidden)
 		return
 	}
 

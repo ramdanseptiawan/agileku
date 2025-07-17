@@ -696,6 +696,8 @@ __turbopack_context__.s({
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$contexts$2f$AuthContext$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/contexts/AuthContext.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$services$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/services/api.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$config$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/config/api.js [app-ssr] (ecmascript)");
+;
 ;
 ;
 ;
@@ -979,11 +981,11 @@ const useLearningProgress = (courseId)=>{
             if (!courseId || !currentUser?.id) return;
             try {
                 setIsLoading(true);
-                const backendUrl = ("TURBOPACK compile-time falsy", 0) ? ("TURBOPACK unreachable", undefined) : 'https://api.mindshiftlearning.id';
+                const backendUrl = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$config$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["API_BASE_URL"].replace('/api', '');
                 // Load course configuration and progress in parallel
                 const [progressResponse, courseResponse] = await Promise.all([
                     (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$services$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCourseProgress"])(courseId),
-                    fetch(`${backendUrl}/api/public/courses/${courseId}`).then((res)=>res.json())
+                    fetch((0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$config$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["createApiUrl"])(`/public/courses/${courseId}`)).then((res)=>res.json())
                 ]);
                 // Set course configuration
                 if (courseResponse && courseResponse.success && courseResponse.data) {
@@ -1338,13 +1340,12 @@ __turbopack_context__.s({
     "quizEnhancedAPI": (()=>quizEnhancedAPI)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$localStorage$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/utils/localStorage.js [app-ssr] (ecmascript)");
+// Import centralized API configuration
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$config$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/config/api.js [app-ssr] (ecmascript)");
 ;
-// API Base URLs for different environments
-const PRODUCTION_API_URL = 'https://api.mindshiftlearning.id';
-const DEVELOPMENT_API_URL = 'https://api.mindshiftlearning.id';
-// Determine current environment and set API base URL
-const isDevelopment = ("TURBOPACK compile-time value", "development") === 'development' || "undefined" !== 'undefined' && window.location.hostname === 'localhost';
-const API_BASE_URL = `${("TURBOPACK compile-time truthy", 1) ? DEVELOPMENT_API_URL : ("TURBOPACK unreachable", undefined)}/api/protected`;
+;
+// Create protected API URL
+const PROTECTED_API_URL = `${__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$config$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["API_BASE_URL"]}/protected`;
 // Get authentication token from localStorage
 const getAuthToken = ()=>{
     return __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$localStorage$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["safeLocalStorage"].getItem('authToken');
@@ -1369,7 +1370,7 @@ const quizEnhancedAPI = {
     // Get quiz by course and type (pretest/posttest)
     getQuiz: async (courseId, type)=>{
         try {
-            const response = await fetch(`${API_BASE_URL}/courses/${courseId}/quiz/${type}`, {
+            const response = await fetch(`${PROTECTED_API_URL}/courses/${courseId}/quiz/${type}`, {
                 method: 'GET',
                 headers: createHeaders()
             });
@@ -1382,7 +1383,7 @@ const quizEnhancedAPI = {
     // Start a new quiz attempt
     startQuizAttempt: async (courseId, type)=>{
         try {
-            const response = await fetch(`${API_BASE_URL}/courses/${courseId}/quiz/${type}/start`, {
+            const response = await fetch(`${PROTECTED_API_URL}/courses/${courseId}/quiz/${type}/start`, {
                 method: 'POST',
                 headers: createHeaders()
             });
@@ -1395,7 +1396,7 @@ const quizEnhancedAPI = {
     // Submit quiz attempt
     submitQuizAttempt: async (attemptId, answers, timeSpent)=>{
         try {
-            const response = await fetch(`${API_BASE_URL}/quiz/attempts/${attemptId}/submit`, {
+            const response = await fetch(`${PROTECTED_API_URL}/quiz/attempts/${attemptId}/submit`, {
                 method: 'POST',
                 headers: createHeaders(),
                 body: JSON.stringify({
@@ -1412,7 +1413,7 @@ const quizEnhancedAPI = {
     // Get quiz attempts for a course and type
     getQuizAttempts: async (courseId, type)=>{
         try {
-            const response = await fetch(`${API_BASE_URL}/courses/${courseId}/quiz/${type}/attempts`, {
+            const response = await fetch(`${PROTECTED_API_URL}/courses/${courseId}/quiz/${type}/attempts`, {
                 method: 'GET',
                 headers: createHeaders()
             });
@@ -1425,7 +1426,7 @@ const quizEnhancedAPI = {
     // Get detailed quiz result
     getQuizResult: async (attemptId)=>{
         try {
-            const response = await fetch(`${API_BASE_URL}/quiz/attempts/${attemptId}/result`, {
+            const response = await fetch(`${PROTECTED_API_URL}/quiz/attempts/${attemptId}/result`, {
                 method: 'GET',
                 headers: createHeaders()
             });
@@ -1713,7 +1714,7 @@ const LMS = ()=>{
                             lineNumber: 250,
                             columnNumber: 13
                         }, this),
-                        (currentView === 'overview' || currentView === 'courses' || currentView === 'quizzes' || currentView === 'surveys' || currentView === 'announcements' || currentView === 'certificates' || currentView === 'project-instructions' || currentView === 'course-instructions' || currentView === 'course-config' || currentView === 'users' || currentView === 'test-results' || currentView === 'feedback-management' || currentView === 'students') && currentUser.role === 'admin' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$AdminDashboard$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                        (currentView === 'overview' || currentView === 'courses' || currentView === 'quizzes' || currentView === 'surveys' || currentView === 'announcements' || currentView === 'certificates' || currentView === 'project-instructions' || currentView === 'course-instructions' || currentView === 'course-config' || currentView === 'users' || currentView === 'test-results' || currentView === 'feedback-management' || currentView === 'students' || currentView === 'course-access') && currentUser.role === 'admin' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$AdminDashboard$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
                             activeTab: currentView
                         }, void 0, false, {
                             fileName: "[project]/src/app/page.js",

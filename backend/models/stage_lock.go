@@ -117,11 +117,6 @@ func UpsertStageLock(db *sql.DB, stageLock *StageLock) error {
 
 // IsStageLockedForUser checks if a stage is locked for a user
 func IsStageLockedForUser(db *sql.DB, courseID int, stageName string, userRole string) (bool, string, error) {
-	// Admin users can always access locked stages
-	if userRole == "admin" {
-		return false, "", nil
-	}
-
 	query := `
 		SELECT is_locked, lock_message
 		FROM course_stage_locks

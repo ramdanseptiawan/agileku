@@ -57,14 +57,14 @@ func (h *Handler) UpdateLessonProgressHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, req.CourseID)
+	// Validate that user has access to the course
+	access, err := models.GetUserCourseAccess(h.DB, userID, req.CourseID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !access {
+		http.Error(w, "User does not have access to this course", http.StatusForbidden)
 		return
 	}
 
@@ -107,14 +107,14 @@ func (h *Handler) GetLessonProgressHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, courseID)
+	// Validate that user has access to the course
+	access, err := models.GetUserCourseAccess(h.DB, userID, courseID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !access {
+		http.Error(w, "User does not have access to this course", http.StatusForbidden)
 		return
 	}
 
@@ -146,14 +146,14 @@ func (h *Handler) GetCourseProgressHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, courseID)
+	// Validate that user has access to the course
+	access, err := models.GetUserCourseAccess(h.DB, userID, courseID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !access {
+		http.Error(w, "User does not have access to this course", http.StatusForbidden)
 		return
 	}
 
@@ -268,14 +268,14 @@ func (h *Handler) SyncProgressHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate that user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.DB, userID, req.CourseID)
+	// Validate that user has access to the course
+	access, err := models.GetUserCourseAccess(h.DB, userID, req.CourseID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in course", http.StatusForbidden)
+	if !access {
+		http.Error(w, "User does not have access to this course", http.StatusForbidden)
 		return
 	}
 

@@ -1,13 +1,8 @@
 // API service untuk berkomunikasi dengan backend
 import { safeLocalStorage } from '../utils/localStorage';
 
-// API Base URLs for different environments
-const PRODUCTION_API_URL = 'https://api.mindshiftlearning.id';
-const DEVELOPMENT_API_URL = 'https://api.mindshiftlearning.id';
-
-// Determine current environment and set API base URL
-const isDevelopment = process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && window.location.hostname === 'localhost');
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : `${isDevelopment ? DEVELOPMENT_API_URL : PRODUCTION_API_URL}/api`;
+// Import centralized API configuration
+import { API_BASE_URL, createApiUrl } from '../config/api';
 
 // Helper function untuk membuat request dengan error handling
 const apiRequest = async (url, options = {}) => {
@@ -25,10 +20,11 @@ const apiRequest = async (url, options = {}) => {
       ...options,
     };
 
-    console.log('Making API request to:', `${API_BASE_URL}${url}`);
+    const fullUrl = createApiUrl(url);
+    console.log('Making API request to:', fullUrl);
     console.log('Request config:', config);
     
-    const response = await fetch(`${API_BASE_URL}${url}`, config);
+    const response = await fetch(fullUrl, config);
     
     console.log('Response status:', response.status);
     console.log('Response ok:', response.ok);
@@ -113,6 +109,18 @@ export const authAPI = {
   logout: () => {
     safeLocalStorage.removeItem('authToken');
   },
+
+
+
+  // Get all users (Admin only)
+  getAllUsers: async () => {
+    return await apiRequest('/protected/admin/users');
+  },
+
+  // Get all courses (Admin only)
+  getAllCourses: async () => {
+    return await apiRequest('/protected/admin/courses');
+  },
 };
 
 // Submission API
@@ -124,7 +132,8 @@ export const submissionAPI = {
     
     const token = safeLocalStorage.getItem('authToken');
     
-    const response = await fetch(`${API_BASE_URL}/protected/uploads/file`, {
+    const uploadUrl = createApiUrl('/protected/uploads/file');
+    const response = await fetch(uploadUrl, {
       method: 'POST',
       mode: 'cors',
       credentials: 'include',
@@ -496,6 +505,26 @@ export const adminAPI = {
       method: 'PUT',
       body: JSON.stringify(stageLockData),
     });
+  },
+
+  // Course Access Management (Admin only)
+  getCourseAccess: async () => {
+    return await apiRequest('/protected/admin/course-access');
+  },
+
+  updateCourseAccess: async (accessData) => {
+    return await apiRequest('/protected/admin/course-access', {
+      method: 'PUT',
+      body: JSON.stringify(accessData),
+    });
+  },
+
+  checkCourseAccess: async (userId, courseId) => {
+    return await apiRequest(`/protected/course-access/check/${userId}/${courseId}`);
+  },
+
+  getUserAccessibleCourses: async (userId) => {
+    return await apiRequest(`/protected/users/${userId}/accessible-courses`);
   },
 };
 

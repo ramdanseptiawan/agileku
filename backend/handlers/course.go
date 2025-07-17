@@ -191,6 +191,9 @@ func (h *CourseHandler) EnrollInCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// For enrollment, we'll grant access automatically (auto-approval)
+	// This implements the "secure by default" with "auto-approval on enrollment" pattern
+
 	// Check if user is already enrolled
 	existingEnrollment, _ := models.GetUserEnrollment(h.DB, userID, req.CourseID)
 	if existingEnrollment != nil {
@@ -211,6 +214,14 @@ func (h *CourseHandler) EnrollInCourse(w http.ResponseWriter, r *http.Request) {
 			Message: err.Error(),
 		})
 		return
+	}
+
+	// Grant course access automatically upon successful enrollment
+	err = models.SetUserCourseAccess(h.DB, userID, req.CourseID, true, nil)
+	if err != nil {
+		// Log the error but don't fail the enrollment
+		// The user is enrolled but might need manual access grant
+		// In production, you might want to log this properly
 	}
 
 	w.WriteHeader(http.StatusCreated)

@@ -37,14 +37,14 @@ func (h *CertificateHandler) RequestCertificate(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// Check if user is enrolled in the course
-	enrolled, err := models.IsUserEnrolledInCourse(h.db, userID, courseID)
+	// Check if user has access to the course
+	access, err := models.GetUserCourseAccess(h.db, userID, courseID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	if !enrolled {
-		http.Error(w, "User not enrolled in this course", http.StatusForbidden)
+	if !access {
+		http.Error(w, "User does not have access to this course", http.StatusForbidden)
 		return
 	}
 

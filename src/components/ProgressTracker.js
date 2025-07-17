@@ -4,15 +4,21 @@ import { CheckCircle, Circle, Lock, BookOpen, FileText, Award, Upload, Target } 
 const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCompleted = false, backendProgress = null, stageAccess = {}, courseConfig = {} }) => {
   // Function to handle step click with lock warning
   const handleStepClick = (stepId, status) => {
-    if (status === 'locked' || status === 'admin-locked') {
-      const message = status === 'admin-locked' 
-        ? 'Stage ini telah dikunci oleh admin. Silakan hubungi admin untuk membuka akses.'
-        : 'Stage ini masih terkunci. Selesaikan stage sebelumnya terlebih dahulu.';
-      alert(message);
+    // Check if user can access this stage (admin can access admin-locked stages)
+    const stageAccessInfo = stageAccess[stepId];
+    const canAccess = stageAccessInfo ? stageAccessInfo.canAccess : true;
+    
+    if (status === 'locked') {
+      alert('Stage ini masih terkunci. Selesaikan stage sebelumnya terlebih dahulu.');
       return;
     }
     
-    if (onStepClick && (status === 'available' || status === 'current' || status === 'completed')) {
+    if (status === 'admin-locked' && !canAccess) {
+      alert('Stage ini telah dikunci oleh admin. Silakan hubungi admin untuk membuka akses.');
+      return;
+    }
+    
+    if (onStepClick && (status === 'available' || status === 'current' || status === 'completed' || (status === 'admin-locked' && canAccess))) {
       onStepClick(stepId);
     }
   };
@@ -76,7 +82,7 @@ const ProgressTracker = ({ currentStep, completedSteps, onStepClick, isCourseCom
   const getStepStatus = (stepId, index) => {
     // Check if stage is locked by admin
     const stageAccessInfo = stageAccess[stepId];
-    if (stageAccessInfo && !stageAccessInfo.canAccess) {
+    if (stageAccessInfo && stageAccessInfo.isLocked && !stageAccessInfo.canAccess) {
       return 'admin-locked';
     }
     

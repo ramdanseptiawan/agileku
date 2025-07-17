@@ -1516,10 +1516,10 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$localStorage
 ;
 // API Base URLs for different environments
 const PRODUCTION_API_URL = 'https://api.mindshiftlearning.id';
-const DEVELOPMENT_API_URL = 'https://api.mindshiftlearning.id';
+const DEVELOPMENT_API_URL = 'http://localhost:8080';
 // Determine current environment and set API base URL
 const isDevelopment = ("TURBOPACK compile-time value", "development") === 'development' || "object" !== 'undefined' && window.location.hostname === 'localhost';
-const API_BASE_URL = ("TURBOPACK compile-time truthy", 1) ? `${"TURBOPACK compile-time value", "https://api.mindshiftlearning.id"}/api` : ("TURBOPACK unreachable", undefined);
+const API_BASE_URL = ("TURBOPACK compile-time truthy", 1) ? `${"TURBOPACK compile-time value", "http://localhost:8080"}/api` : ("TURBOPACK unreachable", undefined);
 // Helper function untuk membuat request dengan error handling
 const apiRequest = async (url, options = {})=>{
     try {
@@ -1611,6 +1611,14 @@ const authAPI = {
     // Logout (clear token)
     logout: ()=>{
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$localStorage$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["safeLocalStorage"].removeItem('authToken');
+    },
+    // Get all users (Admin only)
+    getAllUsers: async ()=>{
+        return await apiRequest('/protected/admin/users');
+    },
+    // Get all courses (Admin only)
+    getAllCourses: async ()=>{
+        return await apiRequest('/protected/admin/courses');
     }
 };
 const submissionAPI = {
@@ -1933,6 +1941,22 @@ const adminAPI = {
             method: 'PUT',
             body: JSON.stringify(stageLockData)
         });
+    },
+    // Course Access Management (Admin only)
+    getCourseAccess: async ()=>{
+        return await apiRequest('/protected/admin/course-access');
+    },
+    updateCourseAccess: async (accessData)=>{
+        return await apiRequest('/protected/admin/course-access', {
+            method: 'PUT',
+            body: JSON.stringify(accessData)
+        });
+    },
+    checkCourseAccess: async (userId, courseId)=>{
+        return await apiRequest(`/protected/course-access/check/${userId}/${courseId}`);
+    },
+    getUserAccessibleCourses: async (userId)=>{
+        return await apiRequest(`/protected/users/${userId}/accessible-courses`);
     }
 };
 const announcementAPI = {
